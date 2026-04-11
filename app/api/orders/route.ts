@@ -182,10 +182,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Send confirmation email asynchronously (don't await it so we don't slow down checkout)
-    const { sendOrderConfirmationEmail } = await import("@/lib/email");
+    // Send confirmation emails asynchronously
+    const { sendOrderConfirmationEmail, sendAdminOrderNotification } = await import("@/lib/email");
+    
+    // Customer email
     sendOrderConfirmationEmail(order).catch(err => {
       console.error("Order confirmation email failed:", err);
+    });
+
+    // Admin notification
+    sendAdminOrderNotification(order).catch(err => {
+      console.error("Admin order notification failed:", err);
     });
 
     return NextResponse.json(order, { status: 201 });

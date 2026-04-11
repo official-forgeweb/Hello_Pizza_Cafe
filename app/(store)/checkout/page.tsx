@@ -65,6 +65,10 @@ export default function CheckoutPage() {
       newErrors.phone = "Enter a valid 10-digit phone number";
     if (orderType === "delivery" && !address.trim())
       newErrors.address = "Delivery address is required";
+    if (!email.trim())
+      newErrors.email = "Email is required for order confirmation";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+      newErrors.email = "Enter a valid email address";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -249,14 +253,17 @@ export default function CheckoutPage() {
                 </div>
 
                 <div className="space-y-1.5 md:col-span-2">
-                  <label className="text-xs font-bold text-warm-400 uppercase tracking-widest px-1">Email (Optional)</label>
+                  <label className="text-xs font-bold text-warm-400 uppercase tracking-widest px-1">Email Address</label>
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="hello@pizza.com"
-                    className="w-full px-5 py-4 bg-warm-50 rounded-2xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all placeholder:text-warm-300 border-0"
+                    className={`w-full px-5 py-4 bg-warm-50 rounded-2xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all placeholder:text-warm-300 border-0 ${
+                      errors.email ? "ring-2 ring-red-300" : ""
+                    }`}
                   />
+                  {errors.email && <p className="text-red-500 text-[10px] font-bold px-1">{errors.email}</p>}
                 </div>
               </div>
             </motion.section>
