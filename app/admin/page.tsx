@@ -20,8 +20,28 @@ const STATUS_CONFIG: Record<string, { label: string; class: string }> = {
   CANCELLED: { label: "Cancelled", class: "bg-red-100 text-red-700" },
 };
 
+interface DashboardData {
+  stats: {
+    todayOrders: number;
+    todayRevenue: number;
+    totalOrders: number;
+    activeStaff: number;
+    avgOrderValue: number;
+  };
+  dailyRevenue: { day: string; revenue: number; orders: number }[];
+  topItems: { name: string; orders: number; revenue: number }[];
+  recentOrders: {
+    id: string;
+    customer: string;
+    items: number;
+    total: number;
+    status: string;
+    time: string;
+  }[];
+}
+
 // Blank default stats for empty database
-const DEFAULT_STATS = {
+const DEFAULT_STATS: DashboardData = {
   stats: { todayOrders: 0, todayRevenue: 0, totalOrders: 0, activeStaff: 0, avgOrderValue: 0 },
   dailyRevenue: [
     { day: "Mon", revenue: 0, orders: 0 },
@@ -37,7 +57,7 @@ const DEFAULT_STATS = {
 };
 
 export default function AdminDashboard() {
-  const [data, setData] = useState(DEFAULT_STATS);
+  const [data, setData] = useState<DashboardData>(DEFAULT_STATS);
   const [loading, setLoading] = useState(true);
 
   // Auto-refresh function to keep dashboard completely live
