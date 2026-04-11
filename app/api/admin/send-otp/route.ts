@@ -42,13 +42,15 @@ export async function POST(request: NextRequest) {
     const otp = generateOTP();
     const otpHash = await hashOTP(otp);
 
-    await prisma.otpToken.create({
+    const newToken = await prisma.otpToken.create({
       data: {
         email: email.toLowerCase(),
         otpHash,
         expiresAt: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes
       },
     });
+
+    console.log(`[DEBUG] OTP created for ${email}:`, newToken.id);
 
     // Send OTP email
     try {

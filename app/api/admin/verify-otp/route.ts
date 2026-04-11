@@ -26,6 +26,12 @@ export async function POST(request: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
 
+    console.log(`[DEBUG] Verify OTP for ${email}:`, { 
+      found: !!otpRecord, 
+      attempts: otpRecord?.attempts,
+      expiresAt: otpRecord?.expiresAt 
+    });
+
     if (!otpRecord) {
       return NextResponse.json(
         { error: "OTP expired or not found. Request a new one." },
