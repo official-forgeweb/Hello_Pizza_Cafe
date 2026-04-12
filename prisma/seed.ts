@@ -38,6 +38,8 @@ async function main() {
       { name: "Sides", slug: "sides", isActive: true },
       { name: "Beverages", slug: "beverages", isActive: true },
       { name: "Desserts", slug: "desserts", isActive: true },
+      { name: "Combos", slug: "combos", isActive: true },
+      { name: "Pasta", slug: "pasta", isActive: true },
     ];
 
     console.log('Seeding categories...');

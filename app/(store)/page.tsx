@@ -252,11 +252,22 @@ export default function HomePage() {
           if (catData.length > 0) {
             // Map the Icon string to an actual lucide icon or fallback
             // since DB doesn't store components
-            const mappedCat = catData.map((c: any) => ({
-              id: c.id,
-              name: c.name,
-              icon: Pizza, // fallback icon since we don't dynamically load lucide icons from DB yet
-            }));
+            const mappedCat = catData.map((c: any) => {
+              let icon = Pizza;
+              if (c.name.toLowerCase().includes("non-veg")) icon = Beef;
+              else if (c.name.toLowerCase().includes("burger")) icon = Sandwich;
+              else if (c.name.toLowerCase().includes("side")) icon = UtensilsCrossed;
+              else if (c.name.toLowerCase().includes("beverage")) icon = CupSoda;
+              else if (c.name.toLowerCase().includes("dessert")) icon = Cake;
+              else if (c.name.toLowerCase().includes("combo")) icon = Gift;
+              else if (c.name.toLowerCase().includes("pasta")) icon = Utensils;
+              
+              return {
+                id: c.id,
+                name: c.name,
+                icon,
+              };
+            });
             setCategories(mappedCat);
           }
         }

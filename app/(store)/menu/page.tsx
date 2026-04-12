@@ -11,11 +11,13 @@ import VegBadge from "@/components/menu/VegBadge";
 const CATEGORIES = [
   { id: "all", name: "All" },
   { id: "veg-pizza", name: "Veg Pizza" },
-  { id: "nonveg-pizza", name: "Non-Veg Pizza" },
+  { id: "non-veg-pizza", name: "Non-Veg Pizza" },
   { id: "burgers", name: "Burgers" },
   { id: "sides", name: "Sides" },
   { id: "beverages", name: "Beverages" },
   { id: "desserts", name: "Desserts" },
+  { id: "combos", name: "Combos" },
+  { id: "pasta", name: "Pasta" },
 ];
 
 const MENU_ITEMS: (MenuItemData & { categoryId: string })[] = [
@@ -71,7 +73,7 @@ const MENU_ITEMS: (MenuItemData & { categoryId: string })[] = [
     imageUrl: "https://images.unsplash.com/photo-1628840042765-356cda07504e?auto=format&fit=crop&q=80&w=600&h=450",
     isVeg: false,
     isBestSeller: true,
-    categoryId: "nonveg-pizza",
+    categoryId: "non-veg-pizza",
     hasVariants: true,
   },
   {
@@ -81,7 +83,7 @@ const MENU_ITEMS: (MenuItemData & { categoryId: string })[] = [
     price: 499,
     imageUrl: "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&q=80&w=600&h=450",
     isVeg: false,
-    categoryId: "nonveg-pizza",
+    categoryId: "non-veg-pizza",
     hasVariants: true,
   },
   {
@@ -92,7 +94,7 @@ const MENU_ITEMS: (MenuItemData & { categoryId: string })[] = [
     imageUrl: "https://images.unsplash.com/photo-1571407970349-bc81e7e96d47?auto=format&fit=crop&q=80&w=600&h=450",
     isVeg: false,
     isBestSeller: true,
-    categoryId: "nonveg-pizza",
+    categoryId: "non-veg-pizza",
     hasVariants: true,
   },
   {
@@ -102,7 +104,7 @@ const MENU_ITEMS: (MenuItemData & { categoryId: string })[] = [
     price: 599,
     imageUrl: "https://images.unsplash.com/photo-1593560708920-61dd98c46a4e?auto=format&fit=crop&q=80&w=600&h=450",
     isVeg: false,
-    categoryId: "nonveg-pizza",
+    categoryId: "non-veg-pizza",
     hasVariants: true,
   },
   // Burgers
@@ -191,6 +193,45 @@ const MENU_ITEMS: (MenuItemData & { categoryId: string })[] = [
     imageUrl: "https://images.unsplash.com/photo-1533134242443-d4fd215305ad?auto=format&fit=crop&q=80&w=600&h=450",
     isVeg: true,
     categoryId: "desserts",
+  },
+  // Combos
+  {
+    id: "m18",
+    name: "Couple Meal Combo",
+    description: "2 Regular Veg Pizzas + 1 Garlic Bread + 2 Coke (250ml)",
+    price: 549,
+    imageUrl: "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&q=80&w=600&h=450",
+    isVeg: true,
+    categoryId: "combos",
+  },
+  {
+    id: "m19",
+    name: "Family Feast",
+    description: "2 Medium Pizzas (Veg/Non-Veg) + 1 Loaded Fries + 1 Choco Lava Cake + 1 Coke (1.25L)",
+    price: 999,
+    imageUrl: "https://images.unsplash.com/photo-1593560708920-61dd98c46a4e?auto=format&fit=crop&q=80&w=600&h=450",
+    isVeg: false,
+    isBestSeller: true,
+    categoryId: "combos",
+  },
+  // Pasta
+  {
+    id: "m20",
+    name: "White Sauce Pasta",
+    description: "Penne pasta in creamy cheesy white sauce with sweet corn and capsicum",
+    price: 249,
+    imageUrl: "https://images.unsplash.com/photo-1645112481338-35624bf9401d?auto=format&fit=crop&q=80&w=600&h=450",
+    isVeg: true,
+    categoryId: "pasta",
+  },
+  {
+    id: "m21",
+    name: "Arrabiata Red Pasta",
+    description: "Spicy penne pasta in tangy red tomato sauce with olives and herbs",
+    price: 229,
+    imageUrl: "https://images.unsplash.com/photo-1551183053-bf91a1d81141?auto=format&fit=crop&q=80&w=600&h=450",
+    isVeg: true,
+    categoryId: "pasta",
   },
 ];
 
