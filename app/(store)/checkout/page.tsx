@@ -27,7 +27,7 @@ export default function CheckoutPage() {
   const [showSummary, setShowSummary] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { address: detectedAddress } = useLocationStore();
+  const { address: detectedAddress, isDetecting } = useLocationStore();
 
   // Form state
   const [name, setName] = useState("");
@@ -297,7 +297,25 @@ export default function CheckoutPage() {
 
                     <div className="space-y-4">
                       <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-warm-400 uppercase tracking-widest px-1">Full Address</label>
+                        <div className="flex items-center justify-between px-1">
+                          <label className="text-xs font-bold text-warm-400 uppercase tracking-widest">Full Address</label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const { detectLocation } = useLocationStore.getState();
+                              detectLocation().catch(err => alert(err.message));
+                            }}
+                            disabled={isDetecting}
+                            className="flex items-center gap-1.5 text-primary text-[10px] font-black uppercase tracking-wider hover:underline disabled:opacity-50 cursor-pointer"
+                          >
+                            {isDetecting ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <MapPin className="w-3 h-3" />
+                            )}
+                            {isDetecting ? "Locating..." : "Detect My Location"}
+                          </button>
+                        </div>
                         <div className="relative">
                           <MapPin className="absolute left-4 top-4 w-5 h-5 text-primary" />
                           <textarea

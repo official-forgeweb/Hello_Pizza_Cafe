@@ -56,8 +56,13 @@ export default function SplashScreen() {
   };
 
   const handleDetectLocation = async () => {
-    await detectLocation();
-    finishSplash();
+    try {
+      await detectLocation();
+    } catch (err: any) {
+      console.warn("Location ignored:", err.message);
+    } finally {
+      finishSplash();
+    }
   };
 
   const handleSkipLocation = () => {

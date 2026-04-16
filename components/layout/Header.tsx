@@ -88,7 +88,7 @@ export default function Header() {
               {isHome ? (
                 /* Location Selector for Home */
                 <button 
-                  onClick={() => detectLocation()}
+                  onClick={() => detectLocation().catch(err => console.warn(err.message))}
                   className="group flex flex-col items-start px-4 py-1.5 rounded-xl hover:bg-warm-100/50 transition-all cursor-pointer text-left border border-transparent hover:border-warm-200/50"
                   suppressHydrationWarning={true}
                 >
