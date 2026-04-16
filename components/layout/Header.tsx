@@ -32,14 +32,8 @@ export default function Header() {
     setMounted(true);
     const handler = () => setScrolled(window.scrollY > 10);
     window.addEventListener("scroll", handler, { passive: true });
-    
-    // Auto-detect on home page if not set
-    if (isHome && !address && mounted) {
-      detectLocation();
-    }
-
     return () => window.removeEventListener("scroll", handler);
-  }, [isHome, mounted, address, detectLocation]);
+  }, []);
 
   return (
     <>
@@ -224,7 +218,7 @@ export default function Header() {
               <div className="mt-auto border-t border-warm-200 pt-4">
                 <div className="flex items-center gap-2 text-sm text-warm-500">
                   <MapPin className="w-4 h-4" />
-                  {address || "Connaught Place, New Delhi"}
+                  {address || "Select location"}
                 </div>
               </div>
             </motion.div>

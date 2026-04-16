@@ -16,6 +16,7 @@ import {
   Check,
 } from "lucide-react";
 import { useCartStore } from "@/store/cart";
+import { useLocationStore } from "@/store/location";
 import VegBadge from "@/components/menu/VegBadge";
 
 export default function CheckoutPage() {
@@ -26,13 +27,22 @@ export default function CheckoutPage() {
   const [showSummary, setShowSummary] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const { address: detectedAddress } = useLocationStore();
+
   // Form state
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
-  const [address, setAddress] = useState("Connaught Place, New Delhi 110001");
+  const [address, setAddress] = useState("");
   const [instructions, setInstructions] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Auto-fill address from detected location
+  useEffect(() => {
+    if (detectedAddress && !address) {
+      setAddress(detectedAddress);
+    }
+  }, [detectedAddress]);
 
   useEffect(() => {
     setMounted(true);

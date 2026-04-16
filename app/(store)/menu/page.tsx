@@ -6,6 +6,7 @@ import { Search, SlidersHorizontal, X } from "lucide-react";
 import CategoryTabs from "@/components/menu/CategoryTabs";
 import MenuItemCard, { type MenuItemData } from "@/components/menu/MenuItemCard";
 import VegBadge from "@/components/menu/VegBadge";
+import ItemCustomizationModal from "@/components/menu/ItemCustomizationModal";
 
 // ─── Mock Data ────────────────────────────────────────────────
 const CATEGORIES = [
@@ -116,6 +117,7 @@ const MENU_ITEMS: (MenuItemData & { categoryId: string })[] = [
     imageUrl: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&q=80&w=600&h=450",
     isVeg: true,
     categoryId: "burgers",
+    hasVariants: true,
   },
   {
     id: "m10",
@@ -126,6 +128,7 @@ const MENU_ITEMS: (MenuItemData & { categoryId: string })[] = [
     isVeg: false,
     isBestSeller: true,
     categoryId: "burgers",
+    hasVariants: true,
   },
   // Sides
   {
@@ -133,18 +136,20 @@ const MENU_ITEMS: (MenuItemData & { categoryId: string })[] = [
     name: "Garlic Bread (4 pcs)",
     description: "Toasted bread with garlic butter and herbs, served with marinara dip",
     price: 129,
-    imageUrl: "https://images.unsplash.com/photo-1619531040576-f9416b97c9af?auto=format&fit=crop&q=80&w=600&h=450",
+    imageUrl: "https://images.unsplash.com/photo-1574071318508-1cdbab80d002?auto=format&fit=crop&q=80&w=600&h=450",
     isVeg: true,
     categoryId: "sides",
+    hasVariants: true,
   },
   {
     id: "m12",
     name: "Loaded Fries",
     description: "Crispy fries topped with cheese sauce, jalapeños, and sour cream",
     price: 159,
-    imageUrl: "https://images.unsplash.com/photo-1630384060421-cb20aeb56983?auto=format&fit=crop&q=80&w=600&h=450",
+    imageUrl: "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&q=80&w=600&h=450",
     isVeg: true,
     categoryId: "sides",
+    hasVariants: true,
   },
   {
     id: "m13",
@@ -154,6 +159,7 @@ const MENU_ITEMS: (MenuItemData & { categoryId: string })[] = [
     imageUrl: "https://images.unsplash.com/photo-1567620832903-9fc6debc209f?auto=format&fit=crop&q=80&w=600&h=450",
     isVeg: false,
     categoryId: "sides",
+    hasVariants: true,
   },
   // Beverages
   {
@@ -164,6 +170,7 @@ const MENU_ITEMS: (MenuItemData & { categoryId: string })[] = [
     imageUrl: "https://images.unsplash.com/photo-1629203851122-3726ecdf080e?auto=format&fit=crop&q=80&w=600&h=450",
     isVeg: true,
     categoryId: "beverages",
+    hasVariants: true,
   },
   {
     id: "m15",
@@ -173,6 +180,7 @@ const MENU_ITEMS: (MenuItemData & { categoryId: string })[] = [
     imageUrl: "https://images.unsplash.com/photo-1621263764928-df1444c5e859?auto=format&fit=crop&q=80&w=600&h=450",
     isVeg: true,
     categoryId: "beverages",
+    hasVariants: true,
   },
   // Desserts
   {
@@ -220,9 +228,10 @@ const MENU_ITEMS: (MenuItemData & { categoryId: string })[] = [
     name: "White Sauce Pasta",
     description: "Penne pasta in creamy cheesy white sauce with sweet corn and capsicum",
     price: 249,
-    imageUrl: "https://images.unsplash.com/photo-1645112481338-35624bf9401d?auto=format&fit=crop&q=80&w=600&h=450",
+    imageUrl: "https://images.unsplash.com/photo-1604382354936-07c5d9983bd3?auto=format&fit=crop&q=80&w=600&h=450",
     isVeg: true,
     categoryId: "pasta",
+    hasVariants: true,
   },
   {
     id: "m21",
@@ -232,6 +241,7 @@ const MENU_ITEMS: (MenuItemData & { categoryId: string })[] = [
     imageUrl: "https://images.unsplash.com/photo-1551183053-bf91a1d81141?auto=format&fit=crop&q=80&w=600&h=450",
     isVeg: true,
     categoryId: "pasta",
+    hasVariants: true,
   },
 ];
 
@@ -249,6 +259,7 @@ function MenuContent() {
   const [vegFilter, setVegFilter] = useState<"all" | "veg" | "nonveg">("all");
   const [showFilters, setShowFilters] = useState(false);
   const sectionRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const [itemToCustomize, setItemToCustomize] = useState<MenuItemData | null>(null);
 
   // Sync searchQuery with URL q param on mount (if header search was used)
   useEffect(() => {
@@ -408,9 +419,9 @@ function MenuContent() {
       />
 
       {/* ─── Menu Items ─── */}
-      <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-6">
+      <div className="w-full max-w-[1280px] mx-auto px-4 md:px-6 lg:px-8 py-8">
         {filteredItems.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
+          <div className="flex flex-col items-center justify-center py-20 text-center w-full">
             <div className="w-16 h-16 rounded-full bg-warm-100 flex items-center justify-center mb-4 text-warm-400">
               <Search className="w-8 h-8" strokeWidth={1.5} />
             </div>
@@ -434,21 +445,24 @@ function MenuContent() {
           </div>
         ) : (
           /* All categories grouped */
-          <div className="space-y-10">
+          <div className="space-y-8 md:space-y-16 w-full">
             {groupedItems.map(({ category, items }) => (
               <div
                 key={category.id}
                 ref={(el) => {
                   if (el) sectionRefs.current.set(category.id, el);
                 }}
+                className="w-full"
               >
-                <h2 className="text-lg md:text-xl font-bold text-warm-900 mb-4 flex items-center gap-2">
-                  {category.name}
-                  <span className="text-warm-400 text-sm font-normal">
-                    ({items.length})
+                <h2 className="text-xl md:text-3xl font-bold text-warm-900 mb-4 md:mb-10 flex items-center justify-center gap-3 text-center px-4">
+                  <span className="h-px bg-warm-200 flex-1 hidden md:block"></span>
+                  <span className="shrink-0">{category.name}</span>
+                  <span className="text-warm-400 text-[10px] md:text-sm font-medium bg-warm-50 px-2 md:px-3 py-0.5 md:py-1 rounded-full border border-warm-200/50 shrink-0">
+                    {items.length} Items
                   </span>
+                  <span className="h-px bg-warm-200 flex-1 hidden md:block"></span>
                 </h2>
-                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-8 md:justify-items-center">
                   {items.map((item, i) => (
                     <motion.div
                       key={item.id}
@@ -457,7 +471,7 @@ function MenuContent() {
                       viewport={{ once: true }}
                       transition={{ delay: i * 0.05 }}
                     >
-                      <MenuItemCard item={item} />
+                      <MenuItemCard item={item} onCustomize={(item) => setItemToCustomize(item)} />
                     </motion.div>
                   ))}
                 </div>
@@ -466,6 +480,11 @@ function MenuContent() {
           </div>
         )}
       </div>
+
+      <ItemCustomizationModal
+        item={itemToCustomize}
+        onClose={() => setItemToCustomize(null)}
+      />
     </div>
   );
 }
