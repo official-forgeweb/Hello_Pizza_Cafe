@@ -18,6 +18,7 @@ import {
   Users,
   Layers,
   Puzzle,
+  UserCheck,
 } from "lucide-react";
 import { useAdminStore } from "@/store/admin";
 import AdminToasts from "@/components/admin/Toast";
@@ -25,6 +26,7 @@ import AdminToasts from "@/components/admin/Toast";
 const NAV_ITEMS = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/orders", label: "Orders", icon: ShoppingBag },
+  { href: "/admin/customers", label: "Customers", icon: UserCheck },
   { href: "/admin/menu", label: "Menu Items", icon: UtensilsCrossed },
   { href: "/admin/categories", label: "Categories", icon: Layers },
   { href: "/admin/addons", label: "Add-ons", icon: Puzzle },

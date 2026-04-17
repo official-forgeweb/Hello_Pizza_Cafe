@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import {
   Plus, Search, Edit2, Trash2, X, ChevronDown, Eye, EyeOff,
-  Save, Loader2, LayoutGrid, List,
+  Save, Loader2, LayoutGrid, List, Sparkles, RefreshCw,
 } from "lucide-react";
 import VegBadge from "@/components/menu/VegBadge";
 import { useAdminStore } from "@/store/admin";
@@ -39,7 +39,7 @@ const MOCK_ITEMS: MenuItem[] = [
   { id: "4", name: "Pepperoni Overload", description: "Double pepperoni with mozzarella", price: 449, isVeg: false, isAvailable: true, isBestSeller: true, imageUrl: "https://images.unsplash.com/photo-1628840042765-356cda07504e?auto=format&fit=crop&q=80&w=200&h=200", category: { id: "2", name: "Non-Veg Pizza" }, categoryId: "2" },
   { id: "5", name: "BBQ Chicken Supreme", description: "Smoky BBQ chicken with onions", price: 499, isVeg: false, isAvailable: false, isBestSeller: false, imageUrl: "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&q=80&w=200&h=200", category: { id: "2", name: "Non-Veg Pizza" }, categoryId: "2" },
   { id: "6", name: "Classic Veg Burger", description: "Crispy patty with fresh lettuce", price: 149, isVeg: true, isAvailable: true, isBestSeller: false, imageUrl: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&q=80&w=200&h=200", category: { id: "3", name: "Burgers" }, categoryId: "3" },
-  { id: "7", name: "Garlic Bread (4 pcs)", description: "Crispy garlic bread with herbs", price: 129, isVeg: true, isAvailable: true, isBestSeller: false, imageUrl: "https://images.unsplash.com/photo-1619531040576-f9416b97c9af?auto=format&fit=crop&q=80&w=200&h=200", category: { id: "4", name: "Sides" }, categoryId: "4" },
+  { id: "7", name: "Garlic Bread (4 pcs)", description: "Crispy garlic bread with herbs", price: 129, isVeg: true, isAvailable: true, isBestSeller: false, imageUrl: "https://images.unsplash.com/photo-1590947132387-155cc3be3a90?auto=format&fit=crop&q=80&w=200&h=200", category: { id: "4", name: "Sides" }, categoryId: "4" },
   { id: "8", name: "Choco Lava Cake", description: "Warm chocolate cake with gooey center", price: 179, isVeg: true, isAvailable: true, isBestSeller: true, imageUrl: "https://images.unsplash.com/photo-1624353365286-3f8d62daad51?auto=format&fit=crop&q=80&w=200&h=200", category: { id: "5", name: "Desserts" }, categoryId: "5" },
 ];
 
@@ -52,6 +52,8 @@ export default function MenuManagementPage() {
   const [editItem, setEditItem] = useState<EditItem | null>(null);
   const [saving, setSaving] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+  const [generatingImage, setGeneratingImage] = useState(false);
+  const [aiImagePreview, setAiImagePreview] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -193,10 +195,13 @@ export default function MenuManagementPage() {
             </button>
           </div>
           <motion.button
-            onClick={() => setEditItem({
-              isNew: true, name: "", description: "", price: 0, isVeg: true,
-              imageUrl: "", categoryId: categories[0]?.id || "",
-            })}
+            onClick={() => {
+              setAiImagePreview(null);
+              setEditItem({
+                isNew: true, name: "", description: "", price: 0, isVeg: true,
+                imageUrl: "", categoryId: categories[0]?.id || "",
+              });
+            }}
             className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-[#cc1530] transition-colors cursor-pointer"
             whileTap={{ scale: 0.95 }}
           >
@@ -261,7 +266,10 @@ export default function MenuManagementPage() {
                   </button>
                 </div>
                 <div className="flex items-center gap-1">
-                  <button onClick={() => setEditItem(item)} className="p-2 rounded-lg hover:bg-warm-100 text-warm-500 hover:text-primary cursor-pointer">
+                  <button onClick={() => {
+                    setAiImagePreview(null);
+                    setEditItem(item);
+                  }} className="p-2 rounded-lg hover:bg-warm-100 text-warm-500 hover:text-primary cursor-pointer">
                     <Edit2 className="w-4 h-4" />
                   </button>
                   <button onClick={() => deleteItem(item.id)} className="p-2 rounded-lg hover:bg-red-50 text-warm-500 hover:text-red-500 cursor-pointer">
@@ -298,7 +306,10 @@ export default function MenuManagementPage() {
                 <div className="flex items-center justify-between mt-2 pt-2 border-t border-warm-100">
                   <span className="text-[10px] text-warm-500">{item.category?.name || "—"}</span>
                   <div className="flex gap-1">
-                    <button onClick={() => setEditItem(item)} className="p-1 rounded hover:bg-warm-100 text-warm-400 cursor-pointer">
+                    <button onClick={() => {
+                      setAiImagePreview(null);
+                      setEditItem(item);
+                    }} className="p-1 rounded hover:bg-warm-100 text-warm-400 cursor-pointer">
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
                     <button onClick={() => deleteItem(item.id)} className="p-1 rounded hover:bg-red-50 text-warm-400 cursor-pointer">
@@ -359,12 +370,110 @@ export default function MenuManagementPage() {
                       </div>
                     </div>
                   </div>
-                  <div>
-                    <label className="text-xs font-medium text-warm-600 mb-1.5 block">Image URL</label>
-                    <input type="text" value={editItem.imageUrl || ""}
-                      onChange={(e) => setEditItem((prev) => prev && { ...prev, imageUrl: e.target.value })}
-                      placeholder="https://..."
-                      className="w-full px-4 py-2.5 bg-warm-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all border border-warm-200" />
+                  {/* Image Section */}
+                  <div className="space-y-3">
+                    <label className="text-xs font-medium text-warm-600 mb-1.5 block">Image</label>
+
+                    {/* AI Generate Button */}
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!editItem.name) {
+                          addToast("Enter an item name first", "error");
+                          return;
+                        }
+                        setGeneratingImage(true);
+                        setAiImagePreview(null);
+                        try {
+                          const res = await fetch("/api/admin/generate-image", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              itemName: editItem.name,
+                              description: editItem.description,
+                              isVeg: editItem.isVeg,
+                            }),
+                          });
+                          if (res.ok) {
+                            const data = await res.json();
+                            setAiImagePreview(data.imageUrl);
+                            addToast("Image generated! Click 'Use This Image' to apply.", "success");
+                          } else {
+                            const err = await res.json().catch(() => ({}));
+                            addToast(err.error || "Failed to generate image", "error");
+                          }
+                        } catch {
+                          addToast("Error generating image", "error");
+                        }
+                        setGeneratingImage(false);
+                      }}
+                      disabled={generatingImage || !editItem.name}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold transition-all border-2 border-dashed cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border-purple-200 bg-purple-50/50 text-purple-700 hover:bg-purple-100 hover:border-purple-300"
+                    >
+                      {generatingImage ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Generating with AI...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-4 h-4" />
+                          Generate Image with AI ✨
+                        </>
+                      )}
+                    </button>
+
+                    {/* AI Preview */}
+                    {aiImagePreview && (
+                      <div className="relative rounded-xl overflow-hidden border border-purple-200 bg-purple-50">
+                        <div className="aspect-square relative">
+                          <img src={aiImagePreview} alt="AI Generated" className="w-full h-full object-cover" />
+                        </div>
+                        <div className="absolute top-2 left-2">
+                          <span className="bg-purple-600 text-white text-[10px] font-bold px-2 py-1 rounded-lg flex items-center gap-1">
+                            <Sparkles className="w-3 h-3" /> AI Generated
+                          </span>
+                        </div>
+                        <div className="p-3 flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditItem((prev) => prev && { ...prev, imageUrl: aiImagePreview });
+                              setAiImagePreview(null);
+                              addToast("AI image applied!", "success");
+                            }}
+                            className="flex-1 py-2 bg-purple-600 text-white text-xs font-semibold rounded-lg hover:bg-purple-700 cursor-pointer transition-colors"
+                          >
+                            ✅ Use This Image
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setAiImagePreview(null)}
+                            className="px-3 py-2 bg-warm-100 text-warm-600 text-xs font-medium rounded-lg hover:bg-warm-200 cursor-pointer transition-colors"
+                          >
+                            Discard
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Current image preview */}
+                    {editItem.imageUrl && !aiImagePreview && (
+                      <div className="relative rounded-xl overflow-hidden border border-warm-200 bg-warm-50">
+                        <div className="aspect-video relative">
+                          <img src={editItem.imageUrl} alt="Preview" className="w-full h-full object-cover" />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Manual URL input */}
+                    <div>
+                      <label className="text-[10px] font-medium text-warm-400 uppercase tracking-wider mb-1 block">Or paste image URL</label>
+                      <input type="text" value={editItem.imageUrl || ""}
+                        onChange={(e) => setEditItem((prev) => prev && { ...prev, imageUrl: e.target.value })}
+                        placeholder="https://..."
+                        className="w-full px-4 py-2.5 bg-warm-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all border border-warm-200" />
+                    </div>
                   </div>
                   <div className="flex items-center gap-4">
                     <label className="flex items-center gap-2 cursor-pointer">

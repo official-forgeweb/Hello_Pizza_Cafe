@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   ShoppingBag, DollarSign, Users, TrendingUp, Clock, Package,
-  CheckCircle2, XCircle, ArrowUpRight,
+  CheckCircle2, XCircle, ArrowUpRight, Hash, UserCheck,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -27,6 +27,8 @@ interface DashboardData {
     totalOrders: number;
     activeStaff: number;
     avgOrderValue: number;
+    pendingOrders: number;
+    totalCustomers: number;
   };
   dailyRevenue: { day: string; revenue: number; orders: number }[];
   topItems: { name: string; orders: number; revenue: number }[];
@@ -42,7 +44,10 @@ interface DashboardData {
 
 // Blank default stats for empty database
 const DEFAULT_STATS: DashboardData = {
-  stats: { todayOrders: 0, todayRevenue: 0, totalOrders: 0, activeStaff: 0, avgOrderValue: 0 },
+  stats: {
+    todayOrders: 0, todayRevenue: 0, totalOrders: 0, activeStaff: 0,
+    avgOrderValue: 0, pendingOrders: 0, totalCustomers: 0,
+  },
   dailyRevenue: [
     { day: "Mon", revenue: 0, orders: 0 },
     { day: "Tue", revenue: 0, orders: 0 },
@@ -82,8 +87,8 @@ export default function AdminDashboard() {
     // Initial load
     fetchDashboard();
 
-    // Re-fetch every 30 seconds for live updates
-    const intervalId = setInterval(fetchDashboard, 30000);
+    // Re-fetch every 15 seconds for near real-time updates
+    const intervalId = setInterval(fetchDashboard, 15000);
     return () => clearInterval(intervalId);
   }, []);
 
@@ -103,18 +108,27 @@ export default function AdminDashboard() {
       bgLight: "bg-emerald-500/10",
     },
     {
-      title: "Avg Order Value",
-      value: `₹${data.stats.avgOrderValue}`,
-      icon: TrendingUp,
-      gradient: "from-purple-500 to-purple-600",
-      bgLight: "bg-purple-500/10",
+      title: "Total Orders",
+      value: data.stats.totalOrders.toLocaleString(),
+      icon: Hash,
+      gradient: "from-indigo-500 to-indigo-600",
+      bgLight: "bg-indigo-500/10",
     },
     {
-      title: "Active Staff",
-      value: data.stats.activeStaff.toString(),
-      icon: Users,
-      gradient: "from-orange-500 to-orange-600",
-      bgLight: "bg-orange-500/10",
+      title: "Pending Orders",
+      value: data.stats.pendingOrders.toString(),
+      icon: Clock,
+      gradient: "from-amber-500 to-amber-600",
+      bgLight: "bg-amber-500/10",
+      link: "/admin/orders",
+    },
+    {
+      title: "Total Customers",
+      value: data.stats.totalCustomers.toLocaleString(),
+      icon: UserCheck,
+      gradient: "from-purple-500 to-purple-600",
+      bgLight: "bg-purple-500/10",
+      link: "/admin/customers",
     },
   ];
 
@@ -136,26 +150,39 @@ export default function AdminDashboard() {
         </p>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {STATS.map((stat, i) => (
-          <motion.div
-            key={stat.title}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1 }}
-            className="bg-white rounded-2xl p-5 border border-warm-200/60 hover:shadow-md transition-shadow"
-            style={{ boxShadow: "var(--shadow-card)" }}
-          >
-            <div className="flex items-center justify-between mb-3">
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${stat.bgLight}`}>
-                <stat.icon className={`w-5 h-5 bg-gradient-to-r ${stat.gradient} bg-clip-text`} style={{ color: `var(--tw-gradient-from)` }} />
+      {/* Stats Grid — 5 cards */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        {STATS.map((stat, i) => {
+          const CardContent = (
+            <motion.div
+              key={stat.title}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.08 }}
+              className={`bg-white rounded-2xl p-5 border border-warm-200/60 hover:shadow-md transition-shadow ${stat.link ? "cursor-pointer" : ""}`}
+              style={{ boxShadow: "var(--shadow-card)" }}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${stat.bgLight}`}>
+                  <stat.icon className={`w-5 h-5 bg-gradient-to-r ${stat.gradient} bg-clip-text`} style={{ color: `var(--tw-gradient-from)` }} />
+                </div>
+                {stat.link && (
+                  <ArrowUpRight className="w-4 h-4 text-warm-400" />
+                )}
               </div>
-            </div>
-            <p className="text-2xl font-bold text-warm-900">{loading ? "—" : stat.value}</p>
-            <p className="text-xs text-warm-500 mt-1">{stat.title}</p>
-          </motion.div>
-        ))}
+              <p className="text-2xl font-bold text-warm-900">{loading ? "—" : stat.value}</p>
+              <p className="text-xs text-warm-500 mt-1">{stat.title}</p>
+            </motion.div>
+          );
+
+          return stat.link ? (
+            <Link key={stat.title} href={stat.link}>
+              {CardContent}
+            </Link>
+          ) : (
+            <div key={stat.title}>{CardContent}</div>
+          );
+        })}
       </div>
 
       {/* Revenue Chart */}
@@ -211,26 +238,33 @@ export default function AdminDashboard() {
             </Link>
           </div>
           <div className="divide-y divide-warm-100">
-            {data.recentOrders.map((order) => {
-              const status = STATUS_CONFIG[order.status] || STATUS_CONFIG.PENDING;
-              return (
-                <div key={order.id} className="px-5 py-3.5 flex items-center gap-4 hover:bg-warm-50 transition-colors">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-warm-800 text-sm">{order.id}</span>
-                      <span className="text-warm-400 text-xs">{formatTime(order.time)}</span>
+            {data.recentOrders.length === 0 ? (
+              <div className="px-5 py-8 text-center">
+                <Package className="w-8 h-8 text-warm-300 mx-auto mb-2" />
+                <p className="text-sm text-warm-500">No orders yet</p>
+              </div>
+            ) : (
+              data.recentOrders.map((order) => {
+                const status = STATUS_CONFIG[order.status] || STATUS_CONFIG.PENDING;
+                return (
+                  <div key={order.id} className="px-5 py-3.5 flex items-center gap-4 hover:bg-warm-50 transition-colors">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-warm-800 text-sm">{order.id}</span>
+                        <span className="text-warm-400 text-xs">{formatTime(order.time)}</span>
+                      </div>
+                      <p className="text-warm-500 text-xs mt-0.5">
+                        {order.customer} • {order.items} items
+                      </p>
                     </div>
-                    <p className="text-warm-500 text-xs mt-0.5">
-                      {order.customer} • {order.items} items
-                    </p>
+                    <span className={`text-xs font-medium px-2.5 py-1 rounded-full whitespace-nowrap ${status.class}`}>
+                      {status.label}
+                    </span>
+                    <span className="font-semibold text-warm-800 text-sm">₹{order.total}</span>
                   </div>
-                  <span className={`text-xs font-medium px-2.5 py-1 rounded-full whitespace-nowrap ${status.class}`}>
-                    {status.label}
-                  </span>
-                  <span className="font-semibold text-warm-800 text-sm">₹{order.total}</span>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
         </div>
 
@@ -241,20 +275,27 @@ export default function AdminDashboard() {
             <p className="text-xs text-warm-500 mt-0.5">All time</p>
           </div>
           <div className="divide-y divide-warm-100">
-            {data.topItems.map((item, i) => (
-              <div key={item.name} className="px-5 py-3.5 flex items-center gap-3">
-                <span className="w-6 h-6 rounded-full bg-warm-100 flex items-center justify-center text-xs font-bold text-warm-600">
-                  {i + 1}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-warm-800 truncate">{item.name}</p>
-                  <p className="text-xs text-warm-500">{item.orders} orders</p>
-                </div>
-                <span className="text-sm font-semibold text-warm-700">
-                  ₹{item.revenue.toLocaleString()}
-                </span>
+            {data.topItems.length === 0 ? (
+              <div className="px-5 py-8 text-center">
+                <TrendingUp className="w-8 h-8 text-warm-300 mx-auto mb-2" />
+                <p className="text-sm text-warm-500">No data yet</p>
               </div>
-            ))}
+            ) : (
+              data.topItems.map((item, i) => (
+                <div key={item.name} className="px-5 py-3.5 flex items-center gap-3">
+                  <span className="w-6 h-6 rounded-full bg-warm-100 flex items-center justify-center text-xs font-bold text-warm-600">
+                    {i + 1}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-warm-800 truncate">{item.name}</p>
+                    <p className="text-xs text-warm-500">{item.orders} orders</p>
+                  </div>
+                  <span className="text-sm font-semibold text-warm-700">
+                    ₹{item.revenue.toLocaleString()}
+                  </span>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>

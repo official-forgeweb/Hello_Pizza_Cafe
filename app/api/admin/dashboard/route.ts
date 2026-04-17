@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
     // Today's stats
-    const [todayOrders, todayRevenue, totalOrders, activeStaff] = await Promise.all([
+    const [todayOrders, todayRevenue, totalOrders, activeStaff, pendingOrders, totalCustomers] = await Promise.all([
       prisma.order.count({ where: { placedAt: { gte: todayStart } } }),
       prisma.order.aggregate({
         where: { placedAt: { gte: todayStart }, status: { not: "CANCELLED" } },
@@ -16,6 +16,8 @@ export async function GET(request: NextRequest) {
       }),
       prisma.order.count(),
       prisma.staff.count({ where: { isActive: true } }),
+      prisma.order.count({ where: { status: "PENDING" } }),
+      prisma.customer.count(),
     ]);
 
     // Last 7 days revenue for chart
@@ -76,6 +78,8 @@ export async function GET(request: NextRequest) {
         todayRevenue: Number(todayRevenue._sum.totalAmount || 0),
         totalOrders,
         activeStaff,
+        pendingOrders,
+        totalCustomers,
         avgOrderValue: todayOrders > 0 ? Math.round(Number(todayRevenue._sum.totalAmount || 0) / todayOrders) : 0,
       },
       dailyRevenue,
