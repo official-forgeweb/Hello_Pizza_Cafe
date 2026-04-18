@@ -261,6 +261,39 @@ function MenuContent() {
   const sectionRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const [itemToCustomize, setItemToCustomize] = useState<MenuItemData | null>(null);
 
+  const [categories, setCategories] = useState<any[]>(CATEGORIES);
+  const [menuItems, setMenuItems] = useState<any[]>(MENU_ITEMS);
+
+  useEffect(() => {
+    const fetchMenu = async () => {
+      try {
+        const [catRes, itemRes] = await Promise.all([
+          fetch("/api/categories"),
+          fetch("/api/menu-items?limit=500")
+        ]);
+        if (catRes.ok) {
+          const cats = await catRes.json();
+          if (Array.isArray(cats) && cats.length > 0) {
+            setCategories([{ id: "all", name: "All" }, ...cats]);
+          }
+        }
+        if (itemRes.ok) {
+          const data = await itemRes.json();
+          if (data && Array.isArray(data.items) && data.items.length > 0) {
+            setMenuItems(data.items.map((i: any) => ({
+              ...i,
+              price: Number(i.basePrice || i.price),
+              isVeg: i.itemType === "VEG" || i.isVeg === true
+            })));
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch menu:", err);
+      }
+    };
+    fetchMenu();
+  }, []);
+
   // Sync searchQuery with URL q param on mount (if header search was used)
   useEffect(() => {
     if (urlQuery) {
@@ -269,7 +302,7 @@ function MenuContent() {
   }, [urlQuery]);
 
   // ─── Filter items ───
-  const filteredItems = MENU_ITEMS.filter((item) => {
+  const filteredItems = menuItems.filter((item) => {
     const matchesSearch =
       !searchQuery ||
       item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -282,15 +315,17 @@ function MenuContent() {
   });
 
   // ─── Group items by category ───
-  const groupedItems = CATEGORIES.filter((c) => c.id !== "all").reduce(
+  const groupedItems = categories.filter((c) => c.id !== "all").reduce(
     (acc, cat) => {
-      const items = filteredItems.filter((item) => item.categoryId === cat.id);
+      const items = filteredItems.filter((item) => 
+        item.categoryId === cat.id || item.categoryId === cat.slug
+      );
       if (items.length > 0) {
         acc.push({ category: cat, items });
       }
       return acc;
     },
-    [] as { category: (typeof CATEGORIES)[0]; items: typeof filteredItems }[]
+    [] as { category: any; items: typeof filteredItems }[]
   );
 
   // ─── Handle category click → scroll ───
@@ -413,7 +448,7 @@ function MenuContent() {
 
       {/* ─── Category Tabs ─── */}
       <CategoryTabs
-        categories={CATEGORIES}
+        categories={categories}
         activeCategory={activeCategory}
         onCategoryChange={handleCategoryClick}
       />
@@ -446,7 +481,7 @@ function MenuContent() {
         ) : (
           /* All categories grouped */
           <div className="space-y-8 md:space-y-16 w-full">
-            {groupedItems.map(({ category, items }) => (
+            {groupedItems.map(({ category, items }: { category: any, items: any[] }) => (
               <div
                 key={category.id}
                 ref={(el) => {
@@ -463,7 +498,7 @@ function MenuContent() {
                   <span className="h-px bg-warm-200 flex-1 hidden md:block"></span>
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-8 md:justify-items-center">
-                  {items.map((item, i) => (
+                  {items.map((item: any, i: number) => (
                     <motion.div
                       key={item.id}
                       initial={{ opacity: 0, y: 20 }}

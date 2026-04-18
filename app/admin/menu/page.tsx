@@ -39,7 +39,7 @@ const MOCK_ITEMS: MenuItem[] = [
   { id: "4", name: "Pepperoni Overload", description: "Double pepperoni with mozzarella", price: 449, isVeg: false, isAvailable: true, isBestSeller: true, imageUrl: "https://images.unsplash.com/photo-1628840042765-356cda07504e?auto=format&fit=crop&q=80&w=200&h=200", category: { id: "2", name: "Non-Veg Pizza" }, categoryId: "2" },
   { id: "5", name: "BBQ Chicken Supreme", description: "Smoky BBQ chicken with onions", price: 499, isVeg: false, isAvailable: false, isBestSeller: false, imageUrl: "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&q=80&w=200&h=200", category: { id: "2", name: "Non-Veg Pizza" }, categoryId: "2" },
   { id: "6", name: "Classic Veg Burger", description: "Crispy patty with fresh lettuce", price: 149, isVeg: true, isAvailable: true, isBestSeller: false, imageUrl: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&q=80&w=200&h=200", category: { id: "3", name: "Burgers" }, categoryId: "3" },
-  { id: "7", name: "Garlic Bread (4 pcs)", description: "Crispy garlic bread with herbs", price: 129, isVeg: true, isAvailable: true, isBestSeller: false, imageUrl: "https://images.unsplash.com/photo-1590947132387-155cc3be3a90?auto=format&fit=crop&q=80&w=200&h=200", category: { id: "4", name: "Sides" }, categoryId: "4" },
+  { id: "7", name: "Garlic Bread (4 pcs)", description: "Crispy garlic bread with herbs", price: 129, isVeg: true, isAvailable: true, isBestSeller: false, imageUrl: "https://images.unsplash.com/photo-1573140247632-f8fd74997d5c?auto=format&fit=crop&q=80&w=200&h=200", category: { id: "4", name: "Sides" }, categoryId: "4" },
   { id: "8", name: "Choco Lava Cake", description: "Warm chocolate cake with gooey center", price: 179, isVeg: true, isAvailable: true, isBestSeller: true, imageUrl: "https://images.unsplash.com/photo-1624353365286-3f8d62daad51?auto=format&fit=crop&q=80&w=200&h=200", category: { id: "5", name: "Desserts" }, categoryId: "5" },
 ];
 
@@ -64,8 +64,12 @@ export default function MenuManagementPage() {
         ]);
         if (menuRes.ok) {
           const data = await menuRes.json();
-          if (Array.isArray(data) && data.length > 0) {
-            setItems(data.map((i: any) => ({ ...i, price: Number(i.price) })));
+          if (data && Array.isArray(data.items) && data.items.length > 0) {
+            setItems(data.items.map((i: any) => ({ 
+              ...i, 
+              price: Number(i.basePrice || i.price),
+              isVeg: i.itemType === "VEG" || i.isVeg === true
+            })));
           }
         }
         if (catRes.ok) {
@@ -138,8 +142,12 @@ export default function MenuManagementPage() {
         const menuRes = await fetch("/api/menu-items");
         if (menuRes.ok) {
           const data = await menuRes.json();
-          if (Array.isArray(data) && data.length > 0) {
-            setItems(data.map((i: any) => ({ ...i, price: Number(i.price) })));
+          if (data && Array.isArray(data.items)) {
+            setItems(data.items.map((i: any) => ({ 
+              ...i, 
+              price: Number(i.basePrice || i.price),
+              isVeg: i.itemType === "VEG" || i.isVeg === true
+            })));
           }
         }
       } else {
@@ -397,7 +405,7 @@ export default function MenuManagementPage() {
                           if (res.ok) {
                             const data = await res.json();
                             setAiImagePreview(data.imageUrl);
-                            addToast("Image generated! Click 'Use This Image' to apply.", "success");
+                            addToast("Image found! Click 'Use This Image' to apply.", "success");
                           } else {
                             const err = await res.json().catch(() => ({}));
                             addToast(err.error || "Failed to generate image", "error");
@@ -413,12 +421,12 @@ export default function MenuManagementPage() {
                       {generatingImage ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
-                          Generating with AI...
+                          Finding best photo...
                         </>
                       ) : (
                         <>
                           <Sparkles className="w-4 h-4" />
-                          Generate Image with AI ✨
+                          Find Stock Photo ✨
                         </>
                       )}
                     </button>
@@ -431,7 +439,7 @@ export default function MenuManagementPage() {
                         </div>
                         <div className="absolute top-2 left-2">
                           <span className="bg-purple-600 text-white text-[10px] font-bold px-2 py-1 rounded-lg flex items-center gap-1">
-                            <Sparkles className="w-3 h-3" /> AI Generated
+                            <Sparkles className="w-3 h-3" /> Stock Photo
                           </span>
                         </div>
                         <div className="p-3 flex gap-2">

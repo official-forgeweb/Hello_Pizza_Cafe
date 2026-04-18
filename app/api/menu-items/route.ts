@@ -64,3 +64,37 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+export async function POST(request: NextRequest) {
+  try {
+    const data = await request.json();
+    
+    // Generate a unique slug
+    const slug = data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Math.floor(Math.random() * 1000);
+
+    const newItem = await prisma.menuItem.create({
+      data: {
+        name: data.name,
+        slug,
+        description: data.description,
+        basePrice: data.price,
+        itemType: data.isVeg !== false ? "VEG" : "NON_VEG",
+        isAvailable: data.isAvailable ?? true,
+        isBestSeller: data.isBestSeller ?? false,
+        imageUrl: data.imageUrl,
+        categoryId: data.categoryId,
+      },
+      include: {
+        category: true,
+      }
+    });
+
+    return NextResponse.json(newItem, { status: 201 });
+  } catch (error) {
+    console.error("Error creating menu item:", error);
+    return NextResponse.json(
+      { error: "Failed to create menu item" },
+      { status: 500 }
+    );
+  }
+}

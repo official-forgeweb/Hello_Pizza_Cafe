@@ -50,33 +50,27 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
   }, [pathname, checkSession]);
 
+  // Redirect to login if not authenticated (as a side-effect, not during render)
+  useEffect(() => {
+    if (!loading && !admin && pathname !== "/admin/login") {
+      router.push("/admin/login");
+    }
+  }, [loading, admin, pathname, router]);
+
   // Don't show layout on login page
   if (pathname === "/admin/login") {
     return <>{children}</>;
   }
 
-  // Loading state
-  if (loading) {
+  // Loading state or unauthenticated (waiting for redirect)
+  if (loading || !admin) {
     return (
       <div className="min-h-screen bg-warm-50 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <div className="w-10 h-10 border-3 border-primary border-t-transparent rounded-full animate-spin" />
-          <p className="text-warm-500 text-sm font-medium">Loading dashboard...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Redirect to login if not authenticated
-  if (!admin) {
-    if (typeof window !== "undefined") {
-      router.push("/admin/login");
-    }
-    return (
-      <div className="min-h-screen bg-warm-50 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 border-3 border-primary border-t-transparent rounded-full animate-spin" />
-          <p className="text-warm-500 text-sm font-medium">Redirecting...</p>
+          <p className="text-warm-500 text-sm font-medium">
+            {loading ? "Loading dashboard..." : "Redirecting..."}
+          </p>
         </div>
       </div>
     );

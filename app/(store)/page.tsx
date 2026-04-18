@@ -237,14 +237,16 @@ export default function HomePage() {
   // Dynamic state
   const [categories, setCategories] = useState<any[]>(CATEGORIES);
   const [adsData, setAdsData] = useState<any[]>(ADS_DATA);
+  const [bestSellers, setBestSellers] = useState<any[]>(BEST_SELLERS);
 
   useEffect(() => {
     // Fetch live categories and ads from the new DB APIs
     const fetchLiveDbData = async () => {
       try {
-        const [catRes, heroRes] = await Promise.all([
+        const [catRes, heroRes, bestRes] = await Promise.all([
           fetch("/api/categories"),
-          fetch("/api/admin/hero-slides")
+          fetch("/api/admin/hero-slides"),
+          fetch("/api/menu-items?bestSellers=true&limit=8")
         ]);
 
         if (catRes.ok) {
@@ -277,6 +279,17 @@ export default function HomePage() {
           const activeHeroes = heroData.filter((h: any) => h.isActive);
           if (activeHeroes.length > 0) {
             setAdsData(activeHeroes);
+          }
+        }
+
+        if (bestRes.ok) {
+          const data = await bestRes.json();
+          if (data && Array.isArray(data.items) && data.items.length > 0) {
+            setBestSellers(data.items.map((i: any) => ({
+              ...i,
+              price: Number(i.basePrice || i.price),
+              isVeg: i.itemType === "VEG" || i.isVeg === true
+            })));
           }
         }
       } catch (err) {
@@ -576,7 +589,7 @@ export default function HomePage() {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-            {BEST_SELLERS.map((item, i) => (
+            {bestSellers.map((item, i) => (
               <motion.div
                 key={item.id}
                 initial={{ opacity: 0, y: 20 }}

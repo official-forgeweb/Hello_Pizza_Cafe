@@ -31,17 +31,19 @@ export async function POST(request: NextRequest) {
         where: { id: item.id },
         update: {
           name: item.name,
+          slug: item.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + item.id,
           description: item.description,
-          price: item.price,
-          isVeg: item.isVeg,
+          basePrice: item.price,
+          itemType: item.isVeg ? "VEG" : "NON_VEG",
           categoryId: item.categoryId
         },
         create: {
           id: item.id,
           name: item.name,
+          slug: item.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + item.id,
           description: item.description,
-          price: item.price,
-          isVeg: item.isVeg,
+          basePrice: item.price,
+          itemType: item.isVeg ? "VEG" : "NON_VEG",
           categoryId: item.categoryId,
         }
       });
