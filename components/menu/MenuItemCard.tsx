@@ -107,7 +107,7 @@ export default function MenuItemCard({ item, onCustomize }: MenuItemCardProps) {
         />
 
         {/* Content Container */}
-        <div className="relative w-full p-5 flex flex-col justify-between z-10 h-full">
+        <div className="relative w-full p-3.5 sm:p-5 flex flex-col justify-between z-10 h-full">
           {/* Top Section: Tags only */}
           <div className="flex items-center gap-2">
             <VegBadge isVeg={item.isVeg} size="sm" />
@@ -120,28 +120,28 @@ export default function MenuItemCard({ item, onCustomize }: MenuItemCardProps) {
           </div>
 
           {/* Bottom Section: Name + Pricing + ADD Button */}
-          <div className="flex flex-col gap-3 mt-auto">
+          <div className="flex flex-col gap-1.5 mt-auto">
             {/* Item Name - Now at the bottom */}
-            <h3 className="font-bold text-white text-[24px] md:text-[26px] leading-tight drop-shadow-lg tracking-tight">
+            <h3 className="font-bold text-white text-[18px] sm:text-[22px] leading-tight drop-shadow-lg tracking-tight line-clamp-2">
               {item.name}
             </h3>
 
-            <div className="flex items-end justify-between gap-4">
+            <div className="flex items-end justify-between gap-1.5 mt-1">
               {/* Left: Pricing */}
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-white text-[22px] leading-none bg-black/40 px-2 py-1.5 rounded drop-shadow-lg">₹{item.price}</span>
-                  <span className="text-gray-300 text-sm line-through font-medium leading-none drop-shadow-md">₹{originalPrice}</span>
+              <div className="flex flex-col gap-1 shrink">
+                <div className="flex items-center gap-1.5 flex-wrap flex-row">
+                  <span className="font-bold text-white text-[18px] sm:text-[22px] leading-none bg-black/40 px-1.5 py-1 rounded drop-shadow-lg">₹{item.price}</span>
+                  <span className="text-gray-300 text-[11px] sm:text-sm line-through font-medium leading-none drop-shadow-md">₹{originalPrice}</span>
                 </div>
-                <span className="bg-white/25 text-white text-[11px] font-bold px-2.5 py-1 rounded w-fit drop-shadow-md">
+                <span className="bg-white/20 backdrop-blur-sm text-white text-[9px] sm:text-[11px] font-bold px-2 py-0.5 rounded w-fit drop-shadow-md">
                   SAVE ₹{discountAmount}
                 </span>
               </div>
 
               {/* Right: ADD Button Area */}
-              <div className="flex flex-col items-end min-w-[120px]">
+              <div className="flex flex-col items-end shrink-0">
                 {item.hasVariants && (
-                  <div className="text-white/95 text-[10px] font-bold mb-2 text-right w-full uppercase tracking-wider drop-shadow-md">
+                  <div className="text-white/95 text-[8px] sm:text-[10px] font-bold mb-1 text-right w-full uppercase tracking-wider drop-shadow-md">
                     Customisable
                   </div>
                 )}
@@ -150,31 +150,31 @@ export default function MenuItemCard({ item, onCustomize }: MenuItemCardProps) {
                 <motion.button
                   onClick={(e) => { e.stopPropagation(); handleAdd(); }}
                   whileTap={{ scale: 0.95 }}
-                  className="bg-[#E31837] text-white px-8 py-3.5 rounded-[12px] text-[15px] font-extrabold shadow-xl hover:bg-[#C8102E] active:scale-95 transition-all w-full flex items-center justify-center gap-2 border border-white/10"
+                  className="bg-[#E31837] text-white px-3.5 sm:px-6 py-2 sm:py-3 rounded-[8px] sm:rounded-[12px] text-[13px] sm:text-[15px] font-extrabold shadow-xl hover:bg-[#C8102E] active:scale-95 transition-all flex items-center justify-center gap-1 sm:gap-2 border border-white/10"
                   suppressHydrationWarning={true}
                 >
-                  ADD <Plus className="w-5 h-5" strokeWidth={3} />
+                  ADD <Plus className="w-3.5 h-3.5 sm:w-5 sm:h-5" strokeWidth={3} />
                 </motion.button>
               ) : (
                 <div
-                  className="flex items-center justify-between bg-white rounded-[12px] p-2 shadow-2xl w-full border border-gray-100 h-[52px]"
+                  className="flex items-center justify-between bg-white rounded-[8px] sm:rounded-[12px] p-1 sm:p-2 shadow-2xl border border-gray-100 h-[36px] sm:h-[52px] min-w-[70px] sm:min-w-[100px]"
                   suppressHydrationWarning={true}
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <button onClick={handleDecrement} className="w-10 h-10 flex items-center justify-center text-[#E31837] active:scale-90 cursor-pointer rounded-[8px] hover:bg-gray-100 transition-colors" suppressHydrationWarning={true}>
-                    <Minus className="w-5 h-5" strokeWidth={3} />
+                  <button onClick={handleDecrement} className="w-6 h-6 sm:w-10 sm:h-10 flex items-center justify-center text-[#E31837] active:scale-90 cursor-pointer rounded-[6px] sm:rounded-[8px] hover:bg-gray-100 transition-colors" suppressHydrationWarning={true}>
+                    <Minus className="w-3.5 h-3.5 sm:w-5 sm:h-5" strokeWidth={3} />
                   </button>
-                  <span className="flex-1 text-center text-[16px] font-extrabold text-[#E31837]" suppressHydrationWarning={true}>{totalQty}</span>
-                  <button onClick={handleIncrement} className="w-10 h-10 flex items-center justify-center bg-[#E31837] text-white active:scale-90 cursor-pointer rounded-[8px] hover:bg-[#C8102E] transition-colors shadow-lg" suppressHydrationWarning={true}>
-                    <Plus className="w-5 h-5" strokeWidth={3} />
+                  <span className="flex-1 px-1.5 text-center text-[13px] sm:text-[16px] font-extrabold text-[#E31837]" suppressHydrationWarning={true}>{totalQty}</span>
+                  <button onClick={handleIncrement} className="w-6 h-6 sm:w-10 sm:h-10 flex items-center justify-center bg-[#E31837] text-white active:scale-90 cursor-pointer rounded-[6px] sm:rounded-[8px] hover:bg-[#C8102E] transition-colors shadow-lg" suppressHydrationWarning={true}>
+                    <Plus className="w-3.5 h-3.5 sm:w-5 sm:h-5" strokeWidth={3} />
                   </button>
                 </div>
               )}
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
 
       {/* ─── Desktop View: Compact Grid Card Layout ─── */}
       <div className="hidden md:flex flex-col w-full bg-white rounded-[16px] overflow-hidden border border-warm-200/50 shadow-sm hover:shadow-lg transition-all duration-300 group relative">
