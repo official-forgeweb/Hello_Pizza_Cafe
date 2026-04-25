@@ -270,7 +270,7 @@ export default function HomePage() {
                 icon,
               };
             });
-            setCategories(mappedCat);
+            setCategories(mappedCat.slice(0, 8));
           }
         }
 
@@ -283,12 +283,29 @@ export default function HomePage() {
         }
 
         if (bestRes.ok) {
-          const data = await bestRes.json();
-          if (data && Array.isArray(data.items) && data.items.length > 0) {
-            setBestSellers(data.items.map((i: any) => ({
+          let data = await bestRes.json();
+          let items = data.items || [];
+          
+          // If no items have the isBestSeller flag set from POS, fetch some popular categories (like Pizzas/Burgers)
+          if (items.length < 4) {
+             const fallbackRes = await fetch("/api/menu-items?limit=12");
+             if (fallbackRes.ok) {
+               const fallbackData = await fallbackRes.json();
+               if (fallbackData.items) {
+                 // Try to pick Pizzas first, then anything else
+                 const pizzas = fallbackData.items.filter((i: any) => i.name.toLowerCase().includes("pizza") || (i.category && i.category.name.toLowerCase().includes("pizza")));
+                 const others = fallbackData.items.filter((i: any) => !i.name.toLowerCase().includes("pizza") && (!i.category || !i.category.name.toLowerCase().includes("pizza")));
+                 items = [...items, ...pizzas, ...others].slice(0, 8);
+               }
+             }
+          }
+
+          if (items.length > 0) {
+            setBestSellers(items.map((i: any) => ({
               ...i,
               price: Number(i.basePrice || i.price),
-              isVeg: i.itemType === "VEG" || i.isVeg === true
+              isVeg: i.itemType === "VEG" || i.isVeg === true,
+              isBestSeller: true, // Force the badge to show since they are our hand-picked best items
             })));
           }
         }
@@ -394,7 +411,7 @@ export default function HomePage() {
               <div className="flex -space-x-4">
                 {[1, 2, 3, 4].map(i => (
                   <div key={i} className="w-10 h-10 rounded-full border-2 border-black bg-warm-800 flex items-center justify-center overflow-hidden">
-                    <Image src={`https://i.pravatar.cc/100?img=${i+10}`} alt="User" width={40} height={40} />
+                    <Image src={`https://i.pravatar.cc/100?img=${i+10}`} alt="User" width={40} height={40} loading="lazy" />
                   </div>
                 ))}
               </div>
@@ -457,6 +474,7 @@ export default function HomePage() {
                       src={ad.image || ad.imageUrl}
                       alt={ad.title}
                       fill
+                      loading="lazy"
                       sizes="(max-width: 768px) 100vw, 400px"
                       className="object-cover transition-transform duration-[2s] ease-out group-hover:scale-105 group-hover:-rotate-1"
                     />
@@ -596,6 +614,7 @@ export default function HomePage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
+                className="w-full h-full"
               >
                 <MenuItemCard item={item} />
               </motion.div>

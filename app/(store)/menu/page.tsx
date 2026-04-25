@@ -2,248 +2,11 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, SlidersHorizontal, X } from "lucide-react";
+import { Search, SlidersHorizontal, X, Loader2 } from "lucide-react";
 import CategoryTabs from "@/components/menu/CategoryTabs";
 import MenuItemCard, { type MenuItemData } from "@/components/menu/MenuItemCard";
 import VegBadge from "@/components/menu/VegBadge";
 import ItemCustomizationModal from "@/components/menu/ItemCustomizationModal";
-
-// ─── Mock Data ────────────────────────────────────────────────
-const CATEGORIES = [
-  { id: "all", name: "All" },
-  { id: "veg-pizza", name: "Veg Pizza" },
-  { id: "non-veg-pizza", name: "Non-Veg Pizza" },
-  { id: "burgers", name: "Burgers" },
-  { id: "sides", name: "Sides" },
-  { id: "beverages", name: "Beverages" },
-  { id: "desserts", name: "Desserts" },
-  { id: "combos", name: "Combos" },
-  { id: "pasta", name: "Pasta" },
-];
-
-const MENU_ITEMS: (MenuItemData & { categoryId: string })[] = [
-  // Veg Pizza
-  {
-    id: "m1",
-    name: "Margherita Classica",
-    description: "San Marzano tomatoes, fresh mozzarella, aromatic basil leaves on a hand-tossed base",
-    price: 299,
-    imageUrl: "https://images.unsplash.com/photo-1574071318508-1cdbab80d002?auto=format&fit=crop&q=80&w=600&h=450",
-    isVeg: true,
-    isBestSeller: true,
-    categoryId: "veg-pizza",
-    hasVariants: true,
-  },
-  {
-    id: "m2",
-    name: "Farmhouse Supreme",
-    description: "Capsicum, onion, tomato, mushroom, sweet corn with Italian herb seasoning",
-    price: 389,
-    imageUrl: "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&q=80&w=600&h=450",
-    isVeg: true,
-    categoryId: "veg-pizza",
-    hasVariants: true,
-  },
-  {
-    id: "m3",
-    name: "Paneer Tikka Pizza",
-    description: "Tandoori paneer, bell peppers, onions with mint chutney drizzle",
-    price: 429,
-    imageUrl: "https://images.unsplash.com/photo-1588315029754-2dd089d39a1a?auto=format&fit=crop&q=80&w=600&h=450",
-    isVeg: true,
-    isBestSeller: true,
-    categoryId: "veg-pizza",
-    hasVariants: true,
-  },
-  {
-    id: "m4",
-    name: "Mexican Green Wave",
-    description: "Jalapeños, capsicum, olives, onions with a spicy Mexican salsa base",
-    price: 399,
-    imageUrl: "https://images.unsplash.com/photo-1604382354936-07c5d9983bd3?auto=format&fit=crop&q=80&w=600&h=450",
-    isVeg: true,
-    categoryId: "veg-pizza",
-    hasVariants: true,
-  },
-  // Non-Veg Pizza
-  {
-    id: "m5",
-    name: "Pepperoni Overload",
-    description: "Double pepperoni, mozzarella, red onions, and chili flakes",
-    price: 449,
-    imageUrl: "https://images.unsplash.com/photo-1628840042765-356cda07504e?auto=format&fit=crop&q=80&w=600&h=450",
-    isVeg: false,
-    isBestSeller: true,
-    categoryId: "non-veg-pizza",
-    hasVariants: true,
-  },
-  {
-    id: "m6",
-    name: "BBQ Chicken Supreme",
-    description: "Smoky BBQ chicken, caramelized onions, jalapeños, cheddar cheese blend",
-    price: 499,
-    imageUrl: "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&q=80&w=600&h=450",
-    isVeg: false,
-    categoryId: "non-veg-pizza",
-    hasVariants: true,
-  },
-  {
-    id: "m7",
-    name: "Chicken Tikka Pizza",
-    description: "Tandoori chicken tikka pieces, onions, capsicum with creamy tikka sauce",
-    price: 479,
-    imageUrl: "https://images.unsplash.com/photo-1571407970349-bc81e7e96d47?auto=format&fit=crop&q=80&w=600&h=450",
-    isVeg: false,
-    isBestSeller: true,
-    categoryId: "non-veg-pizza",
-    hasVariants: true,
-  },
-  {
-    id: "m8",
-    name: "Meat Feast",
-    description: "Pepperoni, chicken sausage, BBQ chicken, ground beef — the ultimate meat lover's dream",
-    price: 599,
-    imageUrl: "https://images.unsplash.com/photo-1593560708920-61dd98c46a4e?auto=format&fit=crop&q=80&w=600&h=450",
-    isVeg: false,
-    categoryId: "non-veg-pizza",
-    hasVariants: true,
-  },
-  // Burgers
-  {
-    id: "m9",
-    name: "Classic Veg Burger",
-    description: "Crispy veggie patty, lettuce, tomato, cheese, special sauce",
-    price: 149,
-    imageUrl: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&q=80&w=600&h=450",
-    isVeg: true,
-    categoryId: "burgers",
-    hasVariants: true,
-  },
-  {
-    id: "m10",
-    name: "Chicken Zinger",
-    description: "Spicy crispy chicken fillet, coleslaw, mayo, toasted sesame bun",
-    price: 199,
-    imageUrl: "https://images.unsplash.com/photo-1553979459-d2229ba7433b?auto=format&fit=crop&q=80&w=600&h=450",
-    isVeg: false,
-    isBestSeller: true,
-    categoryId: "burgers",
-    hasVariants: true,
-  },
-  // Sides
-  {
-    id: "m11",
-    name: "Garlic Bread (4 pcs)",
-    description: "Toasted bread with garlic butter and herbs, served with marinara dip",
-    price: 129,
-    imageUrl: "https://images.unsplash.com/photo-1574071318508-1cdbab80d002?auto=format&fit=crop&q=80&w=600&h=450",
-    isVeg: true,
-    categoryId: "sides",
-    hasVariants: true,
-  },
-  {
-    id: "m12",
-    name: "Loaded Fries",
-    description: "Crispy fries topped with cheese sauce, jalapeños, and sour cream",
-    price: 159,
-    imageUrl: "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&q=80&w=600&h=450",
-    isVeg: true,
-    categoryId: "sides",
-    hasVariants: true,
-  },
-  {
-    id: "m13",
-    name: "Chicken Wings (6 pcs)",
-    description: "Crispy fried wings tossed in your choice of sauce — peri-peri, BBQ, or buffalo",
-    price: 249,
-    imageUrl: "https://images.unsplash.com/photo-1567620832903-9fc6debc209f?auto=format&fit=crop&q=80&w=600&h=450",
-    isVeg: false,
-    categoryId: "sides",
-    hasVariants: true,
-  },
-  // Beverages
-  {
-    id: "m14",
-    name: "Coca-Cola (500ml)",
-    description: "Chilled classic Coca-Cola",
-    price: 60,
-    imageUrl: "https://images.unsplash.com/photo-1629203851122-3726ecdf080e?auto=format&fit=crop&q=80&w=600&h=450",
-    isVeg: true,
-    categoryId: "beverages",
-    hasVariants: true,
-  },
-  {
-    id: "m15",
-    name: "Fresh Lemonade",
-    description: "Freshly squeezed lemon with mint and a hint of ginger",
-    price: 89,
-    imageUrl: "https://images.unsplash.com/photo-1621263764928-df1444c5e859?auto=format&fit=crop&q=80&w=600&h=450",
-    isVeg: true,
-    categoryId: "beverages",
-    hasVariants: true,
-  },
-  // Desserts
-  {
-    id: "m16",
-    name: "Choco Lava Cake",
-    description: "Warm chocolate cake with a molten lava center, served with vanilla ice cream",
-    price: 179,
-    imageUrl: "https://images.unsplash.com/photo-1624353365286-3f8d62daad51?auto=format&fit=crop&q=80&w=600&h=450",
-    isVeg: true,
-    isBestSeller: true,
-    categoryId: "desserts",
-  },
-  {
-    id: "m17",
-    name: "New York Cheesecake",
-    description: "Creamy baked cheesecake with a buttery graham cracker crust",
-    price: 199,
-    imageUrl: "https://images.unsplash.com/photo-1533134242443-d4fd215305ad?auto=format&fit=crop&q=80&w=600&h=450",
-    isVeg: true,
-    categoryId: "desserts",
-  },
-  // Combos
-  {
-    id: "m18",
-    name: "Couple Meal Combo",
-    description: "2 Regular Veg Pizzas + 1 Garlic Bread + 2 Coke (250ml)",
-    price: 549,
-    imageUrl: "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&q=80&w=600&h=450",
-    isVeg: true,
-    categoryId: "combos",
-  },
-  {
-    id: "m19",
-    name: "Family Feast",
-    description: "2 Medium Pizzas (Veg/Non-Veg) + 1 Loaded Fries + 1 Choco Lava Cake + 1 Coke (1.25L)",
-    price: 999,
-    imageUrl: "https://images.unsplash.com/photo-1593560708920-61dd98c46a4e?auto=format&fit=crop&q=80&w=600&h=450",
-    isVeg: false,
-    isBestSeller: true,
-    categoryId: "combos",
-  },
-  // Pasta
-  {
-    id: "m20",
-    name: "White Sauce Pasta",
-    description: "Penne pasta in creamy cheesy white sauce with sweet corn and capsicum",
-    price: 249,
-    imageUrl: "https://images.unsplash.com/photo-1604382354936-07c5d9983bd3?auto=format&fit=crop&q=80&w=600&h=450",
-    isVeg: true,
-    categoryId: "pasta",
-    hasVariants: true,
-  },
-  {
-    id: "m21",
-    name: "Arrabiata Red Pasta",
-    description: "Spicy penne pasta in tangy red tomato sauce with olives and herbs",
-    price: 229,
-    imageUrl: "https://images.unsplash.com/photo-1551183053-bf91a1d81141?auto=format&fit=crop&q=80&w=600&h=450",
-    isVeg: true,
-    categoryId: "pasta",
-    hasVariants: true,
-  },
-];
 
 // ─── Page Component ───────────────────────────────────────────
 import { useSearchParams } from "next/navigation";
@@ -261,11 +24,13 @@ function MenuContent() {
   const sectionRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const [itemToCustomize, setItemToCustomize] = useState<MenuItemData | null>(null);
 
-  const [categories, setCategories] = useState<any[]>(CATEGORIES);
-  const [menuItems, setMenuItems] = useState<any[]>(MENU_ITEMS);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [menuItems, setMenuItems] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchMenu = async () => {
+      setIsLoading(true);
       try {
         const [catRes, itemRes] = await Promise.all([
           fetch("/api/categories"),
@@ -289,6 +54,8 @@ function MenuContent() {
         }
       } catch (err) {
         console.error("Failed to fetch menu:", err);
+      } finally {
+        setIsLoading(false);
       }
     };
     fetchMenu();
@@ -455,7 +222,32 @@ function MenuContent() {
 
       {/* ─── Menu Items ─── */}
       <div className="w-full max-w-[1280px] mx-auto px-4 md:px-6 lg:px-8 py-8">
-        {filteredItems.length === 0 ? (
+        {isLoading ? (
+          <div className="space-y-10">
+            {/* Loading skeleton */}
+            {[1, 2, 3].map((section) => (
+              <div key={section}>
+                <div className="h-8 bg-warm-100 rounded-lg w-48 mx-auto mb-6 animate-pulse" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6">
+                  {[1, 2, 3, 4].map((card) => (
+                    <div key={card} className="rounded-2xl overflow-hidden bg-warm-50 animate-pulse">
+                      <div className="w-full aspect-[4/3] bg-warm-200" />
+                      <div className="p-4 space-y-2">
+                        <div className="h-4 bg-warm-200 rounded w-3/4" />
+                        <div className="h-3 bg-warm-100 rounded w-full" />
+                        <div className="h-3 bg-warm-100 rounded w-1/2" />
+                        <div className="flex justify-between items-center pt-2">
+                          <div className="h-6 bg-warm-200 rounded w-16" />
+                          <div className="h-8 bg-warm-200 rounded-lg w-20" />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : filteredItems.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center w-full">
             <div className="w-16 h-16 rounded-full bg-warm-100 flex items-center justify-center mb-4 text-warm-400">
               <Search className="w-8 h-8" strokeWidth={1.5} />
@@ -497,17 +289,14 @@ function MenuContent() {
                   </span>
                   <span className="h-px bg-warm-200 flex-1 hidden md:block"></span>
                 </h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-8 md:justify-items-center">
-                  {items.map((item: any, i: number) => (
-                    <motion.div
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6">
+                  {items.map((item: any) => (
+                    <div
                       key={item.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      viewport={{ once: true }}
-                      transition={{ delay: i * 0.05 }}
+                      className="w-full h-full"
                     >
                       <MenuItemCard item={item} onCustomize={(item) => setItemToCustomize(item)} />
-                    </motion.div>
+                    </div>
                   ))}
                 </div>
               </div>

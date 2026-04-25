@@ -80,13 +80,15 @@ model AddOn {
 }
 
 model MenuItemAddOn {
-  id         String   @id @default(uuid())
-  menuItemId String
-  menuItem   MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
-  addOnId    String
-  addOn      AddOn    @relation(fields: [addOnId], references: [id], onDelete: Cascade)
+  id          String   @id @default(uuid())
+  menuItemId  String
+  menuItem    MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  addOnId     String
+  addOn       AddOn    @relation(fields: [addOnId], references: [id], onDelete: Cascade)
+  addonGroup  String   @default("Extras")
+  variantName String?
 
-  @@unique([menuItemId, addOnId])
+  @@unique([menuItemId, addOnId, variantName])
 }
 
 model Customer {

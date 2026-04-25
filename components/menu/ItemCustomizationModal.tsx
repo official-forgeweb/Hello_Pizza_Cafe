@@ -113,22 +113,43 @@ const CONFIG = {
 export default function ItemCustomizationModal({ item, onClose }: ItemCustomizationModalProps) {
   const { addItem } = useCartStore();
   
-  const getConfig = () => {
-    if (!item) return CONFIG["default"];
+  const getActualOptions = () => {
+    if (!item) return { variants: [], addons: [] };
+
+    const dbVariants = item.variants?.map(v => ({
+      id: v.id,
+      name: v.name,
+      price: Number(v.priceModifier) || 0,
+      isDefault: v.isDefault
+    })) || [];
+
+    const dbAddons = item.addOns?.map(a => ({
+      id: a.addOn.id,
+      name: a.addOn.name,
+      price: Number(a.addOn.price) || 0,
+      addonGroup: a.addonGroup || "Extras",
+      variantName: a.variantName || null
+    })) || [];
+
+    // If DB has custom options, use them. Otherwise fallback to mock CONFIG.
+    if (dbVariants.length > 0 || dbAddons.length > 0) {
+      return { variants: dbVariants, addons: dbAddons };
+    }
+
     return CONFIG[item.categoryId as keyof typeof CONFIG] || CONFIG["default"];
   };
 
-  const { variants, addons } = getConfig();
+  const { variants, addons } = getActualOptions();
   
   // States
-  const [selectedVariant, setSelectedVariant] = useState(variants[0] || null);
+  const [selectedVariant, setSelectedVariant] = useState<typeof variants[0] | null>(variants.find(v => (v as any).isDefault) || variants[0] || null);
   const [selectedAddons, setSelectedAddons] = useState<typeof addons>([]);
   
   // Reset selection when item changes
   useEffect(() => {
     if (item) {
-      const conf = getConfig();
-      setSelectedVariant(conf.variants[0] || null);
+      const opts = getActualOptions();
+      setSelectedVariant(opts.variants.find(v => (v as any).isDefault) || opts.variants[0] || null);
       setSelectedAddons([]);
     }
   }, [item]);
@@ -151,6 +172,7 @@ export default function ItemCustomizationModal({ item, onClose }: ItemCustomizat
       price: item.price,
       quantity: 1,
       imageUrl: item.imageUrl,
+      categoryId: item.categoryId,
       variant: selectedVariant ? {
         id: selectedVariant.id,
         name: selectedVariant.name,
@@ -219,6 +241,7 @@ export default function ItemCustomizationModal({ item, onClose }: ItemCustomizat
                       src={item.imageUrl}
                       alt={item.name}
                       fill
+                      loading="lazy"
                       className="object-cover"
                     />
                   ) : (
@@ -296,58 +319,78 @@ export default function ItemCustomizationModal({ item, onClose }: ItemCustomizat
             <div className="overflow-y-auto flex-1 hide-scrollbar bg-warm-50/20">
               {addons.length > 0 && (
                 <div className="px-6 pb-6">
-                  <div className="sticky top-0 bg-white py-3 -mx-6 px-6 z-20 border-b border-warm-100/50 flex items-center justify-between mb-4 shadow-sm">
-                    <h3 className="font-bold text-warm-900">Add Extras</h3>
-                    <span className="text-[10px] sm:text-xs font-bold text-warm-500 bg-warm-100 px-2 py-0.5 rounded-md uppercase tracking-wider">Optional</span>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {addons.map((addon) => {
-                      const isSelected = selectedAddons.some((a) => a.id === addon.id);
-                      return (
-                        <button
-                          key={addon.id}
-                          onClick={() => toggleAddon(addon)}
-                          className={`relative flex items-center justify-between p-3.5 rounded-2xl border-2 transition-all duration-300 cursor-pointer text-left ${
-                            isSelected
-                              ? "border-amber-500 bg-amber-50 shadow-sm"
-                              : "border-warm-200 bg-white hover:border-amber-500/40 hover:bg-warm-50/50"
-                          }`}
-                        >
-                          {isSelected && (
-                            <motion.div 
-                              layoutId={`addon-bg-${addon.id}`}
-                              className="absolute inset-0 bg-amber-500/5 rounded-2xl pointer-events-none"
-                              initial={false}
-                              transition={{ duration: 0.2 }}
-                            />
-                          )}
-                          <div className="flex items-center gap-3 z-10">
-                            <div className={`w-5 h-5 rounded-[6px] border-2 flex items-center justify-center transition-all ${
-                              isSelected ? "bg-amber-500 border-amber-500 scale-110" : "border-warm-300 bg-white"
-                            }`}>
-                              <AnimatePresence>
+                  {(() => {
+                    // Filter addons based on selected variant
+                    // Show global addons (variantName is null) AND addons specific to selected variant
+                    const availableAddons = addons.filter(a => 
+                      !a.variantName || (selectedVariant && a.variantName === selectedVariant.name)
+                    );
+
+                    // Group available addons by addonGroup
+                    const groupedAddons: Record<string, typeof addons> = {};
+                    availableAddons.forEach(addon => {
+                      const group = addon.addonGroup || "Extras";
+                      if (!groupedAddons[group]) groupedAddons[group] = [];
+                      groupedAddons[group].push(addon);
+                    });
+
+                    return Object.entries(groupedAddons).map(([groupName, groupAddons]) => (
+                      <div key={groupName} className="mb-6 last:mb-0">
+                        <div className="sticky top-0 bg-white py-3 -mx-6 px-6 z-20 border-b border-warm-100/50 flex items-center justify-between mb-4 shadow-sm">
+                          <h3 className="font-bold text-warm-900">{groupName}</h3>
+                          <span className="text-[10px] sm:text-xs font-bold text-warm-500 bg-warm-100 px-2 py-0.5 rounded-md uppercase tracking-wider">Optional</span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {groupAddons.map((addon) => {
+                            const isSelected = selectedAddons.some((a) => a.id === addon.id);
+                            return (
+                              <button
+                                key={addon.id}
+                                onClick={() => toggleAddon(addon)}
+                                className={`relative flex items-center justify-between p-3.5 rounded-2xl border-2 transition-all duration-300 cursor-pointer text-left ${
+                                  isSelected
+                                    ? "border-amber-500 bg-amber-50 shadow-sm"
+                                    : "border-warm-200 bg-white hover:border-amber-500/40 hover:bg-warm-50/50"
+                                }`}
+                              >
                                 {isSelected && (
-                                  <motion.div
-                                    initial={{ scale: 0, opacity: 0 }}
-                                    animate={{ scale: 1, opacity: 1 }}
-                                    exit={{ scale: 0, opacity: 0 }}
-                                  >
-                                    <Check className="w-3.5 h-3.5 text-white" strokeWidth={3.5} />
-                                  </motion.div>
+                                  <motion.div 
+                                    layoutId={`addon-bg-${addon.id}`}
+                                    className="absolute inset-0 bg-amber-500/5 rounded-2xl pointer-events-none"
+                                    initial={false}
+                                    transition={{ duration: 0.2 }}
+                                  />
                                 )}
-                              </AnimatePresence>
-                            </div>
-                            <span className={`font-semibold text-sm ${isSelected ? "text-amber-900" : "text-warm-700"}`}>
-                              {addon.name}
-                            </span>
-                          </div>
-                          <span className={`font-black text-sm z-10 ${isSelected ? "text-amber-700" : "text-warm-900"}`}>
-                            +₹{addon.price}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
+                                <div className="flex items-center gap-3 z-10">
+                                  <div className={`w-5 h-5 rounded-[6px] border-2 flex items-center justify-center transition-all ${
+                                    isSelected ? "bg-amber-500 border-amber-500 scale-110" : "border-warm-300 bg-white"
+                                  }`}>
+                                    <AnimatePresence>
+                                      {isSelected && (
+                                        <motion.div
+                                          initial={{ scale: 0, opacity: 0 }}
+                                          animate={{ scale: 1, opacity: 1 }}
+                                          exit={{ scale: 0, opacity: 0 }}
+                                        >
+                                          <Check className="w-3.5 h-3.5 text-white" strokeWidth={3.5} />
+                                        </motion.div>
+                                      )}
+                                    </AnimatePresence>
+                                  </div>
+                                  <span className={`font-semibold text-sm ${isSelected ? "text-amber-900" : "text-warm-700"}`}>
+                                    {addon.name}
+                                  </span>
+                                </div>
+                                <span className={`font-black text-sm z-10 ${isSelected ? "text-amber-700" : "text-warm-900"}`}>
+                                  +₹{addon.price}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ));
+                  })()}
                 </div>
               )}
             </div>

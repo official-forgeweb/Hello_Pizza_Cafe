@@ -27,10 +27,39 @@ export default function CartPage() {
   const [couponCode, setCouponCode] = useState("");
   const [couponApplied, setCouponApplied] = useState<string | null>(null);
   const [couponDiscount, setCouponDiscount] = useState(0);
+  const [recommendations, setRecommendations] = useState<any[]>([]);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Fetch smart recommendations based on cart items
+  useEffect(() => {
+    if (!mounted || items.length === 0) {
+      setRecommendations([]);
+      return;
+    }
+
+    const fetchRecs = async () => {
+      try {
+        const cartCategoryIds = [...new Set(items.map(i => i.categoryId).filter(Boolean))];
+        const excludeIds = [...new Set(items.map(i => i.menuItemId).filter(Boolean))];
+        const params = new URLSearchParams();
+        if (cartCategoryIds.length > 0) params.set("cartCategoryIds", cartCategoryIds.join(","));
+        if (excludeIds.length > 0) params.set("excludeIds", excludeIds.join(","));
+        params.set("limit", "8");
+
+        const res = await fetch(`/api/menu-items/recommendations?${params.toString()}`);
+        if (res.ok) {
+          const data = await res.json();
+          setRecommendations(data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch recommendations:", err);
+      }
+    };
+    fetchRecs();
+  }, [mounted, items.length]);
 
   if (!mounted) {
     return (
@@ -208,6 +237,7 @@ export default function CartPage() {
                             src={item.imageUrl}
                             alt={item.name}
                             fill
+                            loading="lazy"
                             sizes="(max-width: 768px) 96px, 128px"
                             className="object-cover transition-transform duration-500 group-hover:scale-110"
                           />
@@ -297,82 +327,72 @@ export default function CartPage() {
               </div>
               
               <div className="flex gap-4 overflow-x-auto pb-6 px-1 custom-scrollbar no-scrollbar">
-                {[
-                  {
-                    id: "m11",
-                    name: "Garlic Bread (4 pcs)",
-                    price: 129,
-                    imageUrl: "https://images.unsplash.com/photo-1541518763669-27fef04b14ea?auto=format&fit=crop&q=80&w=600&h=450",
-                    isVeg: true,
-                  },
-                  {
-                    id: "m16",
-                    name: "Choco Lava Cake",
-                    price: 179,
-                    imageUrl: "https://images.unsplash.com/photo-1624353365286-3f8d62daad51?auto=format&fit=crop&q=80&w=600&h=450",
-                    isVeg: true,
-                    isBestSeller: true,
-                  },
-                  {
-                    id: "m12",
-                    name: "Loaded Fries",
-                    price: 159,
-                    imageUrl: "https://images.unsplash.com/photo-1585109649139-366815a0d713?auto=format&fit=crop&q=80&w=600&h=450",
-                    isVeg: true,
-                  },
-                  {
-                    id: "m15",
-                    name: "Fresh Lemonade",
-                    price: 89,
-                    imageUrl: "https://images.unsplash.com/photo-1621263764928-df1444c5e859?auto=format&fit=crop&q=80&w=600&h=450",
-                    isVeg: true,
-                  },
-                ].filter(rec => !items.find(cartItem => cartItem.id === rec.id)).map((rec) => (
-                  <motion.div
-                    key={rec.id}
-                    whileHover={{ y: -5 }}
-                    className="flex-shrink-0 w-40 md:w-48 bg-white rounded-3xl p-3 border border-warm-200/60 shadow-sm relative group cursor-pointer"
-                  >
-                    <div className="relative aspect-square rounded-2xl overflow-hidden mb-3">
-                      <Image
-                        src={rec.imageUrl}
-                        alt={rec.name}
-                        fill
-                        className="object-cover group-hover:scale-110 transition-transform duration-500"
-                      />
-                      {rec.isBestSeller && (
-                        <div className="absolute top-2 left-2 px-2 py-0.5 bg-accent-orange text-[8px] font-black text-white uppercase rounded-md">
-                          Bestseller
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div className="space-y-1">
-                      <h4 className="text-xs font-bold text-warm-900 line-clamp-1">{rec.name}</h4>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-black text-warm-900">₹{rec.price}</span>
-                        <motion.button
-                          onClick={() => {
-                            useCartStore.getState().addItem({
-                              id: `${rec.id}-${Date.now()}`,
-                              menuItemId: rec.id,
-                              name: rec.name,
-                              price: rec.price,
-                              imageUrl: rec.imageUrl,
-                              totalPrice: rec.price,
-                              quantity: 1,
-                            });
-                          }}
-                          className="w-8 h-8 rounded-full bg-warm-900 text-white flex items-center justify-center hover:bg-primary transition-all shadow-lg"
-                          whileTap={{ scale: 0.9 }}
-                          whileHover={{ rotate: 90 }}
-                        >
-                          <Plus className="w-4 h-4" strokeWidth={3} />
-                        </motion.button>
+                {recommendations.length > 0 ? (
+                  recommendations.map((rec) => (
+                    <motion.div
+                      key={rec.id}
+                      whileHover={{ y: -5 }}
+                      className="flex-shrink-0 w-40 md:w-48 bg-white rounded-3xl p-3 border border-warm-200/60 shadow-sm relative group cursor-pointer"
+                    >
+                      <div className="relative aspect-square rounded-2xl overflow-hidden mb-3">
+                        <Image
+                          src={rec.imageUrl || "https://images.unsplash.com/photo-1541518763669-27fef04b14ea?auto=format&fit=crop&q=80&w=600&h=450"} // Fallback image
+                          alt={rec.name}
+                          fill
+                          sizes="(max-width: 768px) 160px, 192px"
+                          className="object-cover group-hover:scale-110 transition-transform duration-500"
+                        />
+                        {rec.isBestSeller && (
+                          <div className="absolute top-2 left-2 px-2 py-0.5 bg-accent-orange text-[8px] font-black text-white uppercase rounded-md">
+                            Bestseller
+                          </div>
+                        )}
+                        <VegBadge isVeg={rec.isVeg} className="absolute top-2 right-2 shadow-sm" />
                       </div>
-                    </div>
-                  </motion.div>
-                ))}
+                      
+                      <div className="space-y-1">
+                        <h4 className="text-xs font-bold text-warm-900 line-clamp-1">{rec.name}</h4>
+                        {rec.categoryName && (
+                           <p className="text-[10px] text-warm-500 line-clamp-1">{rec.categoryName}</p>
+                        )}
+                        <div className="flex items-center justify-between pt-1">
+                          <span className="text-sm font-black text-warm-900">₹{rec.price}</span>
+                          <motion.button
+                            onClick={() => {
+                              useCartStore.getState().addItem({
+                                id: `${rec.id}-${Date.now()}`,
+                                menuItemId: rec.id,
+                                name: rec.name,
+                                price: rec.price,
+                                imageUrl: rec.imageUrl,
+                                categoryId: rec.categoryId,
+                                totalPrice: rec.price,
+                                quantity: 1,
+                              });
+                            }}
+                            className="w-8 h-8 rounded-full bg-warm-900 text-white flex items-center justify-center hover:bg-primary transition-all shadow-lg"
+                            whileTap={{ scale: 0.9 }}
+                            whileHover={{ rotate: 90 }}
+                          >
+                            <Plus className="w-4 h-4" strokeWidth={3} />
+                          </motion.button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))
+                ) : (
+                  // Loading skeletons or empty state if no recommendations yet
+                  [1, 2, 3, 4].map((i) => (
+                     <div key={i} className="flex-shrink-0 w-40 md:w-48 bg-white rounded-3xl p-3 border border-warm-200/60 shadow-sm animate-pulse">
+                       <div className="aspect-square rounded-2xl bg-warm-200 mb-3" />
+                       <div className="h-4 bg-warm-200 rounded w-3/4 mb-2" />
+                       <div className="flex justify-between items-center">
+                         <div className="h-4 bg-warm-200 rounded w-1/4" />
+                         <div className="w-8 h-8 rounded-full bg-warm-200" />
+                       </div>
+                     </div>
+                  ))
+                )}
               </div>
             </div>
 

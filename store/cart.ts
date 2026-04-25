@@ -8,6 +8,7 @@ export interface CartItem {
   price: number;
   quantity: number;
   imageUrl?: string;
+  categoryId?: string;
   variant?: {
     id: string;
     name: string;

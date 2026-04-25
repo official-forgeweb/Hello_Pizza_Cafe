@@ -19,6 +19,22 @@ export interface MenuItemData {
   categoryId?: string;
   preparationTime?: string;
   spiciness?: "mild" | "medium" | "hot";
+  variants?: Array<{
+    id: string;
+    name: string;
+    priceModifier: number;
+    isDefault?: boolean;
+  }>;
+  addOns?: Array<{
+    id: string;
+    addonGroup?: string;
+    variantName?: string | null;
+    addOn: {
+      id: string;
+      name: string;
+      price: number;
+    }
+  }>;
 }
 
 interface MenuItemCardProps {
@@ -27,19 +43,34 @@ interface MenuItemCardProps {
 }
 
 export default function MenuItemCard({ item, onCustomize }: MenuItemCardProps) {
-  const { items, addItem, updateQuantity, removeItem } = useCartStore();
+  const addItem = useCartStore((state) => state.addItem);
+  const updateQuantity = useCartStore((state) => state.updateQuantity);
+  const removeItem = useCartStore((state) => state.removeItem);
+  
+  // Only re-render if THIS specific item's quantity changes
+  const totalQtyFromStore = useCartStore((state) => 
+    state.items.reduce((sum, ci) => ci.menuItemId === item.id ? sum + ci.quantity : sum, 0)
+  );
+
+  const firstCartItem = useCartStore((state) => 
+    state.items.find((ci) => ci.menuItemId === item.id)
+  );
+
+  const cartItemCount = useCartStore((state) => 
+    state.items.reduce((count, ci) => ci.menuItemId === item.id ? count + 1 : count, 0)
+  );
+
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  // Find all cart items for this menu item
-  const cartItems = items.filter((ci) => ci.menuItemId === item.id);
-  const totalQty = isMounted ? cartItems.reduce((sum, ci) => sum + ci.quantity, 0) : 0;
+  const totalQty = isMounted ? totalQtyFromStore : 0;
 
   const handleAdd = () => {
-    if (item.hasVariants && onCustomize) {
+    const hasCustomizations = item.hasVariants || (item.addOns && item.addOns.length > 0) || (item.variants && item.variants.length > 0);
+    if (hasCustomizations && onCustomize) {
       onCustomize(item);
       return;
     }
@@ -51,28 +82,31 @@ export default function MenuItemCard({ item, onCustomize }: MenuItemCardProps) {
       price: item.price,
       quantity: 1,
       imageUrl: item.imageUrl,
+      categoryId: item.categoryId,
       totalPrice: item.price,
     };
     addItem(newItem);
   };
 
-  const handleIncrement = () => {
-    if (cartItems.length === 1) {
-      updateQuantity(cartItems[0].id, cartItems[0].quantity + 1);
-    } else if (item.hasVariants && onCustomize) {
-      onCustomize(item);
+  const handleIncrement = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (cartItemCount === 1 && !item.hasVariants && firstCartItem) {
+      updateQuantity(firstCartItem.id, firstCartItem.quantity + 1);
     } else {
-      handleAdd();
+      if (onCustomize) onCustomize(item);
     }
   };
 
-  const handleDecrement = () => {
-    if (cartItems.length === 1) {
-      if (cartItems[0].quantity === 1) {
-        removeItem(cartItems[0].id);
+  const handleDecrement = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (cartItemCount === 1 && firstCartItem) {
+      if (firstCartItem.quantity > 1) {
+        updateQuantity(firstCartItem.id, firstCartItem.quantity - 1);
       } else {
-        updateQuantity(cartItems[0].id, cartItems[0].quantity - 1);
+        removeItem(firstCartItem.id);
       }
+    } else {
+      if (onCustomize) onCustomize(item);
     }
   };
 
@@ -90,6 +124,7 @@ export default function MenuItemCard({ item, onCustomize }: MenuItemCardProps) {
             src={item.imageUrl}
             alt={item.name}
             fill
+            loading="lazy"
             sizes="100vw"
             style={{ objectFit: 'cover', objectPosition: 'center' }}
             className="group-hover:scale-105 transition-transform duration-700"
@@ -140,7 +175,7 @@ export default function MenuItemCard({ item, onCustomize }: MenuItemCardProps) {
 
               {/* Right: ADD Button Area */}
               <div className="flex flex-col items-end shrink-0">
-                {item.hasVariants && (
+                {((item.hasVariants) || (item.addOns && item.addOns.length > 0) || (item.variants && item.variants.length > 0)) && (
                   <div className="text-white/95 text-[8px] sm:text-[10px] font-bold mb-1 text-right w-full uppercase tracking-wider drop-shadow-md">
                     Customisable
                   </div>
@@ -177,14 +212,15 @@ export default function MenuItemCard({ item, onCustomize }: MenuItemCardProps) {
       </div>
 
       {/* ─── Desktop View: Compact Grid Card Layout ─── */}
-      <div className="hidden md:flex flex-col w-full bg-white rounded-[16px] overflow-hidden border border-warm-200/50 shadow-sm hover:shadow-lg transition-all duration-300 group relative">
-        {/* Top Image Section - Compacted height */}
-        <div className="relative w-full h-[160px] overflow-hidden">
+      <div className="hidden md:flex flex-col w-full h-full bg-white rounded-[16px] overflow-hidden border border-warm-200/50 shadow-sm hover:shadow-lg transition-all duration-300 group relative">
+        {/* Top Image Section - Fixed aspect ratio */}
+        <div className="relative w-full aspect-[4/3] overflow-hidden flex-shrink-0">
           {item.imageUrl ? (
             <Image
               src={item.imageUrl}
               alt={item.name}
               fill
+              loading="lazy"
               sizes="(max-width: 1024px) 50vw, 25vw"
               className="object-cover group-hover:scale-105 transition-transform duration-500"
             />
@@ -211,19 +247,19 @@ export default function MenuItemCard({ item, onCustomize }: MenuItemCardProps) {
           </div>
         </div>
 
-        {/* Bottom Content Section - Compacted padding */}
+        {/* Bottom Content Section */}
         <div className="p-4 flex flex-col flex-1">
-          <h3 className="font-bold text-warm-900 text-base lg:text-lg leading-tight mb-1 group-hover:text-primary transition-colors truncate">
+          <h3 className="font-bold text-warm-900 text-sm lg:text-base leading-snug mb-1 group-hover:text-primary transition-colors line-clamp-2 min-h-[2.5rem]">
             {item.name}
           </h3>
 
-          <p className="text-warm-500 text-xs line-clamp-2 mb-3 leading-relaxed h-[32px]">
+          <p className="text-warm-500 text-xs line-clamp-2 mb-3 leading-relaxed min-h-[2rem]">
             {item.description}
           </p>
 
           <div className="mt-auto flex items-center justify-between gap-2">
-            <div className="flex items-baseline gap-1.5 overflow-hidden">
-              <span className="text-lg lg:text-xl font-black text-warm-900">₹{item.price}</span>
+            <div className="flex items-baseline gap-1.5 min-w-0">
+              <span className="text-lg lg:text-xl font-black text-warm-900 shrink-0">₹{item.price}</span>
               <span className="text-[11px] text-warm-400 line-through font-medium truncate">₹{originalPrice}</span>
             </div>
 
@@ -232,20 +268,22 @@ export default function MenuItemCard({ item, onCustomize }: MenuItemCardProps) {
                 onClick={(e) => { e.stopPropagation(); handleAdd(); }}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                className="bg-[#E31837] text-white px-4 py-1.5 rounded-lg text-xs font-bold shadow-md hover:bg-[#C8102E] transition-all whitespace-nowrap"
+                className="bg-primary/10 text-primary hover:bg-primary hover:text-white px-5 py-2 rounded-xl text-sm font-extrabold transition-all border border-primary/20 hover:border-primary shadow-sm flex flex-col items-center justify-center shrink-0 min-w-[80px]"
                 suppressHydrationWarning={true}
               >
-                ADD <Plus className="w-3.5 h-3.5 ml-0.5 inline-block" strokeWidth={3} />
+                <div className="flex items-center gap-1.5">
+                  ADD <Plus className="w-4 h-4" strokeWidth={2.5} />
+                </div>
+                {((item.hasVariants) || (item.addOns && item.addOns.length > 0) || (item.variants && item.variants.length > 0)) && <span className="text-[9px] font-bold uppercase tracking-wider opacity-80 mt-0.5">Customisable</span>}
               </motion.button>
             ) : (
-              <div className="flex items-center bg-gray-50 rounded-lg p-0.5 border border-gray-100" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center bg-gray-50 rounded-lg p-0.5 border border-gray-100 shrink-0" onClick={(e) => e.stopPropagation()}>
                 <button onClick={handleDecrement} className="w-7 h-7 flex items-center justify-center text-[#E31837] hover:bg-white rounded-md transition-all"><Minus className="w-3.5 h-3.5" strokeWidth={3} /></button>
                 <span className="w-6 text-center text-xs font-bold text-[#E31837]">{totalQty}</span>
                 <button onClick={handleIncrement} className="w-7 h-7 flex items-center justify-center bg-[#E31837] text-white rounded-md shadow-sm"><Plus className="w-3.5 h-3.5" strokeWidth={3} /></button>
               </div>
             )}
           </div>
-          {item.hasVariants && <div className="text-[9px] font-bold text-warm-400 uppercase tracking-widest mt-2">Customisable</div>}
         </div>
       </div>
     </>
