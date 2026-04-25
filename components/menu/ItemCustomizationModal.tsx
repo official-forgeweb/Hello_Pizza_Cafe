@@ -136,7 +136,15 @@ export default function ItemCustomizationModal({ item, onClose }: ItemCustomizat
       return { variants: dbVariants, addons: dbAddons };
     }
 
-    return CONFIG[item.categoryId as keyof typeof CONFIG] || CONFIG["default"];
+    const mockConfig = CONFIG[item.categoryId as keyof typeof CONFIG] || CONFIG["default"];
+    return {
+      variants: mockConfig.variants,
+      addons: mockConfig.addons.map(a => ({
+        ...a,
+        addonGroup: (a as any).addonGroup || "Extras",
+        variantName: (a as any).variantName || null
+      }))
+    };
   };
 
   const { variants, addons } = getActualOptions();
