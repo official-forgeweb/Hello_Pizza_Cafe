@@ -33,6 +33,10 @@ export async function GET(request: NextRequest) {
         quantity: item.quantity,
         line_total: Number(item.itemTotal) || (Number(item.basePrice) * item.quantity),
         price: Number(item.basePrice),
+        variant: item.variantName ? {
+          name: item.variantName,
+          price: Number(item.variantPrice || 0)
+        } : null,
         modifiers: item.addOns.map(addon => ({
           name: addon.addonName,
           price: Number(addon.addonPrice),

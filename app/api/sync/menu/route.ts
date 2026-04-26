@@ -270,10 +270,15 @@ export async function POST(request: NextRequest) {
             }
 
             if (uniqueAddonsToCreate.length > 0) {
-              await prisma.menuItemAddOn.createMany({
-                data: uniqueAddonsToCreate,
-                skipDuplicates: true
-              });
+              try {
+                await prisma.menuItemAddOn.createMany({
+                  data: uniqueAddonsToCreate,
+                  skipDuplicates: true
+                });
+              } catch (e) {
+                require('fs').writeFileSync('C:\\Users\\lenovo\\OneDrive\\Desktop\\Projects\\ZapBill_offline-software\\tmp\\sync_error.txt', e.message + '\n\n' + JSON.stringify(uniqueAddonsToCreate, null, 2));
+                throw e;
+              }
             }
           }
         }
