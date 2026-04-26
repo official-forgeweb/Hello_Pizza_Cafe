@@ -49,8 +49,8 @@ export async function POST(request: NextRequest) {
         specialInstructions?: string;
         addOns?: { addonName: string; addonPrice: number; quantity: number }[];
       }) => {
-        const itemTotal =
-          (item.basePrice + item.variantPrice + item.addonsPrice) * item.quantity;
+        const unitPrice = item.variantPrice > 0 ? item.variantPrice : item.basePrice;
+        const itemTotal = (unitPrice + item.addonsPrice) * item.quantity;
         subtotal += itemTotal;
         return {
           menuItemId: item.menuItemId && validMenuItems.has(item.menuItemId) ? item.menuItemId : null,

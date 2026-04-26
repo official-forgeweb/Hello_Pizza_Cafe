@@ -50,11 +50,11 @@ export const useCartStore = create<CartStore>()(
           if (existingItemIndex > -1) {
             const newItems = [...state.items];
             newItems[existingItemIndex].quantity += item.quantity;
-            newItems[existingItemIndex].totalPrice =
-              (newItems[existingItemIndex].price +
-                (newItems[existingItemIndex].variant?.price || 0) +
-                 (newItems[existingItemIndex].addOns?.reduce((a, b) => a + (b.price * (b.quantity || 1)), 0) || 0)) *
-              newItems[existingItemIndex].quantity;
+            const unitPrice = item.variant?.price && item.variant.price > 0 
+              ? item.variant.price 
+              : item.price;
+            const addonsPrice = item.addOns?.reduce((a, b) => a + (b.price * (b.quantity || 1)), 0) || 0;
+            newItems[existingItemIndex].totalPrice = (unitPrice + addonsPrice) * newItems[existingItemIndex].quantity;
             return { items: newItems };
           }
           return { items: [...state.items, item] };
@@ -66,10 +66,11 @@ export const useCartStore = create<CartStore>()(
         set((state) => ({
           items: state.items.map((item) => {
             if (item.id === id) {
-              const baseAndAddonsPrice =
-                item.price +
-                (item.variant?.price || 0) +
-                 (item.addOns?.reduce((a, b) => a + (b.price * (b.quantity || 1)), 0) || 0);
+              const unitPrice = item.variant?.price && item.variant.price > 0 
+                ? item.variant.price 
+                : item.price;
+              const addonsPrice = item.addOns?.reduce((a, b) => a + (b.price * (b.quantity || 1)), 0) || 0;
+              const baseAndAddonsPrice = unitPrice + addonsPrice;
               return {
                 ...item,
                 quantity,
