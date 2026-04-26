@@ -45,7 +45,13 @@ function MenuContent() {
         if (itemRes.ok) {
           const data = await itemRes.json();
           if (data && Array.isArray(data.items) && data.items.length > 0) {
-            setMenuItems(data.items.map((i: any) => ({
+            // Deduplicate items just in case the backend returns duplicate IDs
+            const uniqueMap = new Map();
+            data.items.forEach((i: any) => {
+              if (!uniqueMap.has(i.id)) uniqueMap.set(i.id, i);
+            });
+            
+            setMenuItems(Array.from(uniqueMap.values()).map((i: any) => ({
               ...i,
               price: Number(i.basePrice || i.price),
               isVeg: i.itemType === "VEG" || i.isVeg === true
@@ -81,19 +87,42 @@ function MenuContent() {
     return matchesSearch && matchesVeg;
   });
 
+  // ─── Pagination for rendering performance ───
+  const [visibleCount, setVisibleCount] = useState(10);
+  
+  // Reset pagination when filters change
+  useEffect(() => {
+    setVisibleCount(10);
+  }, [searchQuery, vegFilter, activeCategory]);
+
+  // Auto-load 10 more items every 3 seconds until all items are loaded
+  useEffect(() => {
+    if (visibleCount < filteredItems.length) {
+      const timer = setTimeout(() => {
+        setVisibleCount(prev => prev + 10);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [visibleCount, filteredItems.length]);
+
   // ─── Group items by category ───
-  const groupedItems = categories.filter((c) => c.id !== "all").reduce(
-    (acc, cat) => {
+  const groupedItemsAll = categories.filter((c) => c.id !== "all").map(
+    (cat) => {
       const items = filteredItems.filter((item) => 
         item.categoryId === cat.id || item.categoryId === cat.slug
       );
-      if (items.length > 0) {
-        acc.push({ category: cat, items });
-      }
-      return acc;
-    },
-    [] as { category: any; items: typeof filteredItems }[]
-  );
+      return { category: cat, items, totalCount: items.length };
+    }
+  ).filter(g => g.items.length > 0);
+
+  let currentRendered = 0;
+  const groupedItems = groupedItemsAll.map(group => {
+    if (currentRendered >= visibleCount) return { ...group, items: [] };
+    const remaining = visibleCount - currentRendered;
+    const displayItems = group.items.slice(0, remaining);
+    currentRendered += displayItems.length;
+    return { ...group, items: displayItems };
+  }).filter(g => g.items.length > 0);
 
   // ─── Handle category click → scroll ───
   const handleCategoryClick = useCallback((catId: string) => {
@@ -271,9 +300,8 @@ function MenuContent() {
             </button>
           </div>
         ) : (
-          /* All categories grouped */
           <div className="space-y-8 md:space-y-16 w-full">
-            {groupedItems.map(({ category, items }: { category: any, items: any[] }) => (
+            {groupedItems.map(({ category, items, totalCount }: { category: any, items: any[], totalCount: number }) => (
               <div
                 key={category.id}
                 ref={(el) => {
@@ -285,14 +313,14 @@ function MenuContent() {
                   <span className="h-px bg-warm-200 flex-1 hidden md:block"></span>
                   <span className="shrink-0">{category.name}</span>
                   <span className="text-warm-400 text-[10px] md:text-sm font-medium bg-warm-50 px-2 md:px-3 py-0.5 md:py-1 rounded-full border border-warm-200/50 shrink-0">
-                    {items.length} Items
+                    {totalCount} Items
                   </span>
                   <span className="h-px bg-warm-200 flex-1 hidden md:block"></span>
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6">
-                  {items.map((item: any) => (
+                  {items.map((item: any, index: number) => (
                     <div
-                      key={item.id}
+                      key={`${category.id}-${item.id}-${index}`}
                       className="w-full h-full"
                     >
                       <MenuItemCard item={item} onCustomize={(item) => setItemToCustomize(item)} />
@@ -301,6 +329,18 @@ function MenuContent() {
                 </div>
               </div>
             ))}
+
+            {visibleCount < filteredItems.length && (
+              <div className="flex justify-center pt-8 pb-12 w-full">
+                <button
+                  onClick={() => setVisibleCount((prev) => prev + 10)}
+                  className="bg-white border-2 border-primary text-primary hover:bg-primary hover:text-white hover:shadow-lg transition-all duration-300 font-bold px-8 py-3 rounded-xl flex items-center gap-2 cursor-pointer group"
+                >
+                  <Loader2 className="w-5 h-5 group-hover:animate-spin" />
+                  Load More Items ({filteredItems.length - visibleCount} remaining)
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

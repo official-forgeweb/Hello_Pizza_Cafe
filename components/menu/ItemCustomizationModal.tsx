@@ -265,6 +265,7 @@ export default function ItemCustomizationModal({ item, onClose }: ItemCustomizat
                       src={item.imageUrl}
                       alt={item.name}
                       fill
+                      sizes="(max-width: 768px) 80px, 96px"
                       loading="lazy"
                       className="object-cover"
                     />
@@ -312,14 +313,6 @@ export default function ItemCustomizationModal({ item, onClose }: ItemCustomizat
                               : "border-warm-200 bg-white hover:border-primary/40 hover:bg-warm-50"
                           }`}
                         >
-                          {isSelected && (
-                            <motion.div 
-                              layoutId="active-variant-border"
-                              className="absolute inset-0 border-2 border-primary rounded-2xl pointer-events-none"
-                              initial={false}
-                              transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                            />
-                          )}
                           <div className={`text-sm sm:text-base font-bold z-10 ${isSelected ? "text-primary" : "text-warm-800"}`}>
                             {mainName}
                           </div>
@@ -373,7 +366,8 @@ export default function ItemCustomizationModal({ item, onClose }: ItemCustomizat
                             return (
                               <div
                                 key={addon.id}
-                                className={`relative flex flex-col p-3.5 rounded-2xl border-2 transition-all duration-300 ${
+                                onClick={() => !isSelected && incrementAddon(addon)}
+                                className={`relative flex flex-col p-3.5 rounded-2xl border-2 transition-all duration-300 cursor-pointer ${
                                   isSelected
                                     ? "border-amber-500 bg-amber-50 shadow-md"
                                     : "border-warm-200 bg-white hover:border-amber-500/40 hover:bg-warm-50/50"

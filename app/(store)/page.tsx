@@ -231,9 +231,6 @@ import { useLocationStore } from "@/store/location";
 export default function HomePage() {
   const { address } = useLocationStore();
 
-  const { scrollY } = useScroll();
-  const yParallax = useTransform(scrollY, [0, 500], [0, 150]);
-
   // Dynamic state
   const [categories, setCategories] = useState<any[]>(CATEGORIES);
   const [adsData, setAdsData] = useState<any[]>(ADS_DATA);
@@ -288,24 +285,35 @@ export default function HomePage() {
           
           // If no items have the isBestSeller flag set from POS, fetch some popular categories (like Pizzas/Burgers)
           if (items.length < 4) {
-             const fallbackRes = await fetch("/api/menu-items?limit=12");
+             const fallbackRes = await fetch("/api/menu-items?limit=30");
              if (fallbackRes.ok) {
                const fallbackData = await fallbackRes.json();
                if (fallbackData.items) {
+                 // Only pick items that have images
+                 const withImages = fallbackData.items.filter((i: any) => i.imageUrl);
                  // Try to pick Pizzas first, then anything else
-                 const pizzas = fallbackData.items.filter((i: any) => i.name.toLowerCase().includes("pizza") || (i.category && i.category.name.toLowerCase().includes("pizza")));
-                 const others = fallbackData.items.filter((i: any) => !i.name.toLowerCase().includes("pizza") && (!i.category || !i.category.name.toLowerCase().includes("pizza")));
-                 items = [...items, ...pizzas, ...others].slice(0, 8);
+                 const pizzas = withImages.filter((i: any) => i.name.toLowerCase().includes("pizza") || (i.category && i.category.name.toLowerCase().includes("pizza")));
+                 const others = withImages.filter((i: any) => !i.name.toLowerCase().includes("pizza") && (!i.category || !i.category.name.toLowerCase().includes("pizza")));
+                 items = [...items, ...pizzas, ...others];
                }
              }
           }
+
+          // Deduplicate by item name and filter out items without images
+          const seen = new Set<string>();
+          items = items.filter((i: any) => {
+            const normalizedName = i.name?.toLowerCase()?.trim() || "";
+            if (!i.imageUrl || !normalizedName || seen.has(normalizedName)) return false;
+            seen.add(normalizedName);
+            return true;
+          }).slice(0, 8);
 
           if (items.length > 0) {
             setBestSellers(items.map((i: any) => ({
               ...i,
               price: Number(i.basePrice || i.price),
               isVeg: i.itemType === "VEG" || i.isVeg === true,
-              isBestSeller: true, // Force the badge to show since they are our hand-picked best items
+              isBestSeller: true,
             })));
           }
         }
@@ -316,31 +324,8 @@ export default function HomePage() {
     fetchLiveDbData();
   }, []);
 
-  useEffect(() => {
-    const container = document.getElementById("ads-gallery");
-    if (!container) return;
-    
-    let animationId: number;
-    
-    const scrollStep = () => {
-      if (container.matches(":hover") || container.matches(":active") || container.dataset.isDown === "true") {
-        animationId = requestAnimationFrame(scrollStep);
-        return;
-      }
-      
-      const maxScroll = container.scrollWidth - container.clientWidth;
-      if (container.scrollLeft >= maxScroll - 50) {
-        container.scrollLeft = 0;
-      } else {
-        container.scrollLeft += 1;
-      }
-      
-      animationId = requestAnimationFrame(scrollStep);
-    };
-    
-    animationId = requestAnimationFrame(scrollStep);
-    return () => cancelAnimationFrame(animationId);
-  }, [adsData]);
+    // Removing continuous requestAnimationFrame for performance.
+    // CSS-based scrolling handles this much better and won't lock the main thread.
 
   return (
     <div className="flex flex-col pb-24 md:pb-0">
@@ -358,12 +343,6 @@ export default function HomePage() {
           <div className="absolute inset-0 bg-gradient-to-r from-black via-black/80 to-transparent" />
           <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/50" />
         </div>
-
-        {/* Floating Abstract Shapes */}
-        <motion.div 
-          animate={{ rotate: 360 }} transition={{ duration: 100, repeat: Infinity, ease: "linear" }}
-          className="absolute -top-1/2 -right-1/4 w-[1000px] h-[1000px] bg-primary/20 rounded-full blur-[150px] pointer-events-none mix-blend-screen z-0" 
-        />
         
         <div className="relative z-10 px-4 md:px-6 lg:px-8 max-w-7xl mx-auto w-full grid lg:grid-cols-2 gap-12 items-center">
           <motion.div
