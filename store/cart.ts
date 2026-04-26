@@ -18,6 +18,7 @@ export interface CartItem {
     id: string;
     name: string;
     price: number;
+    quantity: number;
   }>;
   totalPrice: number;
 }
@@ -52,7 +53,7 @@ export const useCartStore = create<CartStore>()(
             newItems[existingItemIndex].totalPrice =
               (newItems[existingItemIndex].price +
                 (newItems[existingItemIndex].variant?.price || 0) +
-                (newItems[existingItemIndex].addOns?.reduce((a, b) => a + b.price, 0) || 0)) *
+                 (newItems[existingItemIndex].addOns?.reduce((a, b) => a + (b.price * (b.quantity || 1)), 0) || 0)) *
               newItems[existingItemIndex].quantity;
             return { items: newItems };
           }
@@ -68,7 +69,7 @@ export const useCartStore = create<CartStore>()(
               const baseAndAddonsPrice =
                 item.price +
                 (item.variant?.price || 0) +
-                (item.addOns?.reduce((a, b) => a + b.price, 0) || 0);
+                 (item.addOns?.reduce((a, b) => a + (b.price * (b.quantity || 1)), 0) || 0);
               return {
                 ...item,
                 quantity,

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Check, Pizza, ShoppingBag } from "lucide-react";
+import { X, Check, Pizza, ShoppingBag, Plus, Minus } from "lucide-react";
 import Image from "next/image";
 import { useCartStore, type CartItem } from "@/store/cart";
 import { MenuItemData } from "./MenuItemCard";
@@ -151,7 +151,7 @@ export default function ItemCustomizationModal({ item, onClose }: ItemCustomizat
   
   // States
   const [selectedVariant, setSelectedVariant] = useState<typeof variants[0] | null>(variants.find(v => (v as any).isDefault) || variants[0] || null);
-  const [selectedAddons, setSelectedAddons] = useState<typeof addons>([]);
+  const [selectedAddons, setSelectedAddons] = useState<(typeof addons[0] & { quantity: number })[]>([]);
   
   // Reset selection when item changes
   useEffect(() => {
@@ -164,12 +164,28 @@ export default function ItemCustomizationModal({ item, onClose }: ItemCustomizat
 
   if (!item) return null;
 
-  const toggleAddon = (addon: typeof addons[0]) => {
-    setSelectedAddons((prev) => 
-      prev.find((a) => a.id === addon.id)
-        ? prev.filter((a) => a.id !== addon.id)
-        : [...prev, addon]
-    );
+  const incrementAddon = (addon: typeof addons[0]) => {
+    setSelectedAddons((prev) => {
+      const existing = prev.find((a) => a.id === addon.id);
+      if (existing) {
+        return prev.map((a) => 
+          a.id === addon.id ? { ...a, quantity: a.quantity + 1 } : a
+        );
+      }
+      return [...prev, { ...addon, quantity: 1 }];
+    });
+  };
+
+  const decrementAddon = (addon: typeof addons[0]) => {
+    setSelectedAddons((prev) => {
+      const existing = prev.find((a) => a.id === addon.id);
+      if (existing && existing.quantity > 1) {
+        return prev.map((a) => 
+          a.id === addon.id ? { ...a, quantity: a.quantity - 1 } : a
+        );
+      }
+      return prev.filter((a) => a.id !== addon.id);
+    });
   };
 
   const handleAddToCart = () => {
@@ -190,8 +206,9 @@ export default function ItemCustomizationModal({ item, onClose }: ItemCustomizat
         id: a.id,
         name: a.name,
         price: a.price,
+        quantity: a.quantity,
       })),
-      totalPrice: item.price + (selectedVariant?.price || 0) + selectedAddons.reduce((acc, a) => acc + a.price, 0),
+      totalPrice: item.price + (selectedVariant?.price || 0) + selectedAddons.reduce((acc, a) => acc + (a.price * a.quantity), 0),
     };
     
     addItem(newItem);
@@ -201,7 +218,7 @@ export default function ItemCustomizationModal({ item, onClose }: ItemCustomizat
   const calculateTotal = () => {
     const base = item.price;
     const vPrice = selectedVariant?.price || 0;
-    const aPrice = selectedAddons.reduce((acc, a) => acc + a.price, 0);
+    const aPrice = selectedAddons.reduce((acc, a) => acc + (a.price * a.quantity), 0);
     return base + vPrice + aPrice;
   };
 
@@ -350,49 +367,66 @@ export default function ItemCustomizationModal({ item, onClose }: ItemCustomizat
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           {groupAddons.map((addon) => {
-                            const isSelected = selectedAddons.some((a) => a.id === addon.id);
+                            const selectedAddon = selectedAddons.find((a) => a.id === addon.id);
+                            const isSelected = !!selectedAddon;
+                            const quantity = selectedAddon?.quantity || 0;
+
                             return (
-                              <button
+                              <div
                                 key={addon.id}
-                                onClick={() => toggleAddon(addon)}
-                                className={`relative flex items-center justify-between p-3.5 rounded-2xl border-2 transition-all duration-300 cursor-pointer text-left ${
+                                className={`relative flex flex-col p-3.5 rounded-2xl border-2 transition-all duration-300 ${
                                   isSelected
-                                    ? "border-amber-500 bg-amber-50 shadow-sm"
+                                    ? "border-amber-500 bg-amber-50 shadow-md"
                                     : "border-warm-200 bg-white hover:border-amber-500/40 hover:bg-warm-50/50"
                                 }`}
                               >
-                                {isSelected && (
-                                  <motion.div 
-                                    layoutId={`addon-bg-${addon.id}`}
-                                    className="absolute inset-0 bg-amber-500/5 rounded-2xl pointer-events-none"
-                                    initial={false}
-                                    transition={{ duration: 0.2 }}
-                                  />
-                                )}
-                                <div className="flex items-center gap-3 z-10">
-                                  <div className={`w-5 h-5 rounded-[6px] border-2 flex items-center justify-center transition-all ${
-                                    isSelected ? "bg-amber-500 border-amber-500 scale-110" : "border-warm-300 bg-white"
-                                  }`}>
-                                    <AnimatePresence>
-                                      {isSelected && (
-                                        <motion.div
-                                          initial={{ scale: 0, opacity: 0 }}
-                                          animate={{ scale: 1, opacity: 1 }}
-                                          exit={{ scale: 0, opacity: 0 }}
-                                        >
-                                          <Check className="w-3.5 h-3.5 text-white" strokeWidth={3.5} />
-                                        </motion.div>
-                                      )}
-                                    </AnimatePresence>
+                                <div className="flex items-center justify-between mb-3">
+                                  <div className="flex items-center gap-3">
+                                    <div className={`w-5 h-5 rounded-[6px] border-2 flex items-center justify-center transition-all ${
+                                      isSelected ? "bg-amber-500 border-amber-500" : "border-warm-300 bg-white"
+                                    }`}>
+                                      {isSelected && <Check className="w-3.5 h-3.5 text-white" strokeWidth={3.5} />}
+                                    </div>
+                                    <span className={`font-semibold text-sm ${isSelected ? "text-amber-900" : "text-warm-700"}`}>
+                                      {addon.name}
+                                    </span>
                                   </div>
-                                  <span className={`font-semibold text-sm ${isSelected ? "text-amber-900" : "text-warm-700"}`}>
-                                    {addon.name}
+                                  <span className={`font-black text-sm ${isSelected ? "text-amber-700" : "text-warm-900"}`}>
+                                    +₹{addon.price}
                                   </span>
                                 </div>
-                                <span className={`font-black text-sm z-10 ${isSelected ? "text-amber-700" : "text-warm-900"}`}>
-                                  +₹{addon.price}
-                                </span>
-                              </button>
+
+                                <div className="flex items-center justify-between mt-auto">
+                                  {isSelected ? (
+                                    <div className="flex items-center bg-white rounded-xl border border-amber-200 p-1 shadow-sm w-full justify-between">
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); decrementAddon(addon); }}
+                                        className="w-8 h-8 flex items-center justify-center rounded-lg bg-warm-100 text-warm-600 hover:bg-warm-200 transition-colors"
+                                      >
+                                        <Minus className="w-4 h-4" />
+                                      </button>
+                                      <div className="flex flex-col items-center px-4">
+                                        <span className="text-[10px] text-warm-400 uppercase font-bold leading-none mb-1">Qty</span>
+                                        <span className="text-sm font-black text-warm-900 leading-none">{quantity}</span>
+                                      </div>
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); incrementAddon(addon); }}
+                                        className="w-8 h-8 flex items-center justify-center rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-colors shadow-sm"
+                                      >
+                                        <Plus className="w-4 h-4" />
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      onClick={() => incrementAddon(addon)}
+                                      className="w-full py-2 flex items-center justify-center gap-2 bg-warm-100 text-warm-600 rounded-xl font-bold text-xs hover:bg-warm-200 transition-colors"
+                                    >
+                                      <Plus className="w-3.5 h-3.5" />
+                                      Add Extra
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
                             );
                           })}
                         </div>

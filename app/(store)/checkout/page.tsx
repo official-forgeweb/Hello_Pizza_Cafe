@@ -101,12 +101,12 @@ export default function CheckoutPage() {
           variantName: item.variant?.name,
           basePrice: item.price,
           variantPrice: item.variant?.price || 0,
-          addonsPrice: item.addOns?.reduce((a, b) => a + b.price, 0) || 0,
+          addonsPrice: item.addOns?.reduce((a, b) => a + (b.price * (b.quantity || 1)), 0) || 0,
           quantity: item.quantity,
           addOns: item.addOns?.map(add => ({
             addonName: add.name,
             addonPrice: add.price,
-            quantity: 1
+            quantity: add.quantity || 1
           })) || []
         }))
       };

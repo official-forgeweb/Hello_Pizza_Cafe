@@ -265,7 +265,7 @@ export default function CartPage() {
                               )}
                               {item.addOns?.map((a) => (
                                 <span key={a.id} className="px-2 py-0.5 bg-primary/5 text-primary text-[10px] uppercase tracking-wider font-bold rounded-md">
-                                  + {a.name}
+                                  + {a.quantity > 1 ? `${a.quantity}x ` : ""}{a.name}
                                 </span>
                               ))}
                             </div>
