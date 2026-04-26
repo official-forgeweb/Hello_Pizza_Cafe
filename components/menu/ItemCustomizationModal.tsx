@@ -208,7 +208,7 @@ export default function ItemCustomizationModal({ item, onClose }: ItemCustomizat
         price: a.price,
         quantity: a.quantity,
       })),
-      totalPrice: item.price + (selectedVariant?.price || 0) + selectedAddons.reduce((acc, a) => acc + (a.price * a.quantity), 0),
+      totalPrice: (selectedVariant ? selectedVariant.price : item.price) + selectedAddons.reduce((acc, a) => acc + (a.price * a.quantity), 0),
     };
     
     addItem(newItem);
@@ -216,10 +216,9 @@ export default function ItemCustomizationModal({ item, onClose }: ItemCustomizat
   };
 
   const calculateTotal = () => {
-    const base = item.price;
-    const vPrice = selectedVariant?.price || 0;
+    const basePrice = selectedVariant ? selectedVariant.price : item.price;
     const aPrice = selectedAddons.reduce((acc, a) => acc + (a.price * a.quantity), 0);
-    return base + vPrice + aPrice;
+    return basePrice + aPrice;
   };
 
   return (
