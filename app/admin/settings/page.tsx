@@ -8,10 +8,10 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState({
     restaurantName: "Hello Pizza",
-    phone: "+91 98765 43210",
+    phone: "085860 76383",
     email: "hello@hellopizza.in",
-    address: "Shop 12, Connaught Place, New Delhi 110001",
-    website: "https://hellopizza.in",
+    address: "Main Market, Ballabhgarh, Faridabad, Haryana 121004",
+    website: "https://hello-pizza-cafe.vercel.app",
     openingTime: "11:00",
     closingTime: "23:00",
     deliveryRadius: "10",

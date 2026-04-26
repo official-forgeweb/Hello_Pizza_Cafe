@@ -244,7 +244,7 @@ function MenuContent() {
 
       {/* ─── Category Tabs ─── */}
       <CategoryTabs
-        categories={categories}
+        categories={[{ id: "all", name: "All" }, ...groupedItemsAll.map(g => g.category)]}
         activeCategory={activeCategory}
         onCategoryChange={handleCategoryClick}
       />

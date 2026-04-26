@@ -18,7 +18,7 @@ export default function Footer() {
             <div className="mt-6 space-y-3 text-sm">
               <div className="flex items-center gap-2.5 text-warm-400">
                 <MapPin className="w-4 h-4 text-primary flex-shrink-0" />
-                Shop 12, Connaught Place, New Delhi 110001
+                Main Market, Ballabhgarh, Faridabad, Haryana 121004
               </div>
               <div className="flex items-center gap-2.5 text-warm-400">
                 <Clock className="w-4 h-4 text-primary flex-shrink-0" />
@@ -26,7 +26,7 @@ export default function Footer() {
               </div>
               <div className="flex items-center gap-2.5 text-warm-400">
                 <Phone className="w-4 h-4 text-primary flex-shrink-0" />
-                +91 98765 43210
+                085860 76383
               </div>
               <div className="flex items-center gap-2.5 text-warm-400">
                 <Mail className="w-4 h-4 text-primary flex-shrink-0" />
@@ -104,7 +104,7 @@ export default function Footer() {
             © {new Date().getFullYear()} Hello Pizza. All rights reserved.
           </p>
           <p className="text-warm-600 text-xs">
-            Made with ❤️ in New Delhi
+            Made with ❤️ in Ballabhgarh
           </p>
         </div>
       </div>
