@@ -262,7 +262,8 @@ export async function POST(request: NextRequest) {
             const uniqueAddonsToCreate = [];
             const seen = new Set();
             for (const a of addonsToCreate) {
-              const key = a.menuItemId + '-' + a.addOnId;
+              // Key must match Prisma's unique constraint: [menuItemId, addOnId, variantName]
+              const key = a.menuItemId + '-' + a.addOnId + '-' + (a.variantName || '_global_');
               if (!seen.has(key)) {
                 seen.add(key);
                 uniqueAddonsToCreate.push(a);
