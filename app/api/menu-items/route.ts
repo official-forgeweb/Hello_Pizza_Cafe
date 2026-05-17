@@ -10,10 +10,14 @@ export async function GET(request: NextRequest) {
     const bestSellers = searchParams.get("bestSellers");
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "50");
+    const isAdmin = searchParams.get("admin") === "true";
 
-    const where: Record<string, unknown> = {
-      isAvailable: true,
-    };
+    const where: Record<string, unknown> = {};
+
+    // Only filter for available items if not an admin
+    if (!isAdmin) {
+      where.isAvailable = true;
+    }
 
     if (categoryId) where.categoryId = categoryId;
     if (type) where.itemType = type;
@@ -54,6 +58,10 @@ export async function GET(request: NextRequest) {
         limit,
         total,
         totalPages: Math.ceil(total / limit),
+      },
+    }, {
+      headers: {
+        "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
       },
     });
   } catch (error) {

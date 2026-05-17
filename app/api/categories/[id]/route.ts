@@ -29,17 +29,35 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   try {
     const { id } = await params;
 
-    // Check if category has items
+    // Instead of throwing an error, we move items to "Uncategorized"
     const itemCount = await prisma.menuItem.count({ where: { categoryId: id } });
     if (itemCount > 0) {
-      return NextResponse.json(
-        { error: `Cannot delete category with ${itemCount} items` },
-        { status: 400 }
-      );
+      let uncategorized = await prisma.category.findFirst({
+        where: { name: "Uncategorized" },
+      });
+
+      if (!uncategorized) {
+        uncategorized = await prisma.category.create({
+          data: {
+            name: "Uncategorized",
+            slug: "uncategorized",
+            description: "Default category for items without a category",
+          },
+        });
+      }
+
+      if (uncategorized.id === id) {
+         return NextResponse.json({ error: "Cannot delete the Uncategorized category while it has items" }, { status: 400 });
+      }
+
+      await prisma.menuItem.updateMany({
+        where: { categoryId: id },
+        data: { categoryId: uncategorized.id },
+      });
     }
 
     await prisma.category.delete({ where: { id } });
-    return NextResponse.json({ message: "Deleted" });
+    return NextResponse.json({ message: "Category deleted and items moved to Uncategorized" });
   } catch (error) {
     console.error("Error deleting category:", error);
     return NextResponse.json({ error: "Failed to delete category" }, { status: 500 });

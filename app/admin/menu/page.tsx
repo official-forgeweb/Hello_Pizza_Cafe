@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import {
   Plus, Search, Edit2, Trash2, X, ChevronDown, Eye, EyeOff,
-  Save, Loader2, LayoutGrid, List, Sparkles, RefreshCw,
+  Save, Loader2, LayoutGrid, List, Sparkles, RefreshCw, UploadCloud,
 } from "lucide-react";
 import VegBadge from "@/components/menu/VegBadge";
 import { useAdminStore } from "@/store/admin";
@@ -31,21 +31,9 @@ interface Category {
 
 type EditItem = Partial<MenuItem> & { isNew?: boolean };
 
-// Mock items for fallback
-const MOCK_ITEMS: MenuItem[] = [
-  { id: "1", name: "Margherita Classica", description: "Classic margherita with fresh mozzarella", price: 299, isVeg: true, isAvailable: true, isBestSeller: true, imageUrl: "https://images.unsplash.com/photo-1574071318508-1cdbab80d002?auto=format&fit=crop&q=80&w=200&h=200", category: { id: "1", name: "Veg Pizza" }, categoryId: "1" },
-  { id: "2", name: "Farmhouse Supreme", description: "Loaded with farm-fresh vegetables", price: 389, isVeg: true, isAvailable: true, isBestSeller: false, imageUrl: "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&q=80&w=200&h=200", category: { id: "1", name: "Veg Pizza" }, categoryId: "1" },
-  { id: "3", name: "Paneer Tikka Pizza", description: "Tandoori paneer with spiced vegetables", price: 429, isVeg: true, isAvailable: true, isBestSeller: true, imageUrl: "https://images.unsplash.com/photo-1588315029754-2dd089d39a1a?auto=format&fit=crop&q=80&w=200&h=200", category: { id: "1", name: "Veg Pizza" }, categoryId: "1" },
-  { id: "4", name: "Pepperoni Overload", description: "Double pepperoni with mozzarella", price: 449, isVeg: false, isAvailable: true, isBestSeller: true, imageUrl: "https://images.unsplash.com/photo-1628840042765-356cda07504e?auto=format&fit=crop&q=80&w=200&h=200", category: { id: "2", name: "Non-Veg Pizza" }, categoryId: "2" },
-  { id: "5", name: "BBQ Chicken Supreme", description: "Smoky BBQ chicken with onions", price: 499, isVeg: false, isAvailable: false, isBestSeller: false, imageUrl: "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&q=80&w=200&h=200", category: { id: "2", name: "Non-Veg Pizza" }, categoryId: "2" },
-  { id: "6", name: "Classic Veg Burger", description: "Crispy patty with fresh lettuce", price: 149, isVeg: true, isAvailable: true, isBestSeller: false, imageUrl: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&q=80&w=200&h=200", category: { id: "3", name: "Burgers" }, categoryId: "3" },
-  { id: "7", name: "Garlic Bread (4 pcs)", description: "Crispy garlic bread with herbs", price: 129, isVeg: true, isAvailable: true, isBestSeller: false, imageUrl: "https://images.unsplash.com/photo-1573140247632-f8fd74997d5c?auto=format&fit=crop&q=80&w=200&h=200", category: { id: "4", name: "Sides" }, categoryId: "4" },
-  { id: "8", name: "Choco Lava Cake", description: "Warm chocolate cake with gooey center", price: 179, isVeg: true, isAvailable: true, isBestSeller: true, imageUrl: "https://images.unsplash.com/photo-1624353365286-3f8d62daad51?auto=format&fit=crop&q=80&w=200&h=200", category: { id: "5", name: "Desserts" }, categoryId: "5" },
-];
-
 export default function MenuManagementPage() {
   const { addToast } = useAdminStore();
-  const [items, setItems] = useState<MenuItem[]>(MOCK_ITEMS);
+  const [items, setItems] = useState<MenuItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -54,17 +42,46 @@ export default function MenuManagementPage() {
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [generatingImage, setGeneratingImage] = useState(false);
   const [aiImagePreview, setAiImagePreview] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingImage(true);
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const res = await fetch("/api/admin/upload-image", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setEditItem((prev) => prev && { ...prev, imageUrl: data.url });
+        addToast("Image uploaded successfully!", "success");
+      } else {
+        const err = await res.json().catch(() => ({}));
+        addToast(err.error || "Failed to upload image", "error");
+      }
+    } catch {
+      addToast("Failed to upload image", "error");
+    }
+    setUploadingImage(false);
+  };
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const [menuRes, catRes] = await Promise.all([
-          fetch("/api/menu-items"),
-          fetch("/api/categories"),
+          fetch("/api/menu-items?admin=true&limit=2000", { cache: "no-store" }),
+          fetch("/api/categories", { cache: "no-store" }),
         ]);
         if (menuRes.ok) {
           const data = await menuRes.json();
-          if (data && Array.isArray(data.items) && data.items.length > 0) {
+          if (data && Array.isArray(data.items)) {
             setItems(data.items.map((i: any) => ({ 
               ...i, 
               price: Number(i.basePrice || i.price),
@@ -75,8 +92,8 @@ export default function MenuManagementPage() {
         if (catRes.ok) {
           setCategories(await catRes.json());
         }
-      } catch {
-        // Use mock fallback
+      } catch (error) {
+        console.error("Failed to load admin menu items", error);
       }
     };
     fetchData();
@@ -139,7 +156,7 @@ export default function MenuManagementPage() {
       if (res.ok) {
         addToast(editItem.isNew ? "Item created!" : "Item updated!", "success");
         // Refetch
-        const menuRes = await fetch("/api/menu-items");
+        const menuRes = await fetch("/api/menu-items?admin=true&limit=2000", { cache: "no-store" });
         if (menuRes.ok) {
           const data = await menuRes.json();
           if (data && Array.isArray(data.items)) {
@@ -382,54 +399,72 @@ export default function MenuManagementPage() {
                   <div className="space-y-3">
                     <label className="text-xs font-medium text-warm-600 mb-1.5 block">Image</label>
 
-                    {/* AI Generate Button */}
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        if (!editItem.name) {
-                          addToast("Enter an item name first", "error");
-                          return;
-                        }
-                        setGeneratingImage(true);
-                        setAiImagePreview(null);
-                        try {
-                          const res = await fetch("/api/admin/generate-image", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                              itemName: editItem.name,
-                              description: editItem.description,
-                              isVeg: editItem.isVeg,
-                            }),
-                          });
-                          if (res.ok) {
-                            const data = await res.json();
-                            setAiImagePreview(data.imageUrl);
-                            addToast("Image found! Click 'Use This Image' to apply.", "success");
-                          } else {
-                            const err = await res.json().catch(() => ({}));
-                            addToast(err.error || "Failed to generate image", "error");
+                    <div className="grid grid-cols-2 gap-3">
+                      {/* AI Generate Button */}
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!editItem.name) {
+                            addToast("Enter an item name first", "error");
+                            return;
                           }
-                        } catch {
-                          addToast("Error generating image", "error");
-                        }
-                        setGeneratingImage(false);
-                      }}
-                      disabled={generatingImage || !editItem.name}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold transition-all border-2 border-dashed cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border-purple-200 bg-purple-50/50 text-purple-700 hover:bg-purple-100 hover:border-purple-300"
-                    >
-                      {generatingImage ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          Finding best photo...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="w-4 h-4" />
-                          Find Stock Photo ✨
-                        </>
-                      )}
-                    </button>
+                          setGeneratingImage(true);
+                          setAiImagePreview(null);
+                          try {
+                            const res = await fetch("/api/admin/generate-image", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                itemName: editItem.name,
+                                description: editItem.description,
+                                isVeg: editItem.isVeg,
+                              }),
+                            });
+                            if (res.ok) {
+                              const data = await res.json();
+                              setAiImagePreview(data.imageUrl);
+                              addToast("Image found! Click 'Use This Image' to apply.", "success");
+                            } else {
+                              const err = await res.json().catch(() => ({}));
+                              addToast(err.error || "Failed to generate image", "error");
+                            }
+                          } catch {
+                            addToast("Error generating image", "error");
+                          }
+                          setGeneratingImage(false);
+                        }}
+                        disabled={generatingImage || !editItem.name}
+                        className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-xs font-bold transition-all border border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100 disabled:opacity-50"
+                      >
+                        {generatingImage ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Finding...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="w-4 h-4" />
+                            Find Stock Photo
+                          </>
+                        )}
+                      </button>
+
+                      {/* Device Upload Button */}
+                      <label className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-xs font-bold transition-all border cursor-pointer ${uploadingImage ? 'bg-warm-100 text-warm-400 border-warm-200 cursor-not-allowed' : 'bg-warm-50 hover:bg-warm-100 text-warm-700 border-warm-200'}`}>
+                        {uploadingImage ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Uploading...
+                          </>
+                        ) : (
+                          <>
+                            <UploadCloud className="w-4 h-4" />
+                            Upload Device
+                          </>
+                        )}
+                        <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} disabled={uploadingImage} />
+                      </label>
+                    </div>
 
                     {/* AI Preview */}
                     {aiImagePreview && (
@@ -498,7 +533,7 @@ export default function MenuManagementPage() {
                     </label>
                   </div>
                 </div>
-                <div className="p-5 border-t border-warm-200/50 flex items-center justify-end gap-3">
+                <div className="p-5 border-t border-warm-200/50 flex items-center justify-end gap-3 sticky bottom-0 bg-white rounded-b-2xl z-10">
                   <button onClick={() => setEditItem(null)} className="px-5 py-2.5 rounded-xl text-sm font-medium text-warm-600 hover:bg-warm-100 cursor-pointer">Cancel</button>
                   <motion.button onClick={handleSave} disabled={saving || !editItem.name}
                     className="flex items-center gap-2 bg-primary text-white px-6 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#cc1530] transition-colors cursor-pointer disabled:opacity-70"

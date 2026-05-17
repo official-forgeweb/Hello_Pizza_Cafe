@@ -88,23 +88,26 @@ function MenuContent() {
   });
 
   // ─── Pagination for rendering performance ───
-  const [visibleCount, setVisibleCount] = useState(10);
+  const [visibleCount, setVisibleCount] = useState(50);
   
   // Reset pagination when filters change
   useEffect(() => {
-    setVisibleCount(10);
+    setVisibleCount(50);
   }, [searchQuery, vegFilter, activeCategory]);
 
-  // Auto-load 10 more items every 3 seconds until all items are loaded
+  // Load more items when scrolling down
   useEffect(() => {
-    if (visibleCount < filteredItems.length) {
-      const timer = setTimeout(() => {
-        setVisibleCount(prev => prev + 10);
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
+    const handleScroll = () => {
+      if (
+        window.innerHeight + window.scrollY >= document.body.offsetHeight - 500 &&
+        visibleCount < filteredItems.length
+      ) {
+        setVisibleCount((prev) => prev + 30);
+      }
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
   }, [visibleCount, filteredItems.length]);
-
   // ─── Group items by category ───
   const groupedItemsAll = categories.filter((c) => c.id !== "all").map(
     (cat) => {

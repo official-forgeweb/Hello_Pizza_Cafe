@@ -28,9 +28,20 @@ export default function CartPage() {
   const [couponApplied, setCouponApplied] = useState<string | null>(null);
   const [couponDiscount, setCouponDiscount] = useState(0);
   const [recommendations, setRecommendations] = useState<any[]>([]);
+  const [availableCoupons, setAvailableCoupons] = useState<any[]>([]);
+  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
 
   useEffect(() => {
     setMounted(true);
+    // Fetch available active coupons
+    fetch("/api/coupons")
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setAvailableCoupons(data.filter(c => c.isActive));
+        }
+      })
+      .catch(console.error);
   }, []);
 
   // Fetch smart recommendations based on cart items
@@ -76,17 +87,35 @@ export default function CartPage() {
   const tax = Math.round(total * taxRate);
   const grandTotal = total + tax + deliveryFee - couponDiscount;
 
-  const handleApplyCoupon = () => {
-    if (couponCode.toUpperCase() === "HELLO20") {
-      const discount = Math.min(Math.round(total * 0.2), 150);
-      setCouponDiscount(discount);
-      setCouponApplied("HELLO20");
-    } else if (couponCode.toUpperCase() === "FIRST50") {
-      setCouponDiscount(50);
-      setCouponApplied("FIRST50");
-    } else {
-      setCouponApplied(null);
-      setCouponDiscount(0);
+  const handleApplyCoupon = async () => {
+    if (!couponCode) return;
+    setIsApplyingCoupon(true);
+    try {
+      const res = await fetch("/api/coupons/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: couponCode.toUpperCase(),
+          orderTotal: total,
+          items: items, // pass cart items for BOGO logic
+        }),
+      });
+      const data = await res.json();
+      
+      if (res.ok && data.valid) {
+        setCouponDiscount(data.discount);
+        setCouponApplied(data.coupon.code);
+        alert(`Coupon applied! You saved ₹${data.discount}`);
+      } else {
+        setCouponApplied(null);
+        setCouponDiscount(0);
+        alert(data.error || "Invalid coupon code");
+      }
+    } catch (err) {
+      console.error("Failed to apply coupon:", err);
+      alert("Failed to validate coupon");
+    } finally {
+      setIsApplyingCoupon(false);
     }
   };
 
@@ -459,24 +488,35 @@ export default function CartPage() {
                     />
                     <motion.button
                       onClick={handleApplyCoupon}
-                      className="bg-warm-900 text-white px-6 py-3 rounded-xl text-sm font-bold hover:bg-black transition-colors cursor-pointer"
+                      disabled={isApplyingCoupon}
+                      className="bg-warm-900 text-white px-6 py-3 rounded-xl text-sm font-bold hover:bg-black transition-colors cursor-pointer disabled:opacity-50"
                       whileTap={{ scale: 0.95 }}
                     >
-                      Apply
+                      {isApplyingCoupon ? "..." : "Apply"}
                     </motion.button>
                   </div>
                 )}
               </AnimatePresence>
-              
-              {!couponApplied && (
+              {!couponApplied && availableCoupons.length > 0 && (
                 <div className="mt-4 flex flex-col gap-2">
                   <p className="text-[10px] font-bold text-warm-400 uppercase tracking-widest mb-1">Available Coupons</p>
-                  <div className="p-3 bg-warm-50 rounded-xl border border-warm-200/50 flex items-center justify-between group cursor-pointer" onClick={() => { setCouponCode("HELLO20"); handleApplyCoupon(); }}>
-                    <div>
-                      <span className="text-xs font-extrabold text-warm-900">HELLO20</span>
-                      <p className="text-[10px] text-warm-500">20% OFF up to ₹150</p>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-warm-300 group-hover:text-primary transition-colors" />
+                  <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar no-scrollbar">
+                    {availableCoupons.map((coupon) => (
+                      <div 
+                        key={coupon.id}
+                        className="flex-shrink-0 w-64 p-3 bg-warm-50 rounded-xl border border-warm-200/50 flex items-center justify-between group cursor-pointer" 
+                        onClick={() => { 
+                          setCouponCode(coupon.code); 
+                          // Optionally apply it immediately, but for now just set the input
+                        }}
+                      >
+                        <div>
+                          <span className="text-xs font-extrabold text-warm-900">{coupon.code}</span>
+                          <p className="text-[10px] text-warm-500 line-clamp-1">{coupon.description}</p>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-warm-300 group-hover:text-primary transition-colors flex-shrink-0 ml-2" />
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}

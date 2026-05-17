@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { motion, useInView, useScroll, useTransform } from "framer-motion";
-import { useRef } from "react";
+import { motion, useInView } from "framer-motion";
+
 import {
   MapPin,
   Star,
@@ -324,8 +324,50 @@ export default function HomePage() {
     fetchLiveDbData();
   }, []);
 
-    // Removing continuous requestAnimationFrame for performance.
-    // CSS-based scrolling handles this much better and won't lock the main thread.
+  // Auto-scroll hero gallery every 6 seconds for longer ad visibility
+  useEffect(() => {
+    const gallery = document.getElementById('ads-gallery');
+    if (!gallery) return;
+
+    let scrollTimer: ReturnType<typeof setInterval>;
+    let userInteracted = false;
+    let resumeTimer: ReturnType<typeof setTimeout>;
+
+    const startAutoScroll = () => {
+      scrollTimer = setInterval(() => {
+        if (userInteracted) return;
+        const cardWidth = gallery.querySelector('div > div')?.clientWidth || 380;
+        const scrollStep = cardWidth + 24; // card width + gap
+        const maxScroll = gallery.scrollWidth - gallery.clientWidth;
+
+        if (gallery.scrollLeft >= maxScroll - 10) {
+          gallery.scrollTo({ left: 0, behavior: 'smooth' });
+        } else {
+          gallery.scrollBy({ left: scrollStep, behavior: 'smooth' });
+        }
+      }, 6000); // 6 seconds per card
+    };
+
+    const pauseOnInteraction = () => {
+      userInteracted = true;
+      clearTimeout(resumeTimer);
+      resumeTimer = setTimeout(() => { userInteracted = false; }, 10000); // resume after 10s idle
+    };
+
+    gallery.addEventListener('mousedown', pauseOnInteraction);
+    gallery.addEventListener('touchstart', pauseOnInteraction);
+
+    // Delay first auto-scroll to let page settle
+    const initDelay = setTimeout(startAutoScroll, 2000);
+
+    return () => {
+      clearTimeout(initDelay);
+      clearInterval(scrollTimer);
+      clearTimeout(resumeTimer);
+      gallery.removeEventListener('mousedown', pauseOnInteraction);
+      gallery.removeEventListener('touchstart', pauseOnInteraction);
+    };
+  }, [adsData, bestSellers]);
 
   return (
     <div className="flex flex-col pb-24 md:pb-0">
@@ -435,7 +477,7 @@ export default function HomePage() {
                 const startX = parseFloat(el.dataset.startX || "0");
                 const scrollLeft = parseFloat(el.dataset.scrollLeft || "0");
                 const x = e.pageX - el.offsetLeft;
-                const walk = (x - startX) * 1.5; // Scroll speed factor
+                const walk = (x - startX) * 1.5;
                 el.scrollLeft = scrollLeft - walk;
               }}
             >
@@ -443,38 +485,65 @@ export default function HomePage() {
                 className="flex items-center gap-6 px-6"
                 style={{ width: "max-content", paddingRight: "24px" }}
               >
-                {/* Loop highly dynamically so it spans perfectly */}
-                {[...adsData, ...adsData, ...adsData].map((ad, idx) => (
-                  <div 
-                    key={`${ad.id}-${idx}`} 
-                    className="relative w-[80vw] max-w-[380px] h-[400px] lg:h-[480px] flex-shrink-0 rounded-[2rem] overflow-hidden group cursor-pointer border border-white/20 hover:border-primary/50 transition-colors"
-                  >
-                    <Image
-                      src={ad.image || ad.imageUrl}
-                      alt={ad.title}
-                      fill
-                      loading="lazy"
-                      sizes="(max-width: 768px) 100vw, 400px"
-                      className="object-cover transition-transform duration-[2s] ease-out group-hover:scale-105 group-hover:-rotate-1"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent opacity-90 transition-opacity group-hover:opacity-100" />
-                    
-                    <div className="absolute top-6 left-6">
-                      <span className="bg-primary/95 shadow-[0_4px_20px_rgba(227,24,55,0.5)] backdrop-blur-md text-white px-4 py-1.5 rounded-full text-xs font-bold tracking-wider uppercase border border-white/20">
-                        {ad.tag}
-                      </span>
-                    </div>
-                    
-                    <div className="absolute bottom-8 left-6 right-6">
-                      <h3 className="text-white text-3xl font-bold leading-tight mb-4">
-                        {ad.title}
-                      </h3>
-                      <div className="flex items-center justify-center gap-2 bg-white text-warm-900 px-5 py-3 rounded-xl text-sm font-bold w-max group-hover:bg-primary group-hover:text-white transition-colors shadow-lg">
-                        Explore Now <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                {/* Use real menu bestsellers for the gallery, fallback to static ads */}
+                {(() => {
+                  if (adsData.length === 0 && bestSellers.length === 0) {
+                    return [1, 2, 3].map((i) => (
+                      <div key={i} className="relative w-[80vw] max-w-[380px] h-[400px] lg:h-[480px] flex-shrink-0 rounded-[2rem] bg-white/5 animate-pulse border border-white/10" />
+                    ));
+                  }
+                  const galleryItems = adsData.length > 0
+                    ? adsData.map((ad: any) => ({
+                        id: ad.id,
+                        image: ad.image || ad.imageUrl,
+                        title: ad.title,
+                        tag: ad.tag,
+                        linkUrl: ad.linkUrl || "/offers",
+                      }))
+                    : bestSellers.filter((b: any) => b.imageUrl).map((b: any) => ({
+                        id: b.id,
+                        image: b.imageUrl,
+                        title: b.name,
+                        tag: b.isBestSeller ? "BESTSELLER" : "POPULAR",
+                        linkUrl: null,
+                      }));
+                  // Triple the items for infinite scroll feel
+                  const tripled = [...galleryItems, ...galleryItems, ...galleryItems];
+                  return tripled.map((item: any, idx: number) => (
+                    <div 
+                      key={`gallery-${item.id}-${idx}`} 
+                      className="relative w-[80vw] max-w-[380px] h-[400px] lg:h-[480px] flex-shrink-0 rounded-[2rem] overflow-hidden group cursor-pointer border border-white/20 hover:border-primary/50 transition-colors bg-warm-900"
+                    >
+                      <Image
+                        src={item.image}
+                        alt={item.title}
+                        fill
+                        priority={idx < 3}
+                        loading={idx < 3 ? "eager" : "lazy"}
+                        sizes="(max-width: 768px) 80vw, 400px"
+                        className="object-cover transition-transform duration-[2s] ease-out group-hover:scale-105 group-hover:-rotate-1"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent opacity-90 transition-opacity group-hover:opacity-100" />
+                      
+                      <div className="absolute top-6 left-6">
+                        <span className="bg-primary/95 shadow-[0_4px_20px_rgba(227,24,55,0.5)] backdrop-blur-md text-white px-4 py-1.5 rounded-full text-xs font-bold tracking-wider uppercase border border-white/20">
+                          {item.tag}
+                        </span>
+                      </div>
+                      
+                      <div className="absolute bottom-8 left-6 right-6">
+                        <h3 className="text-white text-3xl font-bold leading-tight mb-4">
+                          {item.title}
+                        </h3>
+                        <Link href={item.linkUrl || `/menu?q=${encodeURIComponent(item.title)}`}>
+                          <div className="flex items-center justify-center gap-2 bg-white text-warm-900 px-5 py-3 rounded-xl text-sm font-bold w-max group-hover:bg-primary group-hover:text-white transition-colors shadow-lg cursor-pointer">
+                            Explore Now <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                          </div>
+                        </Link>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ));
+                })()}
               </div>
             </div>
           </motion.div>

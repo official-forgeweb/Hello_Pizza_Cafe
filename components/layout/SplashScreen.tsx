@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, MapPin, ChevronRight, Loader2 } from "lucide-react";
+import { MapPin, ChevronRight, Loader2 } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { useLocationStore } from "@/store/location";
 
 const ADS = [
@@ -32,30 +33,88 @@ export default function SplashScreen() {
   const [step, setStep] = useState<SplashStep>("ad");
   const [visible, setVisible] = useState(false);
   const [currentAd, setCurrentAd] = useState(0);
-  const { address, isDetecting, detectLocation, setAddress } = useLocationStore();
+  const [ads, setAds] = useState<any[]>(ADS); // Fallback to hardcoded initially
+  const { address, isDetecting, detectLocation } = useLocationStore();
 
-  // Show splash only once per session
+  // Fetch dynamic splash ads
   useEffect(() => {
-    const hasSeenSplash = sessionStorage.getItem("hello-pizza-splash-seen");
-    if (!hasSeenSplash) {
-      setVisible(true);
-    }
+    fetch("/api/admin/splash-ads")
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then(data => {
+        if (Array.isArray(data)) {
+          const activeAds = data.filter(ad => ad.isActive);
+          if (activeAds.length > 0) {
+            setAds(activeAds);
+          } else {
+            // If no active ads, skip the ad step entirely
+            setStep("location");
+          }
+        }
+      })
+      .catch(err => {
+        console.error("Failed to load splash ads:", err);
+        // On error, fall through to static fallback ads
+      });
   }, []);
 
-  // Auto-cycle ads
+  // Show splash only once per session, and auto-skip location if already saved
+  useEffect(() => {
+    const hasSeenSplash = sessionStorage.getItem("hello-pizza-splash-seen");
+    if (hasSeenSplash) return;
+
+    // If user already has a saved address (from Zustand persist), skip entirely
+    if (address) {
+      sessionStorage.setItem("hello-pizza-splash-seen", "true");
+      return;
+    }
+
+    setVisible(true);
+
+    // Check if browser already has location permission granted
+    // If yes, auto-detect and skip the modal entirely
+    if (navigator.permissions) {
+      navigator.permissions.query({ name: "geolocation" }).then(async (result) => {
+        if (result.state === "granted") {
+          // Permission already granted, auto-detect silently
+          try {
+            await detectLocation();
+          } catch {}
+          sessionStorage.setItem("hello-pizza-splash-seen", "true");
+          setStep("done");
+          setTimeout(() => setVisible(false), 300);
+        }
+      }).catch(() => {
+        // permissions API not supported, continue normally
+      });
+    }
+  }, [address, detectLocation]);
+
+  // Auto-skip ads after 15 seconds (longer display for promotions)
+  useEffect(() => {
+    if (step !== "ad" || !visible) return;
+    const autoSkip = setTimeout(() => {
+      setStep("location");
+    }, 15000);
+    return () => clearTimeout(autoSkip);
+  }, [step, visible]);
+
+  // Auto-cycle ads every 6 seconds (more time to read each ad)
   useEffect(() => {
     if (step !== "ad") return;
     const timer = setInterval(() => {
-      setCurrentAd((prev) => (prev + 1) % ADS.length);
-    }, 3500);
+      setCurrentAd((prev) => (prev + 1) % (ads.length || 1));
+    }, 6000);
     return () => clearInterval(timer);
-  }, [step]);
+  }, [step, ads.length]);
 
   const handleSkipAd = () => {
     setStep("location");
   };
 
-  const handleDetectLocation = async () => {
+  const handleDetectLocation = useCallback(async () => {
     try {
       await detectLocation();
     } catch (err: any) {
@@ -63,7 +122,7 @@ export default function SplashScreen() {
     } finally {
       finishSplash();
     }
-  };
+  }, [detectLocation]);
 
   const handleSkipLocation = () => {
     finishSplash();
@@ -72,7 +131,7 @@ export default function SplashScreen() {
   const finishSplash = () => {
     sessionStorage.setItem("hello-pizza-splash-seen", "true");
     setStep("done");
-    setTimeout(() => setVisible(false), 500);
+    setTimeout(() => setVisible(false), 300);
   };
 
   if (!visible) return null;
@@ -84,7 +143,7 @@ export default function SplashScreen() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.4 }}
+          transition={{ duration: 0.3 }}
           className="fixed inset-0 z-[200] flex items-center justify-center"
         >
           {/* Backdrop */}
@@ -96,47 +155,37 @@ export default function SplashScreen() {
             {step === "ad" && (
               <motion.div
                 key="ad-step"
-                initial={{ opacity: 0, scale: 0.9, y: 30 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: -20 }}
-                transition={{ type: "spring", damping: 20, stiffness: 200 }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                transition={{ duration: 0.3 }}
                 className="relative z-10 w-[92vw] max-w-md mx-auto"
               >
                 {/* Close / Skip */}
                 <button
                   onClick={handleSkipAd}
-                  className="absolute -top-12 right-0 text-white/70 hover:text-white text-sm font-bold flex items-center gap-1 z-50 transition-colors"
+                  className="absolute -top-12 right-0 text-white/70 hover:text-white text-sm font-bold flex items-center gap-1 z-50 transition-colors cursor-pointer"
                 >
                   Skip <ChevronRight className="w-4 h-4" />
                 </button>
 
                 {/* Ad Card */}
-                <div className="rounded-3xl overflow-hidden bg-white shadow-2xl">
-                  {/* Ad Image */}
-                  <div className="relative w-full aspect-[4/3] overflow-hidden">
-                    <AnimatePresence mode="wait">
-                      <motion.div
-                        key={currentAd}
-                        initial={{ opacity: 0, x: 60 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -60 }}
-                        transition={{ duration: 0.4 }}
-                        className="absolute inset-0"
-                      >
-                        <Image
-                          src={ADS[currentAd].image}
-                          alt={ADS[currentAd].title}
-                          fill
-                          className="object-cover"
-                          priority
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-                      </motion.div>
-                    </AnimatePresence>
+                <div className="rounded-3xl overflow-hidden bg-warm-900 shadow-2xl">
+                  {/* Ad Image - bg-warm-900 prevents white flash */}
+                  <div className="relative w-full aspect-[4/3] overflow-hidden bg-warm-900">
+                    <Image
+                      src={ads[currentAd]?.imageUrl || "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&q=80"}
+                      alt={ads[currentAd]?.title || "Promo"}
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 768px) 92vw, 448px"
+                      priority
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
 
                     {/* Floating Offer Badge */}
                     <div className="absolute top-4 left-4">
-                      <div className={`bg-gradient-to-r ${ADS[currentAd].gradient} text-white px-4 py-1.5 rounded-full text-xs font-bold shadow-lg`}>
+                      <div className={`bg-gradient-to-r ${ads[currentAd]?.gradient || "from-orange-600 to-red-600"} text-white px-4 py-1.5 rounded-full text-xs font-bold shadow-lg`}>
                         🔥 Limited Time Offer
                       </div>
                     </div>
@@ -144,38 +193,41 @@ export default function SplashScreen() {
                     {/* Ad Content Overlay */}
                     <div className="absolute bottom-0 left-0 right-0 p-6">
                       <h2 className="text-3xl font-black text-white mb-1 leading-tight">
-                        {ADS[currentAd].title}
+                        {ads[currentAd]?.title}
                       </h2>
                       <p className="text-white/80 text-sm mb-3">
-                        {ADS[currentAd].subtitle}
+                        {ads[currentAd]?.subtitle}
                       </p>
-                      <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm border border-white/30 px-4 py-2 rounded-xl text-white text-xs font-bold">
-                        Use Code: <span className="text-amber-300 tracking-wider">{ADS[currentAd].code}</span>
-                      </div>
+                      {ads[currentAd]?.code && (
+                        <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm border border-white/30 px-4 py-2 rounded-xl text-white text-xs font-bold">
+                          Use Code: <span className="text-amber-300 tracking-wider">{ads[currentAd]?.code}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
                   {/* Dots + CTA */}
-                  <div className="px-6 py-5">
+                  <div className="px-6 py-5 bg-white">
                     {/* Dots */}
                     <div className="flex items-center justify-center gap-2 mb-4">
-                      {ADS.map((_, i) => (
+                      {ads.map((_, i) => (
                         <button
                           key={i}
                           onClick={() => setCurrentAd(i)}
-                          className={`h-1.5 rounded-full transition-all duration-300 ${
+                          className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
                             i === currentAd ? "w-6 bg-primary" : "w-1.5 bg-warm-300"
                           }`}
                         />
                       ))}
                     </div>
 
-                    <button
-                      onClick={handleSkipAd}
-                      className="w-full bg-primary text-white py-3.5 rounded-2xl font-bold text-sm hover:shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                    <Link 
+                      href={ads[currentAd]?.linkUrl || "/offers"}
+                      onClick={finishSplash}
+                      className="w-full bg-primary text-white py-3.5 rounded-2xl font-bold text-sm hover:shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
                     >
-                      Order Now <ChevronRight className="w-4 h-4" />
-                    </button>
+                      Explore Offers <ChevronRight className="w-4 h-4" />
+                    </Link>
                   </div>
                 </div>
               </motion.div>
@@ -185,21 +237,16 @@ export default function SplashScreen() {
             {step === "location" && (
               <motion.div
                 key="location-step"
-                initial={{ opacity: 0, scale: 0.9, y: 30 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: -20 }}
-                transition={{ type: "spring", damping: 20, stiffness: 200 }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                transition={{ duration: 0.3 }}
                 className="relative z-10 w-[92vw] max-w-md mx-auto"
               >
                 <div className="rounded-3xl overflow-hidden bg-white shadow-2xl p-8 text-center">
                   {/* Icon */}
                   <div className="mx-auto w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-6">
-                    <motion.div
-                      animate={{ y: [0, -6, 0] }}
-                      transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
-                    >
-                      <MapPin className="w-10 h-10 text-primary" strokeWidth={1.5} />
-                    </motion.div>
+                    <MapPin className="w-10 h-10 text-primary" strokeWidth={1.5} />
                   </div>
 
                   <h2 className="text-2xl font-black text-warm-900 mb-2">
@@ -211,16 +258,12 @@ export default function SplashScreen() {
 
                   {/* Detected address preview */}
                   {address && !isDetecting && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="mb-6 bg-green-50 border border-green-200 rounded-2xl px-4 py-3 text-left"
-                    >
+                    <div className="mb-6 bg-green-50 border border-green-200 rounded-2xl px-4 py-3 text-left">
                       <div className="flex items-center gap-2 text-green-700 text-xs font-bold mb-1">
                         <MapPin className="w-3.5 h-3.5" /> Detected Location
                       </div>
                       <p className="text-green-900 font-semibold text-sm">{address}</p>
-                    </motion.div>
+                    </div>
                   )}
 
                   {/* Loading state */}
@@ -236,14 +279,14 @@ export default function SplashScreen() {
                     <button
                       onClick={handleDetectLocation}
                       disabled={isDetecting}
-                      className="w-full bg-primary text-white py-3.5 rounded-2xl font-bold text-sm hover:shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+                      className="w-full bg-primary text-white py-3.5 rounded-2xl font-bold text-sm hover:shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
                     >
                       <MapPin className="w-4 h-4" />
                       {isDetecting ? "Detecting..." : "Use My Current Location"}
                     </button>
                     <button
                       onClick={handleSkipLocation}
-                      className="w-full text-warm-500 hover:text-warm-700 py-2 text-sm font-semibold transition-colors"
+                      className="w-full text-warm-500 hover:text-warm-700 py-2 text-sm font-semibold transition-colors cursor-pointer"
                     >
                       Skip for now
                     </button>

@@ -30,7 +30,7 @@ const NAV_ITEMS = [
   { href: "/admin/menu", label: "Menu Items", icon: UtensilsCrossed },
   { href: "/admin/categories", label: "Categories", icon: Layers },
   { href: "/admin/addons", label: "Add-ons", icon: Puzzle },
-  { href: "/admin/hero", label: "Hero CMS", icon: ImageIcon },
+  { href: "/admin/ads", label: "Ads & Hero", icon: ImageIcon },
   { href: "/admin/staff", label: "Staff", icon: Users },
   { href: "/admin/coupons", label: "Coupons", icon: Tag },
   { href: "/admin/settings", label: "Settings", icon: Settings },
@@ -79,14 +79,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const currentPage = NAV_ITEMS.find((item) => item.href === pathname)?.label || "Dashboard";
 
   return (
-    <div className="min-h-screen bg-warm-50 flex">
+    <div className="flex-1 min-h-[100dvh] bg-warm-50 flex w-full">
       {/* Toast notifications */}
       <AdminToasts />
 
       {/* Desktop Sidebar */}
       <aside
-        className={`hidden lg:flex flex-col bg-white border-r border-warm-200/60 transition-all duration-300 sticky top-0 h-screen ${
-          collapsed ? "w-[72px]" : "w-64"
+        className={`hidden lg:flex flex-col bg-white border-r border-warm-200/60 transition-all duration-300 sticky top-0 h-[100dvh] shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-40 ${
+          collapsed ? "w-[80px]" : "w-[280px]"
         }`}
       >
         {/* Brand */}
@@ -109,29 +109,32 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
+        <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto">
+          <div className="mb-4 px-3 text-xs font-bold tracking-wider text-warm-400 uppercase">
+            {!collapsed && "Management"}
+          </div>
           {NAV_ITEMS.map((item) => {
             const isActive = pathname === item.href;
             return (
               <Link key={item.href} href={item.href}>
                 <div
-                  className={`relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  className={`relative flex items-center gap-3 px-3 py-3 rounded-2xl text-sm font-semibold transition-all group ${
                     isActive
-                      ? "bg-primary/10 text-primary"
-                      : "text-warm-600 hover:bg-warm-100 hover:text-warm-800"
+                      ? "text-white"
+                      : "text-warm-600 hover:bg-warm-100 hover:text-warm-900"
                   }`}
                   title={collapsed ? item.label : undefined}
                 >
                   {isActive && (
                     <motion.div
                       layoutId="adminNavActive"
-                      className="absolute inset-0 bg-primary/10 rounded-xl"
+                      className="absolute inset-0 bg-primary shadow-md shadow-primary/20 rounded-2xl"
                       transition={{ type: "spring", bounce: 0.15 }}
                     />
                   )}
-                  <item.icon className="w-5 h-5 flex-shrink-0 relative z-10" />
+                  <item.icon className={`w-5 h-5 flex-shrink-0 relative z-10 transition-transform group-hover:scale-110 ${isActive ? 'text-white' : 'text-warm-400 group-hover:text-primary'}`} />
                   {!collapsed && (
-                    <span className="relative z-10">{item.label}</span>
+                    <span className="relative z-10 tracking-wide">{item.label}</span>
                   )}
                 </div>
               </Link>

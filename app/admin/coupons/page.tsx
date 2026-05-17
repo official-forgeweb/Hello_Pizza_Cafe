@@ -21,6 +21,10 @@ interface Coupon {
   isActive: boolean;
   validFrom: string;
   validUntil: string;
+  type?: "STANDARD" | "BOGO";
+  isFirstOrderOnly?: boolean;
+  applicableDays?: number[];
+  applicableItems?: string[];
 }
 
 type EditCoupon = Partial<Coupon> & { isNew?: boolean };
@@ -236,7 +240,7 @@ export default function CouponsPage() {
                         className="w-full px-4 py-2.5 bg-warm-50 rounded-xl text-sm border border-warm-200 focus:outline-none focus:ring-2 focus:ring-primary/20 uppercase tracking-wider font-medium" />
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-warm-600 mb-1.5 block">Type</label>
+                      <label className="text-xs font-medium text-warm-600 mb-1.5 block">Discount Type</label>
                       <select value={editCoupon.discountType || "PERCENTAGE"}
                         onChange={(e) => setEditCoupon((p) => p && { ...p, discountType: e.target.value as "PERCENTAGE" | "FIXED" })}
                         className="w-full px-4 py-2.5 bg-warm-50 rounded-xl text-sm border border-warm-200 focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer">
@@ -245,11 +249,55 @@ export default function CouponsPage() {
                       </select>
                     </div>
                   </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-medium text-warm-600 mb-1.5 block">Coupon Logic Type</label>
+                      <select value={editCoupon.type || "STANDARD"}
+                        onChange={(e) => setEditCoupon((p) => p && { ...p, type: e.target.value as "STANDARD" | "BOGO" })}
+                        className="w-full px-4 py-2.5 bg-warm-50 rounded-xl text-sm border border-warm-200 focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer">
+                        <option value="STANDARD">Standard</option>
+                        <option value="BOGO">Buy 1 Get 1 (BOGO)</option>
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-2 mt-6">
+                      <input type="checkbox" id="isFirstOrderOnly"
+                        checked={editCoupon.isFirstOrderOnly || false}
+                        onChange={(e) => setEditCoupon((p) => p && { ...p, isFirstOrderOnly: e.target.checked })}
+                        className="w-4 h-4 text-primary rounded border-warm-300 focus:ring-primary/20" />
+                      <label htmlFor="isFirstOrderOnly" className="text-sm font-medium text-warm-700 cursor-pointer">
+                        First Order Only
+                      </label>
+                    </div>
+                  </div>
                   <div>
                     <label className="text-xs font-medium text-warm-600 mb-1.5 block">Description</label>
                     <input type="text" value={editCoupon.description || ""}
                       onChange={(e) => setEditCoupon((p) => p && { ...p, description: e.target.value })}
                       className="w-full px-4 py-2.5 bg-warm-50 rounded-xl text-sm border border-warm-200 focus:outline-none focus:ring-2 focus:ring-primary/20" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-medium text-warm-600 mb-1.5 block">Applicable Days (0=Sun, 2=Tue)</label>
+                      <input type="text" placeholder="e.g. 2 for Tuesday" 
+                        value={editCoupon.applicableDays?.join(", ") || ""}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const days = val ? val.split(",").map(s => parseInt(s.trim())).filter(n => !isNaN(n)) : [];
+                          setEditCoupon((p) => p && { ...p, applicableDays: days });
+                        }}
+                        className="w-full px-4 py-2.5 bg-warm-50 rounded-xl text-sm border border-warm-200 focus:outline-none focus:ring-2 focus:ring-primary/20 placeholder:text-warm-300" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-warm-600 mb-1.5 block">Applicable Variants (Comma separated)</label>
+                      <input type="text" placeholder="e.g. Large" 
+                        value={editCoupon.applicableItems?.join(", ") || ""}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const items = val ? val.split(",").map(s => s.trim()).filter(Boolean) : [];
+                          setEditCoupon((p) => p && { ...p, applicableItems: items });
+                        }}
+                        className="w-full px-4 py-2.5 bg-warm-50 rounded-xl text-sm border border-warm-200 focus:outline-none focus:ring-2 focus:ring-primary/20 placeholder:text-warm-300" />
+                    </div>
                   </div>
                   <div className="grid grid-cols-3 gap-3">
                     <div>

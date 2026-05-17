@@ -197,6 +197,10 @@ model Coupon {
   usageLimit     Int?
   usageCount     Int           @default(0)
   isActive       Boolean       @default(true)
+  type             String        @default("STANDARD") // "STANDARD", "BOGO"
+  isFirstOrderOnly Boolean       @default(false)
+  applicableDays   Int[]         // [0=Sun, 1=Mon, 2=Tue, etc.]
+  applicableItems  String[]      // e.g., ["Large"] or item IDs
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 }
@@ -295,6 +299,20 @@ model HeroSlide {
   tag          String   @default("NEW")
   discount     String?
   linkUrl      String?
+  displayOrder Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model SplashAd {
+  id           String   @id @default(uuid())
+  title        String
+  subtitle     String?
+  code         String?
+  linkUrl      String?
+  imageUrl     String
+  gradient     String   @default("from-orange-600 to-red-600")
   displayOrder Int      @default(0)
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())

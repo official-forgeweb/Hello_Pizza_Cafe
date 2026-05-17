@@ -12,7 +12,8 @@ import {
   ChevronRight,
   Home as HomeIcon, 
   Pizza as PizzaIcon, 
-  ShoppingCart as CartIcon 
+  ShoppingCart as CartIcon,
+  Tag
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCartStore } from "@/store/cart";
@@ -65,6 +66,7 @@ export default function Header() {
               {[
                 { href: "/", label: "Home" },
                 { href: "/menu", label: "Menu" },
+                { href: "/offers", label: "Offers" },
               ].map((link) => (
                 <Link
                   key={link.href}
@@ -199,6 +201,7 @@ export default function Header() {
                 {[
                   { href: "/", label: "Home", icon: HomeIcon },
                   { href: "/menu", label: "Our Menu", icon: PizzaIcon },
+                  { href: "/offers", label: "Offers", icon: Tag },
                   { href: "/cart", label: "My Cart", icon: CartIcon },
                 ].map((link) => (
                   <Link
