@@ -50,7 +50,7 @@ async function main() {
   // Also remove the "fake" cat1 if it exists
   const fakeCat = await prisma.category.findUnique({ where: { id: "cat1" }});
   if (fakeCat) {
-    await prisma.menuItem.updateMany({ where: { categoryId: "cat1" }, data: { categoryId: null } });
+    await prisma.menuItem.deleteMany({ where: { categoryId: "cat1" } });
     await prisma.category.delete({ where: { id: "cat1" }});
     console.log("Deleted fake mock category 'cat1'.");
   }
