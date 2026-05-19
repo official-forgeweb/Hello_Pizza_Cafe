@@ -1,5 +1,6 @@
 import prisma from '../prisma';
 import { QueueService } from './queueService';
+import { WhatsAppService } from './whatsappService';
 
 export class CampaignService {
   /**
@@ -54,28 +55,128 @@ export class CampaignService {
       data: { totalRecipients: targetCustomers.length }
     });
 
-    // 4. Queue messages
-    for (const customer of targetCustomers) {
-      // In a real scenario we might personalize variables here per customer
-      // e.g. mapping `{{1}}` to `customer.name` if the campaign defines it that way.
-      // For now, we'll just pass the static parameters provided in the campaign.
-      
-      const personalizedVars = campaign.bodyParameters.map(param => {
-        if (param === '{name}') return customer.name;
-        return param;
-      });
+    // 4. Queue or send messages
+    const useQueue = !!process.env.REDIS_URL;
 
-      await QueueService.queueCampaignMessage({
-        customerId: customer.id,
-        phone: customer.phone,
-        templateName: campaign.templateName,
-        variables: personalizedVars,
-        campaignId: campaign.id,
-        headerImageUrl: campaign.headerImage || undefined,
-        buttonUrl: campaign.buttonUrl || undefined
+    if (useQueue) {
+      for (const customer of targetCustomers) {
+        const personalizedVars = campaign.bodyParameters.map(param => {
+          if (param === '{name}') return customer.name;
+          return param;
+        });
+
+        await QueueService.queueCampaignMessage({
+          customerId: customer.id,
+          phone: customer.phone,
+          templateName: campaign.templateName,
+          variables: personalizedVars,
+          campaignId: campaign.id,
+          headerImageUrl: campaign.headerImage || undefined,
+          buttonUrl: campaign.buttonUrl || undefined
+        });
+      }
+    } else {
+      // Redis is not configured. Process sending directly in the background.
+      console.log('Redis is not configured. Processing campaign sends directly.');
+      
+      // We run this asynchronously so we do not block the HTTP request returning a success status
+      (async () => {
+        let sentCount = 0;
+        let failedCount = 0;
+
+        for (const customer of targetCustomers) {
+          try {
+            const personalizedVars = campaign.bodyParameters.map(param => {
+              if (param === '{name}') return customer.name;
+              return param;
+            });
+
+            // Build components for sending
+            const components: any[] = [];
+            
+            if (campaign.headerImage) {
+              components.push({
+                type: 'header',
+                parameters: [
+                  {
+                    type: 'image',
+                    image: {
+                      link: campaign.headerImage
+                    }
+                  }
+                ]
+              });
+            }
+
+            if (personalizedVars.length > 0) {
+              components.push({
+                type: 'body',
+                parameters: personalizedVars.map((v: string) => ({ type: 'text', text: v }))
+              });
+            }
+
+            const result = await WhatsAppService.sendTemplateMessage(
+              customer.phone,
+              campaign.templateName,
+              'en_US',
+              components
+            );
+
+            if (result.success) {
+              await prisma.messageLog.create({
+                data: {
+                  campaignId: campaign.id,
+                  customerId: customer.id,
+                  phone: customer.phone,
+                  messageType: 'marketing',
+                  templateUsed: campaign.templateName,
+                  status: 'sent',
+                  whatsappMessageId: result.data?.messages?.[0]?.id || ''
+                }
+              });
+              sentCount++;
+              await prisma.campaign.update({
+                where: { id: campaign.id },
+                data: { sent: { increment: 1 } }
+              });
+            } else {
+              throw new Error(result.error);
+            }
+          } catch (error: any) {
+            console.error(`Direct send failed for customer ${customer.id}:`, error);
+            await prisma.messageLog.create({
+              data: {
+                campaignId: campaign.id,
+                customerId: customer.id,
+                phone: customer.phone,
+                messageType: 'marketing',
+                templateUsed: campaign.templateName,
+                status: 'failed',
+                errorMessage: error.message
+              }
+            });
+            failedCount++;
+            await prisma.campaign.update({
+              where: { id: campaign.id },
+              data: { failed: { increment: 1 } }
+            });
+          }
+
+          // A small delay between API requests to respect rate limits
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+
+        // Mark campaign as completed
+        await prisma.campaign.update({
+          where: { id: campaign.id },
+          data: { status: 'completed', completedAt: new Date() }
+        });
+      })().catch(err => {
+        console.error('Error running direct campaign sender:', err);
       });
     }
 
     return { success: true, recipientsCount: targetCustomers.length };
   }
 }
+
