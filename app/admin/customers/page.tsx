@@ -41,6 +41,23 @@ export default function CustomersPage() {
   const [importResult, setImportResult] = useState<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const handleToggleOptIn = async (customerId: string, currentStatus: boolean) => {
+    try {
+      const res = await fetch(`/api/admin/customers/${customerId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ whatsappOptIn: !currentStatus }),
+      });
+      if (res.ok) {
+        setCustomers(prev => 
+          prev.map(c => c.id === customerId ? { ...c, whatsappOptIn: !currentStatus } : c)
+        );
+      }
+    } catch (error) {
+      console.error("Failed to toggle opt-in status:", error);
+    }
+  };
+
   const fetchCustomers = useCallback(async (showRefresh = false) => {
     if (showRefresh) setRefreshing(true);
     try {
@@ -270,12 +287,25 @@ export default function CustomersPage() {
                   transition={{ delay: i * 0.03, duration: 0.3 }}
                   className="bg-white rounded-2xl border border-warm-200/60 p-5 hover:shadow-md transition-shadow relative overflow-hidden"
                 >
-                  {/* WhatsApp Opt-in Badge */}
-                  {customer.whatsappOptIn && (
-                    <div className="absolute top-0 right-0 bg-[#25D366] text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl flex items-center gap-1 shadow-sm">
-                      <Check className="w-3 h-3" /> Opted In
-                    </div>
-                  )}
+                  {/* WhatsApp Opt-in Badge (Click to toggle) */}
+                  <button
+                    onClick={() => handleToggleOptIn(customer.id, customer.whatsappOptIn)}
+                    className={`absolute top-0 right-0 text-[10px] font-bold px-3 py-1.5 rounded-bl-xl flex items-center gap-1 shadow-sm cursor-pointer transition-colors ${
+                      customer.whatsappOptIn 
+                        ? "bg-[#25D366] hover:bg-[#1fa952] text-white border-0" 
+                        : "bg-warm-100 hover:bg-warm-200 text-warm-600 border-0"
+                    }`}
+                  >
+                    {customer.whatsappOptIn ? (
+                      <>
+                        <Check className="w-3 h-3" /> Opted In
+                      </>
+                    ) : (
+                      <>
+                        <X className="w-3 h-3" /> Opted Out
+                      </>
+                    )}
+                  </button>
 
                   {/* Customer Name & Avatar */}
                   <div className="flex items-start gap-3 mb-4 mt-2">
