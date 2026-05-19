@@ -72,7 +72,7 @@ export default function Header() {
                   key={link.href}
                   href={link.href}
                   className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    pathname === link.href 
+                    mounted && pathname === link.href 
                       ? "text-primary bg-primary/5" 
                       : "text-warm-600 hover:text-warm-900 hover:bg-warm-100"
                   }`}
@@ -100,7 +100,7 @@ export default function Header() {
                   </div>
                   <div className="flex items-center gap-1">
                     <span className={`text-sm font-semibold text-warm-900 truncate max-w-[180px] lg:max-w-[240px] ${isDetecting ? "animate-pulse opacity-50" : ""}`}>
-                      {isDetecting ? "Detecting location..." : address || "Select location"}
+                      {isDetecting ? "Detecting location..." : (mounted ? (address || "Select location") : "Select location")}
                     </span>
                     <ChevronRight className="w-3.5 h-3.5 text-warm-400 group-hover:translate-x-0.5 transition-transform" />
                   </div>
@@ -221,7 +221,7 @@ export default function Header() {
               <div className="mt-auto border-t border-warm-200 pt-4">
                 <div className="flex items-center gap-2 text-sm text-warm-500">
                   <MapPin className="w-4 h-4" />
-                  {address || "Select location"}
+                  {mounted ? (address || "Select location") : "Select location"}
                 </div>
               </div>
             </motion.div>
