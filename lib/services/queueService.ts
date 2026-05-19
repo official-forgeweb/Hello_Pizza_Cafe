@@ -18,7 +18,7 @@ if (process.env.REDIS_URL) {
   // Setup Worker to process jobs
   // 80 messages per second rate limit is standard for some Meta tiers, we'll configure it carefully
   worker = new Worker('whatsapp-campaign', async (job: Job) => {
-    const { customerId, phone, templateName, variables, campaignId, headerImageUrl, buttonUrl } = job.data;
+    const { customerId, phone, templateName, variables, campaignId, headerImageUrl, buttonUrl, language } = job.data;
     
     try {
       // Build components
@@ -46,7 +46,7 @@ if (process.env.REDIS_URL) {
       }
 
       // Send the message via WhatsApp
-      const result = await WhatsAppService.sendTemplateMessage(phone, templateName, 'en_US', components);
+      const result = await WhatsAppService.sendTemplateMessage(phone, templateName, language || 'en_US', components);
 
       if (result.success) {
         // Log the successful send
@@ -122,6 +122,7 @@ export class QueueService {
     templateName: string,
     variables: string[],
     campaignId: string,
+    language: string,
     headerImageUrl?: string,
     buttonUrl?: string
   }) {

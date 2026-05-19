@@ -55,6 +55,12 @@ export class CampaignService {
       data: { totalRecipients: targetCustomers.length }
     });
 
+    // Fetch template details to get correct language code
+    const template = await prisma.whatsAppTemplate.findUnique({
+      where: { templateName: campaign.templateName }
+    });
+    const languageCode = template?.language || 'en_US';
+
     // 4. Queue or send messages
     const useQueue = !!process.env.REDIS_URL;
 
@@ -71,6 +77,7 @@ export class CampaignService {
           templateName: campaign.templateName,
           variables: personalizedVars,
           campaignId: campaign.id,
+          language: languageCode,
           headerImageUrl: campaign.headerImage || undefined,
           buttonUrl: campaign.buttonUrl || undefined
         });
@@ -118,7 +125,7 @@ export class CampaignService {
             const result = await WhatsAppService.sendTemplateMessage(
               customer.phone,
               campaign.templateName,
-              'en_US',
+              languageCode,
               components
             );
 
