@@ -216,6 +216,24 @@ function CampaignWizard({ onClose, onComplete }: { onClose: () => void, onComple
   const [templateName, setTemplateName] = useState("");
   const [targetType, setTargetType] = useState("all");
   const [targetGroup, setTargetGroup] = useState("regular");
+  const [headerImage, setHeaderImage] = useState("");
+
+  const selectedTemplate = templates.find(t => t.templateName === templateName);
+  const requiresImageHeader = selectedTemplate?.components?.some((c: any) => c.type === 'HEADER' && c.format === 'IMAGE');
+
+  useEffect(() => {
+    if (templateName) {
+      const selected = templates.find(t => t.templateName === templateName);
+      const headerComp = selected?.components?.find((c: any) => c.type === 'HEADER' && c.format === 'IMAGE');
+      if (headerComp && headerComp.example?.header_handle?.[0]) {
+        setHeaderImage(headerComp.example.header_handle[0]);
+      } else {
+        setHeaderImage("");
+      }
+    } else {
+      setHeaderImage("");
+    }
+  }, [templateName, templates]);
   
   // Fetch initial data
   useEffect(() => {
@@ -250,7 +268,8 @@ function CampaignWizard({ onClose, onComplete }: { onClose: () => void, onComple
           name,
           templateName,
           targetType,
-          targetGroup: targetType === 'group' ? targetGroup : undefined
+          targetGroup: targetType === 'group' ? targetGroup : undefined,
+          headerImage: requiresImageHeader ? headerImage : undefined
         })
       });
       if (res.ok) {
@@ -314,6 +333,20 @@ function CampaignWizard({ onClose, onComplete }: { onClose: () => void, onComple
               ))}
             </select>
           </div>
+
+          {requiresImageHeader && (
+            <div>
+              <label className="block text-sm font-bold text-warm-700 mb-2">Header Image URL</label>
+              <input
+                type="text"
+                value={headerImage}
+                onChange={e => setHeaderImage(e.target.value)}
+                placeholder="Paste image URL here or leave default..."
+                className="w-full px-4 py-3 bg-warm-50 border-0 rounded-xl focus:ring-2 focus:ring-primary/20 outline-none text-sm text-warm-700 font-mono"
+              />
+              <p className="text-[11px] text-warm-500 mt-1">This template requires a header image. You can paste any image URL or keep Meta's default template image.</p>
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-bold text-warm-700 mb-2">Target Audience</label>

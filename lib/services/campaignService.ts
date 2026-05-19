@@ -61,6 +61,17 @@ export class CampaignService {
     });
     const languageCode = template?.language || 'en_US';
 
+    // Resolve header image (fallback to template example if null)
+    let headerImgUrl = campaign.headerImage || undefined;
+    if (!headerImgUrl && template) {
+      const headerComp = (template.components as any[]).find(
+        (c) => c.type === 'HEADER' && c.format === 'IMAGE'
+      );
+      if (headerComp && headerComp.example?.header_handle?.[0]) {
+        headerImgUrl = headerComp.example.header_handle[0];
+      }
+    }
+
     // 4. Queue or send messages
     const useQueue = !!process.env.REDIS_URL;
 
@@ -78,7 +89,7 @@ export class CampaignService {
           variables: personalizedVars,
           campaignId: campaign.id,
           language: languageCode,
-          headerImageUrl: campaign.headerImage || undefined,
+          headerImageUrl: headerImgUrl,
           buttonUrl: campaign.buttonUrl || undefined
         });
       }
@@ -101,14 +112,14 @@ export class CampaignService {
             // Build components for sending
             const components: any[] = [];
             
-            if (campaign.headerImage) {
+            if (headerImgUrl) {
               components.push({
                 type: 'header',
                 parameters: [
                   {
                     type: 'image',
                     image: {
-                      link: campaign.headerImage
+                      link: headerImgUrl
                     }
                   }
                 ]
