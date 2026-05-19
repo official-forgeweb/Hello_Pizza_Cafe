@@ -92,14 +92,22 @@ model MenuItemAddOn {
 }
 
 model Customer {
-  id        String   @id @default(uuid())
-  name      String
-  phone     String   @unique
-  email     String?
-  address   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  orders    Order[]
+  id              String       @id @default(uuid())
+  name            String
+  phone           String       @unique
+  email           String?
+  address         String?
+  whatsappOptIn   Boolean      @default(false)
+  group           String       @default("new")
+  totalOrders     Int          @default(0)
+  totalSpent      Decimal      @db.Decimal(10, 2) @default(0)
+  lastOrderDate   DateTime?
+  lastMessageDate DateTime?
+  tags            String[]
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  orders          Order[]
+  messageLogs     MessageLog[]
 }
 
 model Order {
@@ -133,11 +141,16 @@ model Order {
   estimatedDeliveryTime  Int?
   isSynced               Boolean     @default(false)
   syncedAt               DateTime?
+  waConfirmationSent     Boolean     @default(false)
+  waPreparingSent        Boolean     @default(false)
+  waOutForDeliverySent   Boolean     @default(false)
+  waDeliveredSent        Boolean     @default(false)
   createdAt              DateTime    @default(now())
   updatedAt              DateTime    @updatedAt
   assignedStaffId        String?
   assignedStaff          Staff?      @relation(fields: [assignedStaffId], references: [id])
   items                  OrderItem[]
+  messageLogs            MessageLog[]
 }
 
 enum OrderType {
@@ -255,6 +268,7 @@ model AdminUser {
   lastLogin    DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+  campaigns    Campaign[]
 }
 
 model OtpToken {
@@ -323,4 +337,67 @@ model RestaurantSetting {
   key       String   @id
   value     Json
   updatedAt DateTime @updatedAt
+}
+
+model WhatsAppTemplate {
+  id            String    @id @default(uuid())
+  templateName  String    @unique
+  category      String    // marketing, utility, authentication
+  language      String    @default("en_US")
+  status        String    @default("PENDING") // PENDING, APPROVED, REJECTED
+  components    Json      // header, body, footer, buttons
+  variables     String[]
+  metaTemplateId String?
+  createdAt     DateTime  @default(now())
+  approvedAt    DateTime?
+  updatedAt     DateTime  @updatedAt
+}
+
+model Campaign {
+  id              String       @id @default(uuid())
+  name            String
+  type            String       @default("marketing") // marketing, utility
+  templateName    String
+  headerImage     String?
+  bodyParameters  String[]
+  buttonUrl       String?
+  targetType      String       // all, group, custom
+  targetGroup     String?
+  targetCustomers String[]     // Array of customer IDs
+  totalRecipients Int          @default(0)
+  sent            Int          @default(0)
+  delivered       Int          @default(0)
+  read            Int          @default(0)
+  failed          Int          @default(0)
+  status          String       @default("draft") // draft, sending, completed, failed
+  scheduledAt     DateTime?
+  sentAt          DateTime?
+  completedAt     DateTime?
+  createdById     String?
+  createdBy       AdminUser?   @relation(fields: [createdById], references: [id])
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  messageLogs     MessageLog[]
+}
+
+model MessageLog {
+  id                String    @id @default(uuid())
+  campaignId        String?
+  campaign          Campaign? @relation(fields: [campaignId], references: [id])
+  customerId        String?
+  customer          Customer? @relation(fields: [customerId], references: [id])
+  orderId           String?
+  order             Order?    @relation(fields: [orderId], references: [id])
+  phone             String
+  whatsappMessageId String?   @unique
+  messageType       String    // order_confirmation, order_preparing, order_delivered, marketing
+  templateUsed      String?
+  status            String    @default("queued") // queued, sent, delivered, read, failed
+  errorMessage      String?
+  sentAt            DateTime?
+  deliveredAt       DateTime?
+  readAt            DateTime?
+  cost              Decimal   @db.Decimal(10, 4) @default(0)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 }

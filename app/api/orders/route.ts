@@ -14,6 +14,7 @@ export async function POST(request: NextRequest) {
       couponCode,
       orderNotes,
       items,
+      whatsappOptIn = false,
     } = body;
 
     if (!customerName || !customerPhone || !items || items.length === 0) {
@@ -117,7 +118,6 @@ export async function POST(request: NextRequest) {
     const orderCount = await prisma.order.count();
     const orderNumber = `ORD-${String(orderCount + 1).padStart(6, "0")}`;
 
-    // Find or create customer
     let customer = await prisma.customer.findFirst({
       where: { phone: customerPhone },
     });
@@ -127,7 +127,21 @@ export async function POST(request: NextRequest) {
           name: customerName,
           phone: customerPhone,
           email: customerEmail,
+          whatsappOptIn,
+          totalOrders: 1,
+          totalSpent: totalAmount,
+          lastOrderDate: new Date(),
         },
+      });
+    } else {
+      customer = await prisma.customer.update({
+        where: { id: customer.id },
+        data: {
+          whatsappOptIn: whatsappOptIn ? true : customer.whatsappOptIn, // Don't opt out if already opted in, only opt in
+          totalOrders: { increment: 1 },
+          totalSpent: { increment: totalAmount },
+          lastOrderDate: new Date(),
+        }
       });
     }
 
@@ -193,6 +207,12 @@ export async function POST(request: NextRequest) {
     // Admin notification
     sendAdminOrderNotification(order).catch(err => {
       console.error("Admin order notification failed:", err);
+    });
+
+    // WhatsApp Order Confirmation
+    const { OrderNotificationService } = await import("@/lib/services/orderNotificationService");
+    OrderNotificationService.sendOrderConfirmation(order.id).catch(err => {
+      console.error("WhatsApp confirmation failed:", err);
     });
 
     return NextResponse.json(order, { status: 201 });

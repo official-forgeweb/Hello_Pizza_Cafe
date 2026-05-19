@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { OrderNotificationService } from "@/lib/services/orderNotificationService";
 
 export async function PUT(
   request: NextRequest,
@@ -29,6 +30,7 @@ export async function PUT(
     const order = await prisma.order.update({
       where: { id: orderId },
       data: updateData,
+      include: { assignedStaff: true }
     });
 
     if (body.status !== undefined) {
@@ -36,6 +38,24 @@ export async function PUT(
       sendOrderStatusEmail(order).catch(err => {
         console.error("Order status email failed:", err);
       });
+      
+      const { OrderNotificationService } = await import("@/lib/services/orderNotificationService");
+      
+      if (body.status === "PREPARING") {
+        OrderNotificationService.sendOrderPreparing(order.id).catch(console.error);
+      } else if (body.status === "OUT_FOR_DELIVERY") {
+        // Assuming we have some delivery boy info in the body or order
+        const deliveryBoy = { 
+          name: body.deliveryBoyName || order.assignedStaff?.name || "Our Driver", 
+          phone: body.deliveryBoyPhone || order.assignedStaff?.phone || "" 
+        };
+        OrderNotificationService.sendOrderOutForDelivery(order.id, deliveryBoy).catch(console.error);
+      } else if (body.status === "DELIVERED") {
+        OrderNotificationService.sendOrderDelivered(order.id).catch(console.error);
+      } else if (body.status === "CANCELLED") {
+        const reason = body.cancellationReason || order.cancellationReason || "Unknown reason";
+        OrderNotificationService.sendOrderCancelled(order.id, reason).catch(console.error);
+      }
     }
 
     return NextResponse.json(order);

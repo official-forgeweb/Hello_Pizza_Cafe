@@ -19,14 +19,20 @@ import {
   Layers,
   Puzzle,
   UserCheck,
+  Send,
+  MessageSquare,
+  PieChart,
 } from "lucide-react";
 import { useAdminStore } from "@/store/admin";
 import AdminToasts from "@/components/admin/Toast";
 
 const NAV_ITEMS = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/admin/analytics", label: "Analytics", icon: PieChart },
   { href: "/admin/orders", label: "Orders", icon: ShoppingBag },
   { href: "/admin/customers", label: "Customers", icon: UserCheck },
+  { href: "/admin/campaigns", label: "Marketing", icon: Send },
+  { href: "/admin/templates", label: "Templates", icon: MessageSquare },
   { href: "/admin/menu", label: "Menu Items", icon: UtensilsCrossed },
   { href: "/admin/categories", label: "Categories", icon: Layers },
   { href: "/admin/addons", label: "Add-ons", icon: Puzzle },
