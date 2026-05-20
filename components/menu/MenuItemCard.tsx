@@ -6,6 +6,7 @@ import { Plus, Minus, Star, Pizza } from "lucide-react";
 import VegBadge from "./VegBadge";
 import { useCartStore, type CartItem } from "@/store/cart";
 import { useState, useEffect } from "react";
+import { getFallbackImage } from "@/lib/utils/menuHelper";
 
 export interface MenuItemData {
   id: string;
@@ -17,6 +18,11 @@ export interface MenuItemData {
   isBestSeller?: boolean;
   hasVariants?: boolean;
   categoryId?: string;
+  category?: {
+    id: string;
+    name: string;
+    slug: string;
+  };
   preparationTime?: string;
   spiciness?: "mild" | "medium" | "hot";
   variants?: Array<{
@@ -119,21 +125,15 @@ export default function MenuItemCard({ item, onCustomize }: MenuItemCardProps) {
       {/* ─── Mobile View: Horizontal Banner Layout ─── */}
       <div className="md:hidden relative w-full h-[280px] rounded-[16px] overflow-hidden group cursor-pointer shadow-sm hover:shadow-md transition-all duration-300 bg-gray-900 flex">
         {/* Background Image */}
-        {item.imageUrl ? (
-          <Image
-            src={item.imageUrl}
-            alt={item.name}
-            fill
-            loading="lazy"
-            sizes="100vw"
-            style={{ objectFit: 'cover', objectPosition: 'center' }}
-            className="group-hover:scale-105 transition-transform duration-700"
-          />
-        ) : (
-          <div className="absolute inset-0 bg-warm-200 flex items-center justify-center text-warm-400">
-            <Pizza className="w-16 h-16" strokeWidth={1} />
-          </div>
-        )}
+        <Image
+          src={item.imageUrl || getFallbackImage(item.name, item.category?.name)}
+          alt={item.name}
+          fill
+          loading="lazy"
+          sizes="100vw"
+          style={{ objectFit: 'cover', objectPosition: 'center' }}
+          className="group-hover:scale-105 transition-transform duration-700"
+        />
 
         {/* Dark Gradient Overlay - Vertical for bottom-aligned content */}
         <div 
@@ -215,20 +215,14 @@ export default function MenuItemCard({ item, onCustomize }: MenuItemCardProps) {
       <div className="hidden md:flex flex-col w-full h-full bg-white rounded-[16px] overflow-hidden border border-warm-200/50 shadow-sm hover:shadow-lg transition-all duration-300 group relative">
         {/* Top Image Section - Fixed aspect ratio */}
         <div className="relative w-full aspect-[4/3] overflow-hidden flex-shrink-0">
-          {item.imageUrl ? (
-            <Image
-              src={item.imageUrl}
-              alt={item.name}
-              fill
-              loading="lazy"
-              sizes="(max-width: 1024px) 50vw, 25vw"
-              className="object-cover group-hover:scale-105 transition-transform duration-500"
-            />
-          ) : (
-            <div className="absolute inset-0 bg-warm-50 flex items-center justify-center text-warm-300">
-              <Pizza className="w-10 h-10" strokeWidth={1} />
-            </div>
-          )}
+          <Image
+            src={item.imageUrl || getFallbackImage(item.name, item.category?.name)}
+            alt={item.name}
+            fill
+            loading="lazy"
+            sizes="(max-width: 1024px) 50vw, 25vw"
+            className="object-cover group-hover:scale-105 transition-transform duration-500"
+          />
           
           {/* Tags layer */}
           <div className="absolute top-2 left-2 flex flex-col gap-1 z-10">
