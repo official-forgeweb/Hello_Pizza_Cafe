@@ -332,12 +332,12 @@ export default function TemplatesPage() {
                             <div className="relative w-full h-24 rounded-lg overflow-hidden bg-warm-100 mb-2">
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img 
-                                src={headerComponent.example?.header_handle?.[0] || "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=600&q=80"} 
+                                src={headerComponent.example?.header_handle?.[0] || "https://upload.wikimedia.org/wikipedia/commons/9/91/Pizza-3007395.jpg"} 
                                 alt="Header Preview" 
                                 className="w-full h-full object-cover"
                                 onError={(e) => {
                                   // Fallback in case Meta link expired
-                                  (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=600&q=80";
+                                  (e.target as HTMLImageElement).src = "https://upload.wikimedia.org/wikipedia/commons/9/91/Pizza-3007395.jpg";
                                 }}
                               />
                             </div>
@@ -432,7 +432,7 @@ function CreateTemplateModal({
   const [language, setLanguage] = useState("en_US");
   const [headerType, setHeaderType] = useState<"NONE" | "TEXT" | "IMAGE">("NONE");
   const [headerText, setHeaderText] = useState("");
-  const [headerImageUrl, setHeaderImageUrl] = useState("https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=600&q=80");
+  const [headerImageUrl, setHeaderImageUrl] = useState("https://upload.wikimedia.org/wikipedia/commons/9/91/Pizza-3007395.jpg");
   const [bodyText, setBodyText] = useState("");
   const [footerText, setFooterText] = useState("");
   const [buttonType, setButtonType] = useState<"NONE" | "URL">("NONE");
@@ -862,11 +862,11 @@ function CreateTemplateModal({
                 <div className="w-full h-28 rounded-lg overflow-hidden bg-warm-100 mb-2 border border-warm-200/20 relative">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img 
-                    src={headerImageUrl || "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=600&q=80"} 
+                    src={headerImageUrl || "https://upload.wikimedia.org/wikipedia/commons/9/91/Pizza-3007395.jpg"} 
                     alt="Mock Header" 
                     className="w-full h-full object-cover"
                     onError={(e) => {
-                      (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=600&q=80";
+                      (e.target as HTMLImageElement).src = "https://upload.wikimedia.org/wikipedia/commons/9/91/Pizza-3007395.jpg";
                     }}
                   />
                 </div>

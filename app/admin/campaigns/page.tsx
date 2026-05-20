@@ -5,7 +5,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Send, Plus, Users, LayoutTemplate, Calendar, 
   Play, CheckCircle2, Clock, Check, X, RefreshCw,
-  XCircle, AlertTriangle, ChevronRight, Info, Eye, Image as ImageIcon
+  XCircle, AlertTriangle, ChevronRight, Info, Eye, Image as ImageIcon,
+  Trash2
 } from "lucide-react";
 
 interface Campaign {
@@ -70,6 +71,21 @@ export default function CampaignsPage() {
       }
     } catch (error) {
       console.error("Failed to start campaign:", error);
+    }
+  };
+
+  const handleDeleteCampaign = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to delete campaign '${name}'? This will delete all its delivery logs too.`)) return;
+    
+    try {
+      const res = await fetch(`/api/admin/campaigns/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        setCampaigns(prev => prev.filter(c => c.id !== id));
+      } else {
+        alert("Failed to delete campaign");
+      }
+    } catch (error) {
+      console.error("Failed to delete campaign:", error);
     }
   };
 
@@ -146,7 +162,16 @@ export default function CampaignsPage() {
                   <h3 className="font-bold text-warm-900 text-base truncate pr-2" title={campaign.name}>
                     {campaign.name}
                   </h3>
-                  {getStatusBadge(campaign.status)}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {getStatusBadge(campaign.status)}
+                    <button
+                      onClick={() => handleDeleteCampaign(campaign.id, campaign.name)}
+                      className="p-1 text-warm-400 hover:text-red-650 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                      title="Delete Campaign"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
                 
                 <div className="space-y-2.5 mt-3 text-xs">
@@ -262,9 +287,9 @@ function CampaignWizard({ onClose, onComplete }: { onClose: () => void, onComple
 
   // Photo Presets
   const PHOTO_PRESETS = [
-    { title: "Special Pizza", url: "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=800&q=80" },
-    { title: "Cheese Crust", url: "https://images.unsplash.com/photo-1590947132387-155cc02f3212?auto=format&fit=crop&w=800&q=80" },
-    { title: "Delicious Table", url: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80" }
+    { title: "Special Pizza", url: "https://upload.wikimedia.org/wikipedia/commons/9/91/Pizza-3007395.jpg" },
+    { title: "Margherita", url: "https://upload.wikimedia.org/wikipedia/commons/a/a3/Eq_it-na_pizza-margherita_sep2005_sml.jpg" },
+    { title: "Veggie Olive", url: "https://upload.wikimedia.org/wikipedia/commons/d/d2/Pizza_with_peppers_and_olives.jpg" }
   ];
 
   useEffect(() => {

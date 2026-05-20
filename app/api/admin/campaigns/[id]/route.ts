@@ -42,3 +42,30 @@ export async function GET(
     );
   }
 }
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+
+    // Delete associated message logs first
+    await prisma.messageLog.deleteMany({
+      where: { campaignId: id }
+    });
+
+    // Delete the campaign
+    await prisma.campaign.delete({
+      where: { id }
+    });
+
+    return NextResponse.json({ success: true, message: "Campaign deleted successfully" });
+  } catch (error: any) {
+    console.error("Error deleting campaign:", error);
+    return NextResponse.json(
+      { error: error.message || "Failed to delete campaign" },
+      { status: 500 }
+    );
+  }
+}

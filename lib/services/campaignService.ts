@@ -70,8 +70,8 @@ export class CampaignService {
       if (headerComp && headerComp.example?.header_handle?.[0]) {
         const handle = headerComp.example.header_handle[0];
         if (handle.includes('fbcdn.net') || handle.includes('whatsapp.net')) {
-          // Replace temporary expired Meta link with a stable Unsplash pizza banner image
-          headerImgUrl = "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=800&q=80";
+          // Replace temporary expired Meta link with a stable direct Wikimedia pizza image (ends with .jpg)
+          headerImgUrl = "https://upload.wikimedia.org/wikipedia/commons/9/91/Pizza-3007395.jpg";
         } else {
           headerImgUrl = handle;
         }
