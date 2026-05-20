@@ -49,17 +49,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
-  // Check auth on mount
+  // Check auth on mount and path change
   useEffect(() => {
-    if (pathname !== "/admin/login") {
-      checkSession();
-    }
+    checkSession();
   }, [pathname, checkSession]);
 
-  // Redirect to login if not authenticated (as a side-effect, not during render)
+  // Handle redirects based on auth state
   useEffect(() => {
-    if (!loading && !admin && pathname !== "/admin/login") {
-      router.push("/admin/login");
+    if (!loading) {
+      if (!admin && pathname !== "/admin/login") {
+        router.push("/admin/login");
+      } else if (admin && pathname === "/admin/login") {
+        router.push("/admin");
+      }
     }
   }, [loading, admin, pathname, router]);
 

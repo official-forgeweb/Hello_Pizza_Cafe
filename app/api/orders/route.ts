@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
     // Tax and delivery fee
     const taxRate = 0.05;
     const taxAmount = Math.round(subtotal * taxRate * 100) / 100;
-    const deliveryFee = orderType === "PICKUP" ? 0 : subtotal >= 499 ? 0 : 30;
+    const deliveryFee = (orderType === "PICKUP" || orderType === "DINE_IN") ? 0 : subtotal >= 499 ? 0 : 30;
 
     // Coupon discount
     let discountAmount = 0;
@@ -164,7 +164,7 @@ export async function POST(request: NextRequest) {
         couponCode,
         orderNotes,
         estimatedPrepTime: 20,
-        estimatedDeliveryTime: orderType === "PICKUP" ? 20 : 40,
+        estimatedDeliveryTime: orderType === "PICKUP" ? 20 : orderType === "DINE_IN" ? 0 : 40,
         items: {
           create: orderItems,
         },

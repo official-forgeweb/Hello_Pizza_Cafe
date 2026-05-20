@@ -4,9 +4,11 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mail, Loader2, ArrowRight, ArrowLeft, ShieldCheck, KeyRound } from "lucide-react";
+import { useAdminStore } from "@/store/admin";
 
 export default function AdminLoginPage() {
   const router = useRouter();
+  const { setAdmin } = useAdminStore();
   const [step, setStep] = useState<"email" | "otp">("email");
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
@@ -122,6 +124,7 @@ export default function AdminLoginPage() {
         return;
       }
 
+      setAdmin(data.admin);
       router.push("/admin");
     } catch {
       setError("Something went wrong. Please try again.");

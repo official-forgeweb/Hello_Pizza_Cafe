@@ -14,6 +14,7 @@ import {
   Wallet,
   Loader2,
   Check,
+  Utensils,
 } from "lucide-react";
 import { useCartStore } from "@/store/cart";
 import { useLocationStore } from "@/store/location";
@@ -23,7 +24,7 @@ export default function CheckoutPage() {
   const router = useRouter();
   const { items, getCartTotal, getCartCount, clearCart } = useCartStore();
   const [mounted, setMounted] = useState(false);
-  const [orderType, setOrderType] = useState<"delivery" | "pickup">("delivery");
+  const [orderType, setOrderType] = useState<"delivery" | "pickup" | "dine_in">("delivery");
   const [showSummary, setShowSummary] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -52,7 +53,7 @@ export default function CheckoutPage() {
   const count = getCartCount();
   const total = getCartTotal();
   const tax = Math.round(total * 0.05);
-  const deliveryFee = orderType === "pickup" ? 0 : total >= 499 ? 0 : 30;
+  const deliveryFee = orderType === "delivery" ? (total >= 499 ? 0 : 30) : 0;
   const grandTotal = total + tax + deliveryFee;
 
   useEffect(() => {
@@ -94,7 +95,7 @@ export default function CheckoutPage() {
         customerPhone: phone,
         customerEmail: email,
         whatsappOptIn,
-        orderType: orderType === "delivery" ? "DELIVERY" : "PICKUP",
+        orderType: orderType === "delivery" ? "DELIVERY" : orderType === "pickup" ? "PICKUP" : "DINE_IN",
         deliveryAddress: orderType === "delivery" ? address : null,
         deliveryInstructions: instructions,
         items: items.map(item => ({
@@ -182,6 +183,12 @@ export default function CheckoutPage() {
                     icon: Store,
                     label: "Self Pickup",
                     desc: "Ready to collect in 15 mins",
+                  },
+                  {
+                    value: "dine_in" as const,
+                    icon: Utensils,
+                    label: "Dine In",
+                    desc: "Enjoy hot pizza at our cafe",
                   },
                 ].map((opt) => (
                   <button

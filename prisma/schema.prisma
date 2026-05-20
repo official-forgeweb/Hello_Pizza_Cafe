@@ -156,6 +156,7 @@ model Order {
 enum OrderType {
   DELIVERY
   PICKUP
+  DINE_IN
 }
 
 enum OrderStatus {
