@@ -67,10 +67,15 @@ export default function MenuItemCard({ item, onCustomize }: MenuItemCardProps) {
   );
 
   const [isMounted, setIsMounted] = useState(false);
+  const [imgSrc, setImgSrc] = useState(item.imageUrl || getFallbackImage(item.name, item.category?.name));
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  useEffect(() => {
+    setImgSrc(item.imageUrl || getFallbackImage(item.name, item.category?.name));
+  }, [item.imageUrl, item.name, item.category?.name]);
 
   const totalQty = isMounted ? totalQtyFromStore : 0;
 
@@ -126,13 +131,14 @@ export default function MenuItemCard({ item, onCustomize }: MenuItemCardProps) {
       <div className="md:hidden relative w-full h-[280px] rounded-[16px] overflow-hidden group cursor-pointer shadow-sm hover:shadow-md transition-all duration-300 bg-gray-900 flex">
         {/* Background Image */}
         <Image
-          src={item.imageUrl || getFallbackImage(item.name, item.category?.name)}
+          src={imgSrc}
           alt={item.name}
           fill
           loading="lazy"
           sizes="100vw"
           style={{ objectFit: 'cover', objectPosition: 'center' }}
           className="group-hover:scale-105 transition-transform duration-700"
+          onError={() => setImgSrc(getFallbackImage(item.name, item.category?.name))}
         />
 
         {/* Dark Gradient Overlay - Vertical for bottom-aligned content */}
@@ -216,12 +222,13 @@ export default function MenuItemCard({ item, onCustomize }: MenuItemCardProps) {
         {/* Top Image Section - Fixed aspect ratio */}
         <div className="relative w-full aspect-[4/3] overflow-hidden flex-shrink-0">
           <Image
-            src={item.imageUrl || getFallbackImage(item.name, item.category?.name)}
+            src={imgSrc}
             alt={item.name}
             fill
             loading="lazy"
             sizes="(max-width: 1024px) 50vw, 25vw"
             className="object-cover group-hover:scale-105 transition-transform duration-500"
+            onError={() => setImgSrc(getFallbackImage(item.name, item.category?.name))}
           />
           
           {/* Tags layer */}

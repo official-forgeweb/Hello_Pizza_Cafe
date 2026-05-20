@@ -25,6 +25,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import MenuItemCard, { type MenuItemData } from "@/components/menu/MenuItemCard";
+import { getFallbackImage } from "@/lib/utils/menuHelper";
 
 // ─── Mock Data ────────────────────────────────────────────────
 const HERO_ITEM = {
@@ -225,6 +226,26 @@ function FadeInSection({
   );
 }
 
+// ─── Safe Image Component for Hero Slides ──────────────────────
+function GallerySlideImage({ src, alt, title, ...props }: any) {
+  const [imgSrc, setImgSrc] = useState(src);
+  
+  useEffect(() => {
+    setImgSrc(src);
+  }, [src]);
+
+  return (
+    <Image
+      {...props}
+      src={imgSrc}
+      alt={alt}
+      onError={() => {
+        setImgSrc(getFallbackImage(title));
+      }}
+    />
+  );
+}
+
 import { useLocationStore } from "@/store/location";
 
 // ─── Main Page ────────────────────────────────────────────────
@@ -336,7 +357,7 @@ export default function HomePage() {
     const startAutoScroll = () => {
       scrollTimer = setInterval(() => {
         if (userInteracted) return;
-        const cardWidth = gallery.querySelector('div > div')?.clientWidth || 380;
+        const cardWidth = gallery.querySelector('.flex-shrink-0')?.clientWidth || 380;
         const scrollStep = cardWidth + 24; // card width + gap
         const maxScroll = gallery.scrollWidth - gallery.clientWidth;
 
@@ -514,9 +535,10 @@ export default function HomePage() {
                       key={`gallery-${item.id}-${idx}`} 
                       className="relative w-[80vw] max-w-[380px] h-[400px] lg:h-[480px] flex-shrink-0 rounded-[2rem] overflow-hidden group cursor-pointer border border-white/20 hover:border-primary/50 transition-colors bg-warm-900"
                     >
-                      <Image
+                      <GallerySlideImage
                         src={item.image}
                         alt={item.title}
+                        title={item.title}
                         fill
                         priority={idx < 3}
                         loading={idx < 3 ? "eager" : "lazy"}

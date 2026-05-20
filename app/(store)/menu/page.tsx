@@ -87,29 +87,8 @@ function MenuContent() {
     return matchesSearch && matchesVeg;
   });
 
-  // ─── Pagination for rendering performance ───
-  const [visibleCount, setVisibleCount] = useState(50);
-  
-  // Reset pagination when filters change
-  useEffect(() => {
-    setVisibleCount(50);
-  }, [searchQuery, vegFilter, activeCategory]);
-
-  // Load more items when scrolling down
-  useEffect(() => {
-    const handleScroll = () => {
-      if (
-        window.innerHeight + window.scrollY >= document.body.offsetHeight - 500 &&
-        visibleCount < filteredItems.length
-      ) {
-        setVisibleCount((prev) => prev + 30);
-      }
-    };
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [visibleCount, filteredItems.length]);
   // ─── Group items by category ───
-  const groupedItemsAll = categories.filter((c) => c.id !== "all").map(
+  const groupedItems = categories.filter((c) => c.id !== "all").map(
     (cat) => {
       const items = filteredItems.filter((item) => 
         item.categoryId === cat.id || item.categoryId === cat.slug
@@ -117,15 +96,6 @@ function MenuContent() {
       return { category: cat, items, totalCount: items.length };
     }
   ).filter(g => g.items.length > 0);
-
-  let currentRendered = 0;
-  const groupedItems = groupedItemsAll.map(group => {
-    if (currentRendered >= visibleCount) return { ...group, items: [] };
-    const remaining = visibleCount - currentRendered;
-    const displayItems = group.items.slice(0, remaining);
-    currentRendered += displayItems.length;
-    return { ...group, items: displayItems };
-  }).filter(g => g.items.length > 0);
 
   const isScrollingRef = useRef(false);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -294,7 +264,7 @@ function MenuContent() {
 
       {/* ─── Category Tabs ─── */}
       <CategoryTabs
-        categories={[{ id: "all", name: "All" }, ...groupedItemsAll.map(g => g.category)]}
+        categories={[{ id: "all", name: "All" }, ...groupedItems.map(g => g.category)]}
         activeCategory={activeCategory}
         onCategoryChange={handleCategoryClick}
       />
@@ -384,17 +354,6 @@ function MenuContent() {
               </div>
             ))}
 
-            {visibleCount < filteredItems.length && (
-              <div className="flex justify-center pt-8 pb-12 w-full">
-                <button
-                  onClick={() => setVisibleCount((prev) => prev + 10)}
-                  className="bg-white border-2 border-primary text-primary hover:bg-primary hover:text-white hover:shadow-lg transition-all duration-300 font-bold px-8 py-3 rounded-xl flex items-center gap-2 cursor-pointer group"
-                >
-                  <Loader2 className="w-5 h-5 group-hover:animate-spin" />
-                  Load More Items ({filteredItems.length - visibleCount} remaining)
-                </button>
-              </div>
-            )}
           </div>
         )}
       </div>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Edit2, Trash2, X, Save, Loader2, Image as ImageIcon, Layout, Megaphone, UploadCloud, Sparkles } from "lucide-react";
+import { Plus, Edit2, Trash2, X, Save, Loader2, Image as ImageIcon, Layout, Megaphone, UploadCloud, Sparkles, UtensilsCrossed } from "lucide-react";
 import { useAdminStore } from "@/store/admin";
 
 interface HeroSlide {
@@ -36,6 +36,7 @@ export default function AdsManagementPage() {
   // Data states
   const [heroSlides, setHeroSlides] = useState<HeroSlide[]>([]);
   const [splashAds, setSplashAds] = useState<SplashAd[]>([]);
+  const [menuItems, setMenuItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
   // Edit states
@@ -44,6 +45,15 @@ export default function AdsManagementPage() {
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [generatingImage, setGeneratingImage] = useState(false);
+
+  // Search autocomplete states for menu quick-fill
+  const [itemSearchText, setItemSearchText] = useState("");
+  const [itemDropdownOpen, setItemDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    setItemSearchText("");
+    setItemDropdownOpen(false);
+  }, [editSlide, editAd]);
 
   const handleFindStockPhoto = async (title: string, isHero: boolean) => {
     if (!title) {
@@ -104,13 +114,18 @@ export default function AdsManagementPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [heroRes, splashRes] = await Promise.all([
+      const [heroRes, splashRes, menuRes] = await Promise.all([
         fetch("/api/admin/hero-slides"),
-        fetch("/api/admin/splash-ads")
+        fetch("/api/admin/splash-ads"),
+        fetch("/api/menu-items?limit=1000&admin=true")
       ]);
       
       if (heroRes.ok) setHeroSlides(await heroRes.json());
       if (splashRes.ok) setSplashAds(await splashRes.json());
+      if (menuRes.ok) {
+        const menuData = await menuRes.json();
+        setMenuItems(menuData.items || []);
+      }
     } catch (err) {
       addToast("Failed to fetch ads data", "error");
     }
@@ -346,6 +361,77 @@ export default function AdsManagementPage() {
                   <button onClick={() => setEditSlide(null)} className="p-2 rounded-lg hover:bg-warm-100"><X className="w-5 h-5 text-warm-500" /></button>
                 </div>
                 <div className="p-5 space-y-4">
+                  {/* Quick-Fill Search Bar */}
+                  <div className="relative">
+                    <label className="text-xs font-semibold text-purple-700 mb-1.5 block flex items-center gap-1.5 bg-purple-50 px-3 py-1.5 rounded-lg border border-purple-100 w-fit">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      Quick-Fill from Menu Item
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Search menu item (e.g. Pizza, Burger)..."
+                        value={itemSearchText}
+                        onChange={(e) => {
+                          setItemSearchText(e.target.value);
+                          setItemDropdownOpen(true);
+                        }}
+                        onFocus={() => setItemDropdownOpen(true)}
+                        className="w-full px-3 py-2 bg-warm-50 rounded-lg text-sm border border-warm-200 focus:outline-none focus:border-primary/50"
+                      />
+                      {itemDropdownOpen && (
+                        <>
+                          <div className="fixed inset-0 z-10" onClick={() => setItemDropdownOpen(false)} />
+                          <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-warm-200 rounded-xl shadow-xl max-h-60 overflow-y-auto z-20 divide-y divide-warm-100">
+                            {menuItems
+                              .filter((item: any) =>
+                                item.name.toLowerCase().includes(itemSearchText.toLowerCase()) ||
+                                (item.category?.name && item.category.name.toLowerCase().includes(itemSearchText.toLowerCase()))
+                              )
+                              .slice(0, 8)
+                              .map((item: any) => (
+                                <button
+                                  key={item.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setEditSlide((p: any) => p && {
+                                      ...p,
+                                      title: item.name,
+                                      description: item.description || p.description || "",
+                                      imageUrl: item.imageUrl || p.imageUrl || "",
+                                      linkUrl: `/menu?q=${encodeURIComponent(item.name)}`
+                                    });
+                                    setItemSearchText(item.name);
+                                    setItemDropdownOpen(false);
+                                  }}
+                                  className="w-full text-left px-3 py-2 hover:bg-warm-50 transition-colors flex items-center gap-3 cursor-pointer"
+                                >
+                                  {item.imageUrl ? (
+                                    <img src={item.imageUrl} alt="" className="w-8 h-8 rounded-lg object-cover shrink-0" />
+                                  ) : (
+                                    <div className="w-8 h-8 rounded-lg bg-warm-100 flex items-center justify-center shrink-0">
+                                      <UtensilsCrossed className="w-4 h-4 text-warm-400" />
+                                    </div>
+                                  )}
+                                  <div className="min-w-0 flex-1">
+                                    <p className="font-bold text-xs text-warm-900 truncate">{item.name}</p>
+                                    <p className="text-[10px] text-warm-400 truncate">{item.category?.name || "Uncategorized"}</p>
+                                  </div>
+                                  <span className="text-[10px] bg-warm-100 text-warm-600 px-2 py-0.5 rounded font-bold">₹{item.basePrice}</span>
+                                </button>
+                              ))}
+                            {menuItems.filter((item: any) =>
+                              item.name.toLowerCase().includes(itemSearchText.toLowerCase()) ||
+                              (item.category?.name && item.category.name.toLowerCase().includes(itemSearchText.toLowerCase()))
+                            ).length === 0 && (
+                              <div className="p-3 text-xs text-warm-500 text-center">No menu items found</div>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
                   <div>
                     <label className="text-xs font-medium text-warm-600 mb-1 block">Title *</label>
                     <input type="text" value={editSlide.title || ""} onChange={(e) => setEditSlide(p => p && { ...p, title: e.target.value })} className="w-full px-3 py-2 bg-warm-50 rounded-lg text-sm border border-warm-200 focus:outline-none focus:border-primary/50" />
@@ -446,6 +532,77 @@ export default function AdsManagementPage() {
                   <button onClick={() => setEditAd(null)} className="p-2 rounded-lg hover:bg-warm-100"><X className="w-5 h-5 text-warm-500" /></button>
                 </div>
                 <div className="p-5 space-y-4">
+                  {/* Quick-Fill Search Bar */}
+                  <div className="relative">
+                    <label className="text-xs font-semibold text-purple-700 mb-1.5 block flex items-center gap-1.5 bg-purple-50 px-3 py-1.5 rounded-lg border border-purple-100 w-fit">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      Quick-Fill from Menu Item
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Search menu item (e.g. Pizza, Burger)..."
+                        value={itemSearchText}
+                        onChange={(e) => {
+                          setItemSearchText(e.target.value);
+                          setItemDropdownOpen(true);
+                        }}
+                        onFocus={() => setItemDropdownOpen(true)}
+                        className="w-full px-3 py-2 bg-warm-50 rounded-lg text-sm border border-warm-200 focus:outline-none focus:border-primary/50"
+                      />
+                      {itemDropdownOpen && (
+                        <>
+                          <div className="fixed inset-0 z-10" onClick={() => setItemDropdownOpen(false)} />
+                          <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-warm-200 rounded-xl shadow-xl max-h-60 overflow-y-auto z-20 divide-y divide-warm-100">
+                            {menuItems
+                              .filter((item: any) =>
+                                item.name.toLowerCase().includes(itemSearchText.toLowerCase()) ||
+                                (item.category?.name && item.category.name.toLowerCase().includes(itemSearchText.toLowerCase()))
+                              )
+                              .slice(0, 8)
+                              .map((item: any) => (
+                                <button
+                                  key={item.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setEditAd((p: any) => p && {
+                                      ...p,
+                                      title: item.name,
+                                      subtitle: item.description || p.subtitle || "",
+                                      imageUrl: item.imageUrl || p.imageUrl || "",
+                                      linkUrl: `/menu?q=${encodeURIComponent(item.name)}`
+                                    });
+                                    setItemSearchText(item.name);
+                                    setItemDropdownOpen(false);
+                                  }}
+                                  className="w-full text-left px-3 py-2 hover:bg-warm-50 transition-colors flex items-center gap-3 cursor-pointer"
+                                >
+                                  {item.imageUrl ? (
+                                    <img src={item.imageUrl} alt="" className="w-8 h-8 rounded-lg object-cover shrink-0" />
+                                  ) : (
+                                    <div className="w-8 h-8 rounded-lg bg-warm-100 flex items-center justify-center shrink-0">
+                                      <UtensilsCrossed className="w-4 h-4 text-warm-400" />
+                                    </div>
+                                  )}
+                                  <div className="min-w-0 flex-1">
+                                    <p className="font-bold text-xs text-warm-900 truncate">{item.name}</p>
+                                    <p className="text-[10px] text-warm-400 truncate">{item.category?.name || "Uncategorized"}</p>
+                                  </div>
+                                  <span className="text-[10px] bg-warm-100 text-warm-600 px-2 py-0.5 rounded font-bold">₹{item.basePrice}</span>
+                                </button>
+                              ))}
+                            {menuItems.filter((item: any) =>
+                              item.name.toLowerCase().includes(itemSearchText.toLowerCase()) ||
+                              (item.category?.name && item.category.name.toLowerCase().includes(itemSearchText.toLowerCase()))
+                            ).length === 0 && (
+                              <div className="p-3 text-xs text-warm-500 text-center">No menu items found</div>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
                   <div>
                     <label className="text-xs font-medium text-warm-600 mb-1 block">Title *</label>
                     <input type="text" value={editAd.title || ""} onChange={(e) => setEditAd(p => p && { ...p, title: e.target.value })} className="w-full px-3 py-2 bg-warm-50 rounded-lg text-sm border border-warm-200 focus:outline-none focus:border-primary/50" />
