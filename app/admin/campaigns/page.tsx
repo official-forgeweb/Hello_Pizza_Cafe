@@ -4,9 +4,9 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Send, Plus, Users, LayoutTemplate, Calendar, 
-  BarChart, Play, CheckCircle2, Clock, Check, X, RefreshCw
+  Play, CheckCircle2, Clock, Check, X, RefreshCw,
+  XCircle, AlertTriangle, ChevronRight, Info, Eye, Image as ImageIcon
 } from "lucide-react";
-import AdminToasts from "@/components/admin/Toast";
 
 interface Campaign {
   id: string;
@@ -15,6 +15,7 @@ interface Campaign {
   templateName: string;
   status: string;
   targetType: string;
+  targetGroup?: string | null;
   totalRecipients: number;
   sent: number;
   delivered: number;
@@ -24,10 +25,19 @@ interface Campaign {
   sentAt: string | null;
 }
 
+interface MessageLog {
+  id: string;
+  phone: string;
+  status: string;
+  errorMessage: string | null;
+  createdAt: string;
+}
+
 export default function CampaignsPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [showWizard, setShowWizard] = useState(false);
+  const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
 
   const fetchCampaigns = async () => {
     try {
@@ -44,7 +54,7 @@ export default function CampaignsPage() {
 
   useEffect(() => {
     fetchCampaigns();
-    const interval = setInterval(fetchCampaigns, 15000); // Poll for updates
+    const interval = setInterval(fetchCampaigns, 10000); // Poll every 10s for updates
     return () => clearInterval(interval);
   }, []);
 
@@ -66,9 +76,11 @@ export default function CampaignsPage() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'sending':
-        return <span className="flex items-center gap-1 text-xs font-bold bg-blue-100 text-blue-600 px-2.5 py-1 rounded-full"><Clock className="w-3.5 h-3.5 animate-pulse" /> Sending</span>;
+        return <span className="flex items-center gap-1 text-xs font-bold bg-blue-50 text-blue-600 px-2.5 py-1 rounded-full"><Clock className="w-3.5 h-3.5 animate-pulse" /> Sending</span>;
       case 'completed':
         return <span className="flex items-center gap-1 text-xs font-bold bg-[#25D366]/10 text-[#25D366] px-2.5 py-1 rounded-full"><CheckCircle2 className="w-3.5 h-3.5" /> Completed</span>;
+      case 'failed':
+        return <span className="flex items-center gap-1 text-xs font-bold bg-red-50 text-red-600 px-2.5 py-1 rounded-full"><XCircle className="w-3.5 h-3.5" /> Failed</span>;
       case 'draft':
       default:
         return <span className="flex items-center gap-1 text-xs font-bold bg-warm-200 text-warm-700 px-2.5 py-1 rounded-full"><Clock className="w-3.5 h-3.5" /> Draft</span>;
@@ -82,12 +94,12 @@ export default function CampaignsPage() {
         <div>
           <h1 className="text-2xl font-bold text-warm-900">Marketing Campaigns</h1>
           <p className="text-warm-500 text-sm mt-1">
-            Send bulk WhatsApp messages and track performance
+            Send bulk WhatsApp messages to customers and track real-time delivery and error logs.
           </p>
         </div>
         <motion.button
           onClick={() => setShowWizard(true)}
-          className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-xl text-sm font-medium hover:bg-[#cc1530] transition-colors cursor-pointer"
+          className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-xl text-sm font-bold hover:bg-[#cc1530] transition-colors cursor-pointer"
           whileTap={{ scale: 0.95 }}
         >
           <Plus className="w-4 h-4" />
@@ -125,25 +137,29 @@ export default function CampaignsPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.05 }}
-              className="bg-white rounded-2xl border border-warm-200/60 overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-all"
+              className={`bg-white rounded-2xl border overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-all relative ${
+                campaign.status === "failed" ? "border-red-200" : "border-warm-200/60"
+              }`}
             >
               <div className="p-5 border-b border-warm-100 flex-1">
                 <div className="flex justify-between items-start mb-3">
-                  <h3 className="font-bold text-warm-900 text-lg truncate pr-2">{campaign.name}</h3>
+                  <h3 className="font-bold text-warm-900 text-base truncate pr-2" title={campaign.name}>
+                    {campaign.name}
+                  </h3>
                   {getStatusBadge(campaign.status)}
                 </div>
                 
-                <div className="space-y-3 mt-4">
-                  <div className="flex items-center gap-2 text-sm text-warm-600">
-                    <LayoutTemplate className="w-4 h-4 text-warm-400" />
-                    <span className="font-medium">Template:</span> <span className="truncate">{campaign.templateName}</span>
+                <div className="space-y-2.5 mt-3 text-xs">
+                  <div className="flex items-center gap-2 text-warm-600">
+                    <LayoutTemplate className="w-3.5 h-3.5 text-warm-400" />
+                    <span className="font-medium">Template:</span> <span className="truncate max-w-[120px] font-mono">{campaign.templateName}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-warm-600">
-                    <Users className="w-4 h-4 text-warm-400" />
-                    <span className="font-medium">Target:</span> {campaign.targetType === 'all' ? 'All Opt-in Customers' : `Group: ${campaign.targetType}`}
+                  <div className="flex items-center gap-2 text-warm-600">
+                    <Users className="w-3.5 h-3.5 text-warm-400" />
+                    <span className="font-medium">Target:</span> {campaign.targetType === 'all' ? 'All Opt-in Customers' : `Group: ${campaign.targetGroup}`}
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-warm-600">
-                    <Calendar className="w-4 h-4 text-warm-400" />
+                  <div className="flex items-center gap-2 text-warm-600">
+                    <Calendar className="w-3.5 h-3.5 text-warm-400" />
                     <span className="font-medium">Created:</span> {new Date(campaign.createdAt).toLocaleDateString()}
                   </div>
                 </div>
@@ -153,40 +169,53 @@ export default function CampaignsPage() {
                 <div className="p-4 bg-warm-50 border-t border-warm-100 flex justify-end">
                   <button
                     onClick={() => handleStartCampaign(campaign.id)}
-                    className="flex items-center gap-2 px-4 py-2 bg-warm-900 text-white rounded-xl text-sm font-bold hover:bg-black transition-colors cursor-pointer w-full justify-center"
+                    className="flex items-center gap-2 px-4 py-2 bg-warm-900 text-white rounded-xl text-xs font-bold hover:bg-black transition-colors cursor-pointer w-full justify-center"
                   >
-                    <Play className="w-4 h-4 fill-white" />
+                    <Play className="w-3.5 h-3.5 fill-white text-white" />
                     Send Campaign Now
                   </button>
                 </div>
               ) : (
-                <div className="p-4 bg-warm-50 border-t border-warm-100">
-                  <div className="grid grid-cols-4 gap-2 text-center">
+                <div className="p-4 bg-warm-50 border-t border-warm-100 space-y-3">
+                  <div className="grid grid-cols-5 gap-1 text-center">
                     <div>
-                      <p className="text-lg font-black text-warm-900">{campaign.totalRecipients}</p>
-                      <p className="text-[9px] font-bold text-warm-500 uppercase tracking-widest mt-0.5">Target</p>
+                      <p className="text-base font-black text-warm-900">{campaign.totalRecipients}</p>
+                      <p className="text-[8px] font-bold text-warm-500 uppercase tracking-widest mt-0.5">Target</p>
                     </div>
                     <div>
-                      <p className="text-lg font-black text-blue-600">{campaign.sent}</p>
-                      <p className="text-[9px] font-bold text-blue-500 uppercase tracking-widest mt-0.5">Sent</p>
+                      <p className="text-base font-black text-blue-600">{campaign.sent}</p>
+                      <p className="text-[8px] font-bold text-blue-500 uppercase tracking-widest mt-0.5">Sent</p>
                     </div>
                     <div>
-                      <p className="text-lg font-black text-[#25D366]">{campaign.delivered}</p>
-                      <p className="text-[9px] font-bold text-[#25D366] uppercase tracking-widest mt-0.5">Dlvd</p>
+                      <p className="text-base font-black text-[#25D366]">{campaign.delivered}</p>
+                      <p className="text-[8px] font-bold text-[#25D366] uppercase tracking-widest mt-0.5">Dlvd</p>
                     </div>
                     <div>
-                      <p className="text-lg font-black text-emerald-600">{campaign.read}</p>
-                      <p className="text-[9px] font-bold text-emerald-500 uppercase tracking-widest mt-0.5">Read</p>
+                      <p className="text-base font-black text-emerald-600">{campaign.read}</p>
+                      <p className="text-[8px] font-bold text-emerald-500 uppercase tracking-widest mt-0.5">Read</p>
+                    </div>
+                    <div>
+                      <p className={`text-base font-black ${campaign.failed > 0 ? "text-red-650" : "text-warm-400"}`}>{campaign.failed}</p>
+                      <p className="text-[8px] font-bold text-warm-500 uppercase tracking-widest mt-0.5">Failed</p>
                     </div>
                   </div>
                   
                   {/* Progress Bar */}
                   {campaign.totalRecipients > 0 && (
-                    <div className="mt-4 h-1.5 w-full bg-warm-200 rounded-full overflow-hidden flex">
+                    <div className="h-1.5 w-full bg-warm-200 rounded-full overflow-hidden flex">
                       <div className="h-full bg-blue-500" style={{ width: `${(campaign.sent / campaign.totalRecipients) * 100}%` }} />
                       <div className="h-full bg-[#25D366]" style={{ width: `${(campaign.delivered / campaign.totalRecipients) * 100}%`, marginLeft: `-${(campaign.sent / campaign.totalRecipients) * 100}%` }} />
+                      <div className="h-full bg-red-500" style={{ width: `${(campaign.failed / campaign.totalRecipients) * 100}%`, marginLeft: `-${(campaign.delivered / campaign.totalRecipients) * 100}%` }} />
                     </div>
                   )}
+
+                  {/* Logs inspector button */}
+                  <button
+                    onClick={() => setSelectedCampaignId(campaign.id)}
+                    className="w-full py-1.5 bg-white border border-warm-200 rounded-lg text-[10px] font-bold text-warm-600 hover:bg-warm-100 flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                  >
+                    <Eye className="w-3 h-3 text-warm-400" /> View Delivery Logs / Errors
+                  </button>
                 </div>
               )}
             </motion.div>
@@ -194,22 +223,32 @@ export default function CampaignsPage() {
         </div>
       )}
 
-      {/* Campaign Creation Wizard (Simplified Modal) */}
+      {/* Campaign Creation Wizard */}
       <AnimatePresence>
         {showWizard && (
           <CampaignWizard onClose={() => setShowWizard(false)} onComplete={fetchCampaigns} />
+        )}
+      </AnimatePresence>
+
+      {/* Campaign Logs Modal */}
+      <AnimatePresence>
+        {selectedCampaignId && (
+          <CampaignLogsModal 
+            campaignId={selectedCampaignId} 
+            onClose={() => setSelectedCampaignId(null)} 
+          />
         )}
       </AnimatePresence>
     </div>
   );
 }
 
+// Campaign creation Wizard Component
 function CampaignWizard({ onClose, onComplete }: { onClose: () => void, onComplete: () => void }) {
-  const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   
   const [templates, setTemplates] = useState<any[]>([]);
-  const [customers, setCustomers] = useState<any>({ total: 0, byGroup: {} });
+  const [customers, setCustomers] = useState<any>({ total: 0 });
   
   // Form State
   const [name, setName] = useState("");
@@ -221,14 +260,27 @@ function CampaignWizard({ onClose, onComplete }: { onClose: () => void, onComple
   const selectedTemplate = templates.find(t => t.templateName === templateName);
   const requiresImageHeader = selectedTemplate?.components?.some((c: any) => c.type === 'HEADER' && c.format === 'IMAGE');
 
+  // Photo Presets
+  const PHOTO_PRESETS = [
+    { title: "Special Pizza", url: "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=800&q=80" },
+    { title: "Cheese Crust", url: "https://images.unsplash.com/photo-1590947132387-155cc02f3212?auto=format&fit=crop&w=800&q=80" },
+    { title: "Delicious Table", url: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80" }
+  ];
+
   useEffect(() => {
     if (templateName) {
       const selected = templates.find(t => t.templateName === templateName);
       const headerComp = selected?.components?.find((c: any) => c.type === 'HEADER' && c.format === 'IMAGE');
       if (headerComp && headerComp.example?.header_handle?.[0]) {
-        setHeaderImage(headerComp.example.header_handle[0]);
+        const handle = headerComp.example.header_handle[0];
+        // If it looks like temporary Meta URL, pre-fill with our Pizza Table preset
+        if (handle.includes("fbcdn.net") || handle.includes("whatsapp.net")) {
+          setHeaderImage(PHOTO_PRESETS[0].url);
+        } else {
+          setHeaderImage(handle);
+        }
       } else {
-        setHeaderImage("");
+        setHeaderImage(PHOTO_PRESETS[0].url);
       }
     } else {
       setHeaderImage("");
@@ -241,7 +293,7 @@ function CampaignWizard({ onClose, onComplete }: { onClose: () => void, onComple
       try {
         const [tplRes, cstRes] = await Promise.all([
           fetch("/api/admin/templates"),
-          fetch("/api/admin/customers?limit=1&optIn=true") // Just to get total opted in
+          fetch("/api/admin/customers?limit=1&optIn=true")
         ]);
         
         if (tplRes.ok) {
@@ -250,7 +302,7 @@ function CampaignWizard({ onClose, onComplete }: { onClose: () => void, onComple
         }
         if (cstRes.ok) {
           const csts = await cstRes.json();
-          setCustomers({ total: csts.pagination?.total || 0, byGroup: {} });
+          setCustomers({ total: csts.pagination?.total || 0 });
         }
       } catch (e) {}
     }
@@ -290,14 +342,14 @@ function CampaignWizard({ onClose, onComplete }: { onClose: () => void, onComple
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/45 backdrop-blur-sm"
         onClick={onClose}
       />
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="bg-white rounded-3xl p-6 md:p-8 w-full max-w-2xl relative z-10 shadow-2xl"
+        className="bg-white rounded-3xl p-6 md:p-8 w-full max-w-2xl relative z-10 shadow-2xl overflow-y-auto max-h-[90vh]"
       >
         <button
           onClick={onClose}
@@ -306,57 +358,91 @@ function CampaignWizard({ onClose, onComplete }: { onClose: () => void, onComple
           <X className="w-5 h-5 text-warm-500" />
         </button>
 
-        <h2 className="text-2xl font-bold text-warm-900 mb-6">Create Campaign</h2>
+        <h2 className="text-xl font-bold text-warm-900 mb-6 flex items-center gap-2">
+          <Send className="w-5 h-5 text-primary" /> Create Marketing Campaign
+        </h2>
 
-        <div className="space-y-6">
+        <div className="space-y-5 text-sm">
           <div>
-            <label className="block text-sm font-bold text-warm-700 mb-2">Campaign Name</label>
+            <label className="block text-xs font-bold text-warm-700 mb-1.5 uppercase tracking-wider">Campaign Name</label>
             <input
               type="text"
               value={name}
               onChange={e => setName(e.target.value)}
-              placeholder="e.g. Diwali Special Offer"
-              className="w-full px-4 py-3 bg-warm-50 border-0 rounded-xl focus:ring-2 focus:ring-primary/20 outline-none"
+              placeholder="e.g. Pizza Sunday Special Offer"
+              className="w-full px-4 py-2.5 bg-warm-50 border-0 rounded-xl focus:ring-2 focus:ring-primary/20 outline-none"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-warm-700 mb-2">Select Template</label>
+            <label className="block text-xs font-bold text-warm-700 mb-1.5 uppercase tracking-wider">Select Approved Template</label>
             <select
               value={templateName}
               onChange={e => setTemplateName(e.target.value)}
-              className="w-full px-4 py-3 bg-warm-50 border-0 rounded-xl focus:ring-2 focus:ring-primary/20 outline-none"
+              className="w-full px-4 py-2.5 bg-warm-50 border-0 rounded-xl focus:ring-2 focus:ring-primary/20 outline-none"
             >
               <option value="">Choose an approved template...</option>
               {templates.map(t => (
-                <option key={t.id} value={t.templateName}>{t.templateName}</option>
+                <option key={t.id} value={t.templateName}>
+                  {t.templateName} ({t.category})
+                </option>
               ))}
             </select>
           </div>
 
           {requiresImageHeader && (
-            <div>
-              <label className="block text-sm font-bold text-warm-700 mb-2">Header Image URL</label>
-              <input
-                type="text"
-                value={headerImage}
-                onChange={e => setHeaderImage(e.target.value)}
-                placeholder="Paste image URL here or leave default..."
-                className="w-full px-4 py-3 bg-warm-50 border-0 rounded-xl focus:ring-2 focus:ring-primary/20 outline-none text-sm text-warm-700 font-mono"
-              />
-              <p className="text-[11px] text-warm-500 mt-1">This template requires a header image. You can paste any image URL or keep Meta's default template image.</p>
+            <div className="bg-amber-50 border border-amber-250 p-4 rounded-2xl space-y-3">
+              <div className="flex items-start gap-2 text-xs text-amber-850">
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold">Permanent Image Required:</span> Meta's default template example URLs expire quickly. You must use a permanent, public image URL (like from Cloudinary or Unsplash) so that your marketing campaign sends successfully!
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-warm-700 mb-1.5 uppercase">Image Header Link URL</label>
+                <input
+                  type="text"
+                  value={headerImage}
+                  onChange={e => setHeaderImage(e.target.value)}
+                  placeholder="Paste permanent image URL here..."
+                  className="w-full px-3 py-2 bg-white border border-warm-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-primary/10 font-mono"
+                />
+              </div>
+
+              <div>
+                <p className="text-[10px] font-bold text-warm-500 mb-1.5 uppercase tracking-wider">Or Select Stable Pizza Preset Banner:</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {PHOTO_PRESETS.map((preset, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setHeaderImage(preset.url)}
+                      className={`p-2 rounded-xl text-[10px] font-bold border flex flex-col items-center gap-1 bg-white cursor-pointer ${
+                        headerImage === preset.url ? "border-primary text-primary bg-primary/5" : "border-warm-200 hover:border-warm-300"
+                      }`}
+                    >
+                      <div className="w-full h-8 rounded overflow-hidden bg-warm-100">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={preset.url} alt={preset.title} className="w-full h-full object-cover" />
+                      </div>
+                      <span>{preset.title}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
 
           <div>
-            <label className="block text-sm font-bold text-warm-700 mb-2">Target Audience</label>
+            <label className="block text-xs font-bold text-warm-700 mb-1.5 uppercase tracking-wider">Target Audience Selection</label>
             <div className="grid grid-cols-2 gap-3">
               <div 
                 onClick={() => setTargetType('all')}
                 className={`p-4 rounded-xl border-2 cursor-pointer transition-colors ${targetType === 'all' ? 'border-primary bg-primary/5' : 'border-warm-200 bg-white hover:border-warm-300'}`}
               >
                 <div className="flex items-center justify-between mb-1">
-                  <p className="font-bold text-warm-900">All Opt-in</p>
+                  <p className="font-bold text-warm-900 text-sm">All Opt-in</p>
                   {targetType === 'all' && <CheckCircle2 className="w-4 h-4 text-primary" />}
                 </div>
                 <p className="text-xs text-warm-500">Send to all {customers.total} opted-in customers</p>
@@ -366,7 +452,7 @@ function CampaignWizard({ onClose, onComplete }: { onClose: () => void, onComple
                 className={`p-4 rounded-xl border-2 cursor-pointer transition-colors ${targetType === 'group' ? 'border-primary bg-primary/5' : 'border-warm-200 bg-white hover:border-warm-300'}`}
               >
                 <div className="flex items-center justify-between mb-1">
-                  <p className="font-bold text-warm-900">Specific Group</p>
+                  <p className="font-bold text-warm-900 text-sm">Customer Group</p>
                   {targetType === 'group' && <CheckCircle2 className="w-4 h-4 text-primary" />}
                 </div>
                 <p className="text-xs text-warm-500">Target a specific customer segment</p>
@@ -376,11 +462,11 @@ function CampaignWizard({ onClose, onComplete }: { onClose: () => void, onComple
 
           {targetType === 'group' && (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
-              <label className="block text-sm font-bold text-warm-700 mb-2">Select Group</label>
+              <label className="block text-xs font-bold text-warm-700 mb-1.5 uppercase tracking-wider">Select Segment Group</label>
               <select
                 value={targetGroup}
                 onChange={e => setTargetGroup(e.target.value)}
-                className="w-full px-4 py-3 bg-warm-50 border-0 rounded-xl focus:ring-2 focus:ring-primary/20 outline-none"
+                className="w-full px-4 py-2.5 bg-warm-50 border-0 rounded-xl focus:ring-2 focus:ring-primary/20 outline-none"
               >
                 <option value="regular">Regular Customers</option>
                 <option value="new">New Customers</option>
@@ -392,19 +478,139 @@ function CampaignWizard({ onClose, onComplete }: { onClose: () => void, onComple
           <div className="pt-6 border-t border-warm-200 flex justify-end gap-3">
             <button
               onClick={onClose}
-              className="px-6 py-3 rounded-xl font-bold text-warm-700 hover:bg-warm-100 transition-colors"
+              className="px-6 py-2.5 rounded-xl font-bold text-warm-700 hover:bg-warm-100 transition-colors cursor-pointer"
             >
               Cancel
             </button>
             <button
               onClick={handleCreate}
               disabled={loading || !name || !templateName}
-              className="px-8 py-3 bg-primary text-white rounded-xl font-bold hover:bg-[#cc1530] transition-colors shadow-lg shadow-primary/20 disabled:opacity-50 flex items-center gap-2"
+              className="px-8 py-2.5 bg-primary text-white rounded-xl font-bold hover:bg-[#cc1530] transition-colors shadow-lg shadow-primary/20 disabled:opacity-50 flex items-center gap-2 cursor-pointer"
             >
               {loading && <RefreshCw className="w-4 h-4 animate-spin" />}
               Create Campaign
             </button>
           </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+// Campaign Logs details Inspector Modal
+function CampaignLogsModal({ campaignId, onClose }: { campaignId: string; onClose: () => void }) {
+  const [logs, setLogs] = useState<MessageLog[]>([]);
+  const [campaignName, setCampaignName] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchLogs() {
+      try {
+        const res = await fetch(`/api/admin/campaigns/${campaignId}`);
+        if (res.ok) {
+          const data = await res.json();
+          setCampaignName(data.name);
+          setLogs(data.messageLogs || []);
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchLogs();
+  }, [campaignId]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        className="bg-white rounded-3xl w-full max-w-2xl h-[70vh] flex flex-col overflow-hidden relative z-10 shadow-2xl"
+      >
+        {/* Modal Header */}
+        <div className="p-5 border-b border-warm-100 flex items-center justify-between bg-warm-50/50">
+          <div>
+            <h2 className="text-lg font-bold text-warm-900">Campaign Logs</h2>
+            <p className="text-xs text-warm-500 mt-0.5">Campaign: <span className="font-semibold">{campaignName || "Loading..."}</span></p>
+          </div>
+          <button 
+            onClick={onClose}
+            className="p-1.5 rounded-xl hover:bg-warm-100 text-warm-400 hover:text-warm-700 transition-all cursor-pointer"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Logs list / Table */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {loading ? (
+            <div className="h-full flex flex-col justify-center items-center">
+              <RefreshCw className="w-6 h-6 text-primary animate-spin mb-2" />
+              <p className="text-xs text-warm-550">Fetching logs...</p>
+            </div>
+          ) : logs.length === 0 ? (
+            <div className="h-full flex flex-col justify-center items-center text-center">
+              <Info className="w-10 h-10 text-warm-300 mb-2" />
+              <p className="text-sm font-bold text-warm-800">No logs recorded yet</p>
+              <p className="text-xs text-warm-500 max-w-xs mt-1">This campaign hasn't sent any messages or the logs have expired.</p>
+            </div>
+          ) : (
+            <div className="space-y-3.5">
+              <p className="text-xs font-bold text-warm-550 mb-2 uppercase tracking-wider">Recipient Logs (Newest First)</p>
+              <div className="border border-warm-100 rounded-2xl overflow-hidden divide-y divide-warm-100 text-xs">
+                {logs.map((log) => (
+                  <div key={log.id} className="p-4 bg-white hover:bg-warm-50/40 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="space-y-1">
+                      <p className="font-bold text-warm-900 font-mono">{log.phone}</p>
+                      <p className="text-[10px] text-warm-400">{new Date(log.createdAt).toLocaleString()}</p>
+                    </div>
+
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      {log.status === "sent" && (
+                        <span className="bg-blue-50 text-blue-700 border border-blue-100 px-2 py-0.5 rounded-full font-bold text-[10px] uppercase">Sent</span>
+                      )}
+                      {log.status === "delivered" && (
+                        <span className="bg-emerald-50 text-emerald-700 border border-emerald-100 px-2 py-0.5 rounded-full font-bold text-[10px] uppercase">Delivered</span>
+                      )}
+                      {log.status === "read" && (
+                        <span className="bg-[#25D366]/10 text-[#25D366] border border-[#25D366]/20 px-2 py-0.5 rounded-full font-bold text-[10px] uppercase">Read</span>
+                      )}
+                      {log.status === "failed" && (
+                        <span className="bg-red-50 text-red-700 border border-red-100 px-2 py-0.5 rounded-full font-bold text-[10px] uppercase flex items-center gap-1">
+                          <XCircle className="w-3 h-3 text-red-650" /> Failed
+                        </span>
+                      )}
+                      
+                      {log.errorMessage && (
+                        <p className="text-[11px] font-medium text-red-600 bg-red-50/50 border border-red-100 rounded-lg p-2 max-w-sm mt-1">
+                          Reason: {log.errorMessage}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Modal Footer */}
+        <div className="p-4 bg-warm-50/50 border-t border-warm-100 flex justify-end">
+          <button
+            onClick={onClose}
+            className="px-5 py-2 bg-warm-900 text-white rounded-xl text-xs font-bold hover:bg-black transition-colors cursor-pointer"
+          >
+            Close
+          </button>
         </div>
       </motion.div>
     </div>

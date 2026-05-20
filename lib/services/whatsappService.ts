@@ -5,7 +5,7 @@ const getWhatsAppConfig = () => {
     accessToken: process.env.WHATSAPP_ACCESS_TOKEN,
     phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID,
     wabaId: process.env.WHATSAPP_BUSINESS_ACCOUNT_ID,
-    apiVersion: process.env.WHATSAPP_API_VERSION || 'v18.0',
+    apiVersion: process.env.WHATSAPP_API_VERSION || 'v21.0',
   };
 };
 
@@ -131,6 +131,79 @@ export class WhatsAppService {
       return { success: true, data: data.data };
     } catch (error: any) {
       console.error('Error fetching WhatsApp templates:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Create a template on Meta
+   */
+  static async createTemplate(templateData: {
+    name: string;
+    category: string;
+    language: string;
+    components: any[];
+  }) {
+    const config = getWhatsAppConfig();
+    if (!config.accessToken || !config.wabaId) {
+      return { success: false, error: 'Credentials missing' };
+    }
+
+    try {
+      const response = await fetch(
+        `https://graph.facebook.com/${config.apiVersion}/${config.wabaId}/message_templates`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${config.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(templateData),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error?.message || 'Failed to create template in Meta');
+      }
+
+      return { success: true, data };
+    } catch (error: any) {
+      console.error('Error creating WhatsApp template:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Delete a template from Meta by name
+   */
+  static async deleteTemplate(templateName: string) {
+    const config = getWhatsAppConfig();
+    if (!config.accessToken || !config.wabaId) {
+      return { success: false, error: 'Credentials missing' };
+    }
+
+    try {
+      const response = await fetch(
+        `https://graph.facebook.com/${config.apiVersion}/${config.wabaId}/message_templates?name=${encodeURIComponent(templateName)}`,
+        {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${config.accessToken}`,
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error?.message || 'Failed to delete template from Meta');
+      }
+
+      return { success: true, data };
+    } catch (error: any) {
+      console.error('Error deleting WhatsApp template:', error);
       return { success: false, error: error.message };
     }
   }

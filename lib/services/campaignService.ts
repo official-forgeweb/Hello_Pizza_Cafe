@@ -61,14 +61,20 @@ export class CampaignService {
     });
     const languageCode = template?.language || 'en_US';
 
-    // Resolve header image (fallback to template example if null)
+    // Resolve header image (fallback to template example if null, but replace temporary Meta CDN links)
     let headerImgUrl = campaign.headerImage || undefined;
     if (!headerImgUrl && template) {
       const headerComp = (template.components as any[]).find(
         (c) => c.type === 'HEADER' && c.format === 'IMAGE'
       );
       if (headerComp && headerComp.example?.header_handle?.[0]) {
-        headerImgUrl = headerComp.example.header_handle[0];
+        const handle = headerComp.example.header_handle[0];
+        if (handle.includes('fbcdn.net') || handle.includes('whatsapp.net')) {
+          // Replace temporary expired Meta link with a stable Unsplash pizza banner image
+          headerImgUrl = "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=800&q=80";
+        } else {
+          headerImgUrl = handle;
+        }
       }
     }
 
@@ -184,10 +190,15 @@ export class CampaignService {
           await new Promise(resolve => setTimeout(resolve, 200));
         }
 
-        // Mark campaign as completed
+        // Mark campaign status dynamically
+        let finalStatus = 'completed';
+        if (sentCount === 0 && failedCount > 0) {
+          finalStatus = 'failed';
+        }
+
         await prisma.campaign.update({
           where: { id: campaign.id },
-          data: { status: 'completed', completedAt: new Date() }
+          data: { status: finalStatus, completedAt: new Date() }
         });
       })().catch(err => {
         console.error('Error running direct campaign sender:', err);
