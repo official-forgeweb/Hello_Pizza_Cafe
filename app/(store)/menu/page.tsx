@@ -127,42 +127,89 @@ function MenuContent() {
     return { ...group, items: displayItems };
   }).filter(g => g.items.length > 0);
 
+  const isScrollingRef = useRef(false);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   // ─── Handle category click → scroll ───
   const handleCategoryClick = useCallback((catId: string) => {
     setActiveCategory(catId);
+    isScrollingRef.current = true;
+    
+    if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+    
     if (catId === "all") {
       window.scrollTo({ top: 0, behavior: "smooth" });
+      scrollTimeoutRef.current = setTimeout(() => {
+        isScrollingRef.current = false;
+      }, 800);
       return;
     }
+    
     const section = sectionRefs.current.get(catId);
     if (section) {
       const headerOffset = 64 + 52 + 16; // header + tabs + gap
       const top = section.getBoundingClientRect().top + window.scrollY - headerOffset;
       window.scrollTo({ top, behavior: "smooth" });
+      
+      scrollTimeoutRef.current = setTimeout(() => {
+        isScrollingRef.current = false;
+      }, 800);
     }
   }, []);
 
-  // ─── Intersection Observer for scroll-sync ───
+  // ─── Scroll Spy for Active Category Tab ───
   useEffect(() => {
-    const observers: IntersectionObserver[] = [];
+    if (isLoading || menuItems.length === 0) return;
 
-    sectionRefs.current.forEach((el, catId) => {
-      const observer = new IntersectionObserver(
-        (entries) => {
-          entries.forEach((entry) => {
-            if (entry.isIntersecting && entry.intersectionRatio > 0.2) {
-              setActiveCategory(catId);
-            }
-          });
-        },
-        { rootMargin: "-120px 0px -60% 0px", threshold: 0.2 }
-      );
-      observer.observe(el);
-      observers.push(observer);
-    });
+    const handleScroll = () => {
+      if (isScrollingRef.current) return;
+      
+      const headerOffset = 64 + 52 + 40; // header height + tabs height + safety margin
+      
+      // If we are at the very top of the page, highlight "all"
+      if (window.scrollY < 100) {
+        setActiveCategory("all");
+        return;
+      }
 
-    return () => observers.forEach((o) => o.disconnect());
-  }, [searchQuery, vegFilter]);
+      // If we've scrolled to the bottom of the page, highlight the last category
+      if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 80) {
+        const visibleGroups = groupedItems.filter(g => g.items.length > 0);
+        if (visibleGroups.length > 0) {
+          setActiveCategory(visibleGroups[visibleGroups.length - 1].category.id);
+          return;
+        }
+      }
+
+      let currentActive = "all";
+      let maxTop = -Infinity;
+
+      sectionRefs.current.forEach((el, catId) => {
+        const rect = el.getBoundingClientRect();
+        // Check if the section's top is past the headerOffset line
+        if (rect.top <= headerOffset) {
+          // Find the one closest to the headerOffset
+          if (rect.top > maxTop) {
+            maxTop = rect.top;
+            currentActive = catId;
+          }
+        }
+      });
+
+      if (currentActive !== "all" && currentActive !== activeCategory) {
+        setActiveCategory(currentActive);
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    // Run once on load
+    handleScroll();
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+    };
+  }, [isLoading, menuItems, groupedItems, activeCategory]);
 
   return (
     <div className="flex flex-col min-h-screen pb-24 md:pb-0">
@@ -308,7 +355,11 @@ function MenuContent() {
               <div
                 key={category.id}
                 ref={(el) => {
-                  if (el) sectionRefs.current.set(category.id, el);
+                  if (el) {
+                    sectionRefs.current.set(category.id, el);
+                  } else {
+                    sectionRefs.current.delete(category.id);
+                  }
                 }}
                 className="w-full"
               >

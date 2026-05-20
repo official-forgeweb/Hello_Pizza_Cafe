@@ -55,9 +55,24 @@ export default function CategoryTabs({
   // Scroll active tab into view
   useEffect(() => {
     if (!scrollRef.current) return;
-    const activeTab = scrollRef.current.querySelector(`[data-category="${activeCategory}"]`);
+    const activeTab = scrollRef.current.querySelector(`[data-category="${activeCategory}"]`) as HTMLElement;
     if (activeTab) {
-      activeTab.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+      const container = scrollRef.current;
+      const containerWidth = container.clientWidth;
+      const scrollWidth = container.scrollWidth;
+      
+      if (scrollWidth > containerWidth) {
+        const tabOffsetLeft = activeTab.offsetLeft;
+        const tabWidth = activeTab.clientWidth;
+        
+        // Calculate the target scrollPosition to center the tab
+        const targetScrollLeft = tabOffsetLeft - (containerWidth / 2) + (tabWidth / 2);
+        
+        container.scrollTo({
+          left: targetScrollLeft,
+          behavior: "smooth"
+        });
+      }
     }
   }, [activeCategory]);
 
