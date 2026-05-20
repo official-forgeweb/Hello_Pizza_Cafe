@@ -253,9 +253,9 @@ export default function HomePage() {
   const { address } = useLocationStore();
 
   // Dynamic state
-  const [categories, setCategories] = useState<any[]>(CATEGORIES);
-  const [adsData, setAdsData] = useState<any[]>(ADS_DATA);
-  const [bestSellers, setBestSellers] = useState<any[]>(BEST_SELLERS);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [adsData, setAdsData] = useState<any[]>([]);
+  const [bestSellers, setBestSellers] = useState<any[]>([]);
 
   useEffect(() => {
     // Fetch live categories and ads from the new DB APIs
