@@ -32,6 +32,28 @@ interface Category {
 
 type EditItem = Partial<MenuItem> & { isNew?: boolean };
 
+function SafeMenuImage({ src, fallbackSrc, alt, fill, className }: { src: string; fallbackSrc: string; alt: string; fill?: boolean; className?: string }) {
+  const [imgSrc, setImgSrc] = useState(src);
+  
+  useEffect(() => {
+    setImgSrc(src);
+  }, [src]);
+
+  return (
+    <img
+      src={imgSrc}
+      alt={alt}
+      onError={() => {
+        if (imgSrc !== fallbackSrc) {
+          setImgSrc(fallbackSrc);
+        }
+      }}
+      className={className}
+      style={fill ? { position: 'absolute', height: '100%', width: '100%', left: 0, top: 0, right: 0, bottom: 0, objectFit: 'cover' } : undefined}
+    />
+  );
+}
+
 export default function MenuManagementPage() {
   const { addToast } = useAdminStore();
   const [items, setItems] = useState<MenuItem[]>([]);
@@ -268,7 +290,7 @@ export default function MenuManagementPage() {
               <div key={item.id}
                 className={`px-5 py-3.5 flex items-center gap-4 hover:bg-warm-50 transition-colors ${!item.isAvailable ? "opacity-60" : ""}`}>
                 <div className="w-14 h-14 rounded-xl overflow-hidden bg-warm-100 flex-shrink-0 relative">
-                  <Image src={item.imageUrl || getFallbackImage(item.name, item.category?.name || "")} alt={item.name} fill sizes="56px" className="object-cover" />
+                  <SafeMenuImage src={item.imageUrl || getFallbackImage(item.name, item.category?.name || "")} fallbackSrc={getFallbackImage(item.name, item.category?.name || "")} alt={item.name} fill className="object-cover" />
                   {!item.imageUrl && (
                     <div className="absolute inset-0 bg-black/20 flex items-center justify-center text-[9px] text-white font-extrabold uppercase tracking-wider">Auto</div>
                   )}
@@ -311,7 +333,7 @@ export default function MenuManagementPage() {
             <motion.div key={item.id} className={`bg-white rounded-2xl border overflow-hidden ${!item.isAvailable ? "opacity-60" : "border-warm-200/60"}`}
               style={{ boxShadow: "var(--shadow-card)" }}>
               <div className="relative aspect-square bg-warm-100">
-                <Image src={item.imageUrl || getFallbackImage(item.name, item.category?.name || "")} alt={item.name} fill sizes="200px" className="object-cover" />
+                <SafeMenuImage src={item.imageUrl || getFallbackImage(item.name, item.category?.name || "")} fallbackSrc={getFallbackImage(item.name, item.category?.name || "")} alt={item.name} fill className="object-cover" />
                 {!item.imageUrl && (
                   <div className="absolute inset-0 bg-black/20 flex items-center justify-center text-[10px] text-white font-extrabold uppercase tracking-wider">Auto Image</div>
                 )}
