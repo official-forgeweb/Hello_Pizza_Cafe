@@ -528,6 +528,16 @@ function CampaignLogsModal({ campaignId, onClose }: { campaignId: string; onClos
   const [campaignName, setCampaignName] = useState("");
   const [loading, setLoading] = useState(true);
 
+  const getFriendlyErrorMessage = (error: string) => {
+    if (error.includes("maintain healthy ecosystem engagement")) {
+      return "Meta Limit: Recipient has received too many marketing templates recently from other brands. Try again in 24 hours.";
+    }
+    if (error.includes("Message undeliverable")) {
+      return "Delivery Failed: Number has no WhatsApp, has blocked you, or (if using a Meta Developer Test Account) the recipient number has not been added to 'Allowed Test Numbers' in the Facebook Developer Console.";
+    }
+    return error;
+  };
+
   useEffect(() => {
     async function fetchLogs() {
       try {
@@ -616,8 +626,8 @@ function CampaignLogsModal({ campaignId, onClose }: { campaignId: string; onClos
                       )}
                       
                       {log.errorMessage && (
-                        <p className="text-[11px] font-medium text-red-600 bg-red-50/50 border border-red-100 rounded-lg p-2 max-w-sm mt-1">
-                          Reason: {log.errorMessage}
+                        <p className="text-[11px] font-medium text-red-650 bg-red-50/50 border border-red-100 rounded-lg p-2 max-w-sm mt-1">
+                          Reason: {getFriendlyErrorMessage(log.errorMessage)}
                         </p>
                       )}
                     </div>
