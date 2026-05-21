@@ -71,7 +71,7 @@ export class OrderNotificationService {
 
       const result = await WhatsAppService.sendTemplateMessage(
         order.customerPhone,
-        'order_preparing2',
+        'order_preparing3',
         'en_US',
         [
           {
@@ -95,8 +95,8 @@ export class OrderNotificationService {
             customerId: order.customerId,
             orderId: order.id,
             phone: order.customerPhone,
-            messageType: 'order_preparing2',
-            templateUsed: 'order_preparing2',
+            messageType: 'order_preparing3',
+            templateUsed: 'order_preparing3',
             status: 'sent',
             whatsappMessageId: result.data?.messages?.[0]?.id || ''
           }
@@ -234,7 +234,7 @@ export class OrderNotificationService {
 
       const result = await WhatsAppService.sendTemplateMessage(
         order.customerPhone,
-        'order_cancelled2',
+        'order_cancelled3',
         'en_US',
         [
           {
@@ -254,8 +254,8 @@ export class OrderNotificationService {
             customerId: order.customerId,
             orderId: order.id,
             phone: order.customerPhone,
-            messageType: 'order_cancelled2',
-            templateUsed: 'order_cancelled2',
+            messageType: 'order_cancelled3',
+            templateUsed: 'order_cancelled3',
             status: 'sent',
             whatsappMessageId: result.data?.messages?.[0]?.id || ''
           }

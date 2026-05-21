@@ -50,10 +50,10 @@ const UTILITY_PRESETS: Preset[] = [
     ]
   },
   {
-    id: "order_preparing2",
+    id: "order_preparing3",
     title: "Order Preparing",
     description: "Send when order is sent to the kitchen",
-    templateName: "order_preparing2",
+    templateName: "order_preparing3",
     category: "MARKETING",
     headerType: "TEXT",
     headerText: "Order Preparing",
@@ -89,10 +89,10 @@ const UTILITY_PRESETS: Preset[] = [
     ]
   },
   {
-    id: "order_cancelled2",
+    id: "order_cancelled3",
     title: "Order Cancelled",
     description: "Send if order is rejected or cancelled",
-    templateName: "order_cancelled2",
+    templateName: "order_cancelled3",
     category: "MARKETING",
     headerType: "TEXT",
     headerText: "Order Cancelled",
