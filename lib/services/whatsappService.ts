@@ -136,6 +136,60 @@ export class WhatsAppService {
   }
 
   /**
+   * Upload an image to Meta Resumable Upload API to get a header_handle for templates
+   */
+  static async uploadImageToMeta(imageUrl: string) {
+    const config = getWhatsAppConfig();
+    const appId = process.env.WHATSAPP_APP_ID;
+    
+    if (!config.accessToken || !appId) {
+      return { success: false, error: 'Credentials or App ID missing' };
+    }
+
+    try {
+      const imgRes = await fetch(imageUrl);
+      if (!imgRes.ok) throw new Error('Failed to fetch image from URL');
+      const arrayBuf = await imgRes.arrayBuffer();
+      const imgBuffer = Buffer.from(arrayBuf);
+      const fileLength = imgBuffer.length;
+
+      // 1. Create upload session
+      const url1 = `https://graph.facebook.com/${config.apiVersion}/${appId}/uploads?file_length=${fileLength}&file_type=image/jpeg`;
+      const res1 = await fetch(url1, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${config.accessToken}` }
+      });
+      const data1 = await res1.json();
+      
+      if (!data1.id) {
+        throw new Error(data1.error?.message || 'Failed to create upload session');
+      }
+      const sessionId = data1.id;
+
+      // 2. Upload data
+      const url2 = `https://graph.facebook.com/${config.apiVersion}/${sessionId}`;
+      const res2 = await fetch(url2, {
+        method: 'POST',
+        headers: {
+          'Authorization': `OAuth ${config.accessToken}`,
+          'file_offset': '0'
+        },
+        body: imgBuffer
+      });
+      const data2 = await res2.json();
+      
+      if (!data2.h) {
+        throw new Error(data2.error?.message || 'Failed to upload image data');
+      }
+
+      return { success: true, handle: data2.h };
+    } catch (error: any) {
+      console.error('Error uploading image to Meta:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
    * Create a template on Meta
    */
   static async createTemplate(templateData: {
