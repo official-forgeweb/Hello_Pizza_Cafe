@@ -30,6 +30,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Automatically inject variables example payload for BODY component
+    const bodyComponent = components.find((c: any) => c.type === 'BODY');
+    if (bodyComponent && bodyComponent.text) {
+      const matches = bodyComponent.text.match(/\{\{(\d+)\}\}/g);
+      if (matches) {
+        // Collect unique variable indices in ascending order
+        const uniqueIndices = Array.from(
+          new Set(matches.map((m: string) => parseInt(m.replace(/[^0-9]/g, ''), 10)))
+        ).sort((a, b) => a - b);
+
+        if (uniqueIndices.length > 0) {
+          const examplesList = uniqueIndices.map(idx => {
+            if (idx === 1) return "Rahul Sharma"; // Default customer name
+            if (idx === 2) return "OD-98214";     // Default order number
+            if (idx === 3) return "Amit Kumar (Rider)"; // Default rider name
+            if (idx === 4) return "+91 98765 43210";    // Default phone number
+            if (idx === 5) return "123 Cafe Street, Faridabad"; // Default address
+            return `Sample ${idx}`;
+          });
+
+          bodyComponent.example = {
+            body_text: [examplesList]
+          };
+        }
+      }
+    }
+
     // Call Meta API to create the template
     const metaResult = await WhatsAppService.createTemplate({
       name: templateName,
@@ -45,11 +72,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Extract variables from body component if any
-    const bodyComponent = components.find((c: any) => c.type === 'BODY');
+    // Extract variables from body component for local DB storage
     const text = bodyComponent?.text || '';
-    const matches = text.match(/\{\{(\d+)\}\}/g);
-    const variablesCount = matches ? new Set(matches).size : 0;
+    const varMatches = text.match(/\{\{(\d+)\}\}/g);
+    const variablesCount = varMatches ? new Set(varMatches).size : 0;
     const variables = Array.from({ length: variablesCount }, (_, i) => `Variable ${i + 1}`);
 
     // Create in local DB

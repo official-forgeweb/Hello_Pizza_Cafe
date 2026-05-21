@@ -26,6 +26,10 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "media.darpanmagazine.com",
+      },
+      {
+        protocol: "https",
+        hostname: "upload.wikimedia.org",
       }
     ],
   },

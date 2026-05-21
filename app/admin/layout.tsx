@@ -22,6 +22,7 @@ import {
   Send,
   MessageSquare,
   PieChart,
+  Truck,
 } from "lucide-react";
 import { useAdminStore } from "@/store/admin";
 import AdminToasts from "@/components/admin/Toast";
@@ -39,6 +40,7 @@ const NAV_ITEMS = [
   { href: "/admin/ads", label: "Ads & Hero", icon: ImageIcon },
   { href: "/admin/staff", label: "Staff", icon: Users },
   { href: "/admin/coupons", label: "Coupons", icon: Tag },
+  { href: "/admin/delivery", label: "Delivery", icon: Truck },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 

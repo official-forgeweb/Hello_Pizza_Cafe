@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import {
+  calculateDistanceKm,
+  calculateDeliveryFee,
+  getDefaultDeliveryConfig,
+  getDefaultDeliveryZones,
+  DeliveryConfig,
+  DeliveryZone,
+} from "@/lib/delivery";
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,6 +23,8 @@ export async function POST(request: NextRequest) {
       orderNotes,
       items,
       whatsappOptIn = false,
+      deliveryLat,
+      deliveryLng,
     } = body;
 
     if (!customerName || !customerPhone || !items || items.length === 0) {
@@ -81,7 +91,41 @@ export async function POST(request: NextRequest) {
     // Tax and delivery fee
     const taxRate = 0.05;
     const taxAmount = Math.round(subtotal * taxRate * 100) / 100;
-    const deliveryFee = (orderType === "PICKUP" || orderType === "DINE_IN") ? 0 : subtotal >= 499 ? 0 : 30;
+
+    let deliveryFee = 0;
+    if (orderType === "DELIVERY") {
+      const [configRow, zonesRow] = await Promise.all([
+        prisma.restaurantSetting.findUnique({ where: { key: "delivery_config" } }),
+        prisma.restaurantSetting.findUnique({ where: { key: "delivery_zones" } }),
+      ]);
+
+      const config: DeliveryConfig = configRow
+        ? (configRow.value as unknown as DeliveryConfig)
+        : getDefaultDeliveryConfig();
+
+      const zones: DeliveryZone[] = zonesRow
+        ? (zonesRow.value as unknown as DeliveryZone[])
+        : getDefaultDeliveryZones();
+
+      if (typeof deliveryLat === "number" && typeof deliveryLng === "number") {
+        const distanceKm = calculateDistanceKm(
+          config.cafeLocation.lat,
+          config.cafeLocation.lng,
+          deliveryLat,
+          deliveryLng
+        );
+        const result = calculateDeliveryFee(distanceKm, subtotal, zones, config);
+        if (!result.isDeliverable) {
+          return NextResponse.json(
+            { error: result.message },
+            { status: 400 }
+          );
+        }
+        deliveryFee = result.deliveryFee;
+      } else {
+        deliveryFee = config.fallbackDeliveryFee;
+      }
+    }
 
     // Coupon discount
     let discountAmount = 0;
@@ -165,6 +209,8 @@ export async function POST(request: NextRequest) {
         orderNotes,
         estimatedPrepTime: 20,
         estimatedDeliveryTime: orderType === "PICKUP" ? 20 : orderType === "DINE_IN" ? 0 : 40,
+        deliveryLat: typeof deliveryLat === "number" ? deliveryLat : null,
+        deliveryLng: typeof deliveryLng === "number" ? deliveryLng : null,
         items: {
           create: orderItems,
         },

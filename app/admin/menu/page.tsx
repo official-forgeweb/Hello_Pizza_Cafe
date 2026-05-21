@@ -375,193 +375,213 @@ export default function MenuManagementPage() {
           <>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="fixed inset-0 bg-black/50 z-50 backdrop-blur-sm" onClick={() => setEditItem(null)} />
-            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="fixed inset-0 flex items-center justify-center z-[60] p-4">
-              <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" style={{ boxShadow: "var(--shadow-card-hover)" }}>
-                <div className="p-5 border-b border-warm-200/50 flex items-center justify-between sticky top-0 bg-white rounded-t-2xl z-10">
-                  <h2 className="font-bold text-warm-900 text-lg">{editItem.isNew ? "Add New Item" : "Edit Item"}</h2>
-                  <button onClick={() => setEditItem(null)} className="p-2 rounded-lg hover:bg-warm-100 text-warm-500 cursor-pointer"><X className="w-5 h-5" /></button>
-                </div>
-                <div className="p-5 space-y-4">
-                  <div>
-                    <label className="text-xs font-medium text-warm-600 mb-1.5 block">Item Name *</label>
-                    <input type="text" value={editItem.name || ""}
-                      onChange={(e) => setEditItem((prev) => prev && { ...prev, name: e.target.value })}
-                      placeholder="e.g. Margherita Pizza"
-                      className="w-full px-4 py-2.5 bg-warm-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all border border-warm-200" />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-warm-600 mb-1.5 block">Description</label>
-                    <textarea value={editItem.description || ""} rows={2}
-                      onChange={(e) => setEditItem((prev) => prev && { ...prev, description: e.target.value })}
-                      className="w-full px-4 py-2.5 bg-warm-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all border border-warm-200 resize-none" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-xs font-medium text-warm-600 mb-1.5 block">Price (₹) *</label>
-                      <input type="number" value={editItem.price || ""}
-                        onChange={(e) => setEditItem((prev) => prev && { ...prev, price: parseInt(e.target.value) || 0 })}
-                        className="w-full px-4 py-2.5 bg-warm-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all border border-warm-200" />
+            <motion.div initial={{ opacity: 0, y: "100%" }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="fixed inset-0 z-[60] bg-white flex flex-col">
+              
+              {/* Header */}
+              <div className="px-6 md:px-12 py-5 border-b border-warm-200/50 flex items-center justify-between shrink-0 bg-white">
+                <h2 className="font-bold text-warm-900 text-2xl">{editItem.isNew ? "Add New Item" : "Edit Item"}</h2>
+                <button onClick={() => setEditItem(null)} className="p-2.5 rounded-full hover:bg-warm-100 text-warm-500 cursor-pointer transition-colors"><X className="w-6 h-6" /></button>
+              </div>
+
+              {/* Body */}
+              <div className="flex-1 overflow-y-auto w-full bg-warm-50/30">
+                <div className="max-w-7xl mx-auto p-6 md:p-12">
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    
+                    {/* LEFT COLUMN: Image Settings */}
+                    <div className="lg:col-span-5 space-y-6">
+                      <div className="bg-white rounded-3xl p-6 md:p-8 border border-warm-200/60 shadow-sm space-y-6 sticky top-0">
+                        <h3 className="text-lg font-bold text-warm-900 border-b border-warm-100 pb-4">Image Settings</h3>
+                        
+                        {/* Image Preview Container */}
+                        <div className="flex items-center justify-center bg-warm-50 rounded-3xl border border-warm-200 p-4 min-h-[240px]">
+                          {/* AI Preview */}
+                          {aiImagePreview ? (
+                            <div className="relative w-full rounded-2xl overflow-hidden border border-purple-200 bg-purple-50">
+                              <div className="aspect-[4/3] relative">
+                                <img src={aiImagePreview} alt="AI Generated" className="w-full h-full object-cover" />
+                              </div>
+                              <div className="absolute top-3 left-3">
+                                <span className="bg-purple-600 text-white text-[10px] font-bold px-2 py-1 rounded-lg flex items-center gap-1">
+                                  <Sparkles className="w-3 h-3" /> Stock Photo
+                                </span>
+                              </div>
+                              <div className="p-4 flex gap-3">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditItem((prev) => prev && { ...prev, imageUrl: aiImagePreview });
+                                    setAiImagePreview(null);
+                                    addToast("AI image applied!", "success");
+                                  }}
+                                  className="flex-1 py-2.5 bg-purple-600 text-white text-sm font-semibold rounded-xl hover:bg-purple-700 cursor-pointer transition-colors"
+                                >
+                                  ✅ Apply
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setAiImagePreview(null)}
+                                  className="px-4 py-2.5 bg-warm-200 text-warm-700 text-sm font-medium rounded-xl hover:bg-warm-300 cursor-pointer transition-colors"
+                                >
+                                  Discard
+                                </button>
+                              </div>
+                            </div>
+                          ) : editItem.imageUrl ? (
+                            <div className="relative w-full rounded-2xl overflow-hidden shadow-sm">
+                              <div className="aspect-[4/3] relative">
+                                <img src={editItem.imageUrl} alt="Preview" className="w-full h-full object-cover" />
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-center text-warm-400">
+                              <Image className="w-12 h-12 mx-auto mb-2 opacity-50 text-warm-300" />
+                              <p className="text-sm">No image selected</p>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="space-y-4 pt-2">
+                          <div className="grid grid-cols-2 gap-3">
+                            {/* AI Generate Button */}
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (!editItem.name) {
+                                  addToast("Enter an item name first", "error");
+                                  return;
+                                }
+                                setGeneratingImage(true);
+                                setAiImagePreview(null);
+                                try {
+                                  const res = await fetch("/api/admin/generate-image", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({
+                                      itemName: editItem.name,
+                                      description: editItem.description,
+                                      isVeg: editItem.isVeg,
+                                    }),
+                                  });
+                                  if (res.ok) {
+                                    const data = await res.json();
+                                    setAiImagePreview(data.imageUrl);
+                                    addToast("Image found! Click 'Apply' to save.", "success");
+                                  } else {
+                                    const err = await res.json().catch(() => ({}));
+                                    addToast(err.error || "Failed to generate image", "error");
+                                  }
+                                } catch {
+                                  addToast("Error generating image", "error");
+                                }
+                                setGeneratingImage(false);
+                              }}
+                              disabled={generatingImage || !editItem.name}
+                              className="flex items-center justify-center gap-2 px-3 py-3.5 rounded-2xl text-xs font-bold transition-all border border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100 disabled:opacity-50"
+                            >
+                              {generatingImage ? (
+                                <><Loader2 className="w-4 h-4 animate-spin" /> Finding...</>
+                              ) : (
+                                <><Sparkles className="w-4 h-4" /> Stock Photo</>
+                              )}
+                            </button>
+
+                            {/* Device Upload Button */}
+                            <label className={`flex items-center justify-center gap-2 px-3 py-3.5 rounded-2xl text-xs font-bold transition-all border cursor-pointer ${uploadingImage ? 'bg-warm-100 text-warm-400 border-warm-200 cursor-not-allowed' : 'bg-warm-50 hover:bg-warm-100 text-warm-700 border-warm-200'}`}>
+                              {uploadingImage ? (
+                                <><Loader2 className="w-4 h-4 animate-spin" /> Uploading...</>
+                              ) : (
+                                <><UploadCloud className="w-4 h-4" /> Upload</>
+                              )}
+                              <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} disabled={uploadingImage} />
+                            </label>
+                          </div>
+                          
+                          <div>
+                            <label className="text-[10px] font-bold text-warm-400 uppercase tracking-wider mb-2 block">Or paste image URL</label>
+                            <input type="text" value={editItem.imageUrl || ""}
+                              onChange={(e) => setEditItem((prev) => prev && { ...prev, imageUrl: e.target.value })}
+                              placeholder="https://..."
+                              className="w-full px-5 py-3.5 bg-warm-50 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all border border-warm-200" />
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <label className="text-xs font-medium text-warm-600 mb-1.5 block">Category</label>
-                      <div className="relative">
-                        <select value={editItem.categoryId || ""}
-                          onChange={(e) => setEditItem((prev) => prev && { ...prev, categoryId: e.target.value })}
-                          className="w-full px-4 py-2.5 bg-warm-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all border border-warm-200 appearance-none cursor-pointer">
-                          <option value="">Select category</option>
-                          {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                        </select>
-                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-warm-400 pointer-events-none" />
+
+                    {/* RIGHT COLUMN: Content */}
+                    <div className="lg:col-span-7 space-y-6">
+                      {/* Basic Info */}
+                      <div className="bg-white rounded-3xl p-6 md:p-8 border border-warm-200/60 shadow-sm space-y-6">
+                        <h3 className="text-lg font-bold text-warm-900 border-b border-warm-100 pb-4">Basic Information</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="md:col-span-2">
+                            <label className="text-sm font-semibold text-warm-700 mb-2 block">Item Name *</label>
+                            <input type="text" value={editItem.name || ""}
+                              onChange={(e) => setEditItem((prev) => prev && { ...prev, name: e.target.value })}
+                              placeholder="e.g. Margherita Pizza"
+                              className="w-full px-5 py-3.5 bg-warm-50 rounded-2xl text-base focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all border border-warm-200" />
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="text-sm font-semibold text-warm-700 mb-2 block">Description</label>
+                            <textarea value={editItem.description || ""} rows={4}
+                              onChange={(e) => setEditItem((prev) => prev && { ...prev, description: e.target.value })}
+                              placeholder="Briefly describe this item..."
+                              className="w-full px-5 py-3.5 bg-warm-50 rounded-2xl text-base focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all border border-warm-200 resize-none" />
+                          </div>
+                          <div>
+                            <label className="text-sm font-semibold text-warm-700 mb-2 block">Price (₹) *</label>
+                            <input type="number" value={editItem.price || ""}
+                              onChange={(e) => setEditItem((prev) => prev && { ...prev, price: parseInt(e.target.value) || 0 })}
+                              className="w-full px-5 py-3.5 bg-warm-50 rounded-2xl text-base focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all border border-warm-200" />
+                          </div>
+                          <div>
+                            <label className="text-sm font-semibold text-warm-700 mb-2 block">Category</label>
+                            <div className="relative">
+                              <select value={editItem.categoryId || ""}
+                                onChange={(e) => setEditItem((prev) => prev && { ...prev, categoryId: e.target.value })}
+                                className="w-full px-5 py-3.5 bg-warm-50 rounded-2xl text-base focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all border border-warm-200 appearance-none cursor-pointer">
+                                <option value="">Select category</option>
+                                {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                              </select>
+                              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-warm-400 pointer-events-none" />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Attributes */}
+                      <div className="bg-white rounded-3xl p-6 md:p-8 border border-warm-200/60 shadow-sm space-y-6">
+                        <h3 className="text-lg font-bold text-warm-900 border-b border-warm-100 pb-4">Attributes</h3>
+                        <div className="flex flex-wrap gap-6">
+                          <label className="flex items-center gap-3 cursor-pointer p-4 rounded-2xl bg-warm-50 border border-warm-200 hover:border-warm-300 transition-colors">
+                            <input type="checkbox" checked={editItem.isVeg ?? true}
+                              onChange={(e) => setEditItem((prev) => prev && { ...prev, isVeg: e.target.checked })}
+                              className="w-5 h-5 rounded accent-veg cursor-pointer" />
+                            <span className="text-base font-semibold text-warm-800">Vegetarian</span>
+                          </label>
+                          
+                          <label className="flex items-center gap-3 cursor-pointer p-4 rounded-2xl bg-warm-50 border border-warm-200 hover:border-warm-300 transition-colors">
+                            <input type="checkbox" checked={editItem.isBestSeller ?? false}
+                              onChange={(e) => setEditItem((prev) => prev && { ...prev, isBestSeller: e.target.checked })}
+                              className="w-5 h-5 rounded accent-accent-orange cursor-pointer" />
+                            <span className="text-base font-semibold text-warm-800">Best Seller</span>
+                          </label>
+                        </div>
                       </div>
                     </div>
                   </div>
-                  {/* Image Section */}
-                  <div className="space-y-3">
-                    <label className="text-xs font-medium text-warm-600 mb-1.5 block">Image</label>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      {/* AI Generate Button */}
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          if (!editItem.name) {
-                            addToast("Enter an item name first", "error");
-                            return;
-                          }
-                          setGeneratingImage(true);
-                          setAiImagePreview(null);
-                          try {
-                            const res = await fetch("/api/admin/generate-image", {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({
-                                itemName: editItem.name,
-                                description: editItem.description,
-                                isVeg: editItem.isVeg,
-                              }),
-                            });
-                            if (res.ok) {
-                              const data = await res.json();
-                              setAiImagePreview(data.imageUrl);
-                              addToast("Image found! Click 'Use This Image' to apply.", "success");
-                            } else {
-                              const err = await res.json().catch(() => ({}));
-                              addToast(err.error || "Failed to generate image", "error");
-                            }
-                          } catch {
-                            addToast("Error generating image", "error");
-                          }
-                          setGeneratingImage(false);
-                        }}
-                        disabled={generatingImage || !editItem.name}
-                        className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-xs font-bold transition-all border border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100 disabled:opacity-50"
-                      >
-                        {generatingImage ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            Finding...
-                          </>
-                        ) : (
-                          <>
-                            <Sparkles className="w-4 h-4" />
-                            Find Stock Photo
-                          </>
-                        )}
-                      </button>
-
-                      {/* Device Upload Button */}
-                      <label className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-xs font-bold transition-all border cursor-pointer ${uploadingImage ? 'bg-warm-100 text-warm-400 border-warm-200 cursor-not-allowed' : 'bg-warm-50 hover:bg-warm-100 text-warm-700 border-warm-200'}`}>
-                        {uploadingImage ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            Uploading...
-                          </>
-                        ) : (
-                          <>
-                            <UploadCloud className="w-4 h-4" />
-                            Upload Device
-                          </>
-                        )}
-                        <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} disabled={uploadingImage} />
-                      </label>
-                    </div>
-
-                    {/* AI Preview */}
-                    {aiImagePreview && (
-                      <div className="relative rounded-xl overflow-hidden border border-purple-200 bg-purple-50">
-                        <div className="aspect-square relative">
-                          <img src={aiImagePreview} alt="AI Generated" className="w-full h-full object-cover" />
-                        </div>
-                        <div className="absolute top-2 left-2">
-                          <span className="bg-purple-600 text-white text-[10px] font-bold px-2 py-1 rounded-lg flex items-center gap-1">
-                            <Sparkles className="w-3 h-3" /> Stock Photo
-                          </span>
-                        </div>
-                        <div className="p-3 flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditItem((prev) => prev && { ...prev, imageUrl: aiImagePreview });
-                              setAiImagePreview(null);
-                              addToast("AI image applied!", "success");
-                            }}
-                            className="flex-1 py-2 bg-purple-600 text-white text-xs font-semibold rounded-lg hover:bg-purple-700 cursor-pointer transition-colors"
-                          >
-                            ✅ Use This Image
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setAiImagePreview(null)}
-                            className="px-3 py-2 bg-warm-100 text-warm-600 text-xs font-medium rounded-lg hover:bg-warm-200 cursor-pointer transition-colors"
-                          >
-                            Discard
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Current image preview */}
-                    {editItem.imageUrl && !aiImagePreview && (
-                      <div className="relative rounded-xl overflow-hidden border border-warm-200 bg-warm-50">
-                        <div className="aspect-video relative">
-                          <img src={editItem.imageUrl} alt="Preview" className="w-full h-full object-cover" />
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Manual URL input */}
-                    <div>
-                      <label className="text-[10px] font-medium text-warm-400 uppercase tracking-wider mb-1 block">Or paste image URL</label>
-                      <input type="text" value={editItem.imageUrl || ""}
-                        onChange={(e) => setEditItem((prev) => prev && { ...prev, imageUrl: e.target.value })}
-                        placeholder="https://..."
-                        className="w-full px-4 py-2.5 bg-warm-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all border border-warm-200" />
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" checked={editItem.isVeg ?? true}
-                        onChange={(e) => setEditItem((prev) => prev && { ...prev, isVeg: e.target.checked })}
-                        className="w-4 h-4 rounded accent-veg cursor-pointer" />
-                      <span className="text-sm text-warm-700">Vegetarian</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" checked={editItem.isBestSeller ?? false}
-                        onChange={(e) => setEditItem((prev) => prev && { ...prev, isBestSeller: e.target.checked })}
-                        className="w-4 h-4 rounded accent-accent-orange cursor-pointer" />
-                      <span className="text-sm text-warm-700">Best Seller</span>
-                    </label>
-                  </div>
                 </div>
-                <div className="p-5 border-t border-warm-200/50 flex items-center justify-end gap-3 sticky bottom-0 bg-white rounded-b-2xl z-10">
-                  <button onClick={() => setEditItem(null)} className="px-5 py-2.5 rounded-xl text-sm font-medium text-warm-600 hover:bg-warm-100 cursor-pointer">Cancel</button>
-                  <motion.button onClick={handleSave} disabled={saving || !editItem.name}
-                    className="flex items-center gap-2 bg-primary text-white px-6 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#cc1530] transition-colors cursor-pointer disabled:opacity-70"
-                    whileTap={{ scale: saving ? 1 : 0.95 }}>
-                    {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</> : <><Save className="w-4 h-4" /> {editItem.isNew ? "Add Item" : "Save Changes"}</>}
-                  </motion.button>
-                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="px-6 md:px-12 py-5 border-t border-warm-200/50 flex items-center justify-end gap-4 shrink-0 bg-white">
+                <button onClick={() => setEditItem(null)} className="px-6 py-3.5 rounded-2xl text-base font-bold text-warm-600 hover:bg-warm-100 cursor-pointer transition-colors">Cancel</button>
+                <motion.button onClick={handleSave} disabled={saving || !editItem.name}
+                  className="flex items-center gap-2 bg-primary text-white px-8 py-3.5 rounded-2xl text-base font-bold hover:bg-[#cc1530] transition-colors cursor-pointer disabled:opacity-70 shadow-lg shadow-primary/20"
+                  whileTap={{ scale: saving ? 1 : 0.95 }}>
+                  {saving ? <><Loader2 className="w-5 h-5 animate-spin" /> Saving...</> : <><Save className="w-5 h-5" /> {editItem.isNew ? "Create Item" : "Save Changes"}</>}
+                </motion.button>
               </div>
             </motion.div>
           </>

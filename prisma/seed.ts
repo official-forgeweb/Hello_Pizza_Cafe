@@ -33,7 +33,6 @@ async function main() {
     // 2. Default Categories
     const categories = [
       { name: "Veg Pizza", slug: "veg-pizza", isActive: true },
-      { name: "Non-Veg Pizza", slug: "non-veg-pizza", isActive: true },
       { name: "Burgers", slug: "burgers", isActive: true },
       { name: "Sides", slug: "sides", isActive: true },
       { name: "Beverages", slug: "beverages", isActive: true },
@@ -93,6 +92,78 @@ async function main() {
         ]
       });
     }
+
+    // 4. Delivery Config & Zones
+    console.log('Seeding delivery configurations and zones...');
+    const defaultDeliveryConfig = {
+      cafeLocation: { lat: 28.3418, lng: 77.3241 },
+      maxDeliveryRadiusKm: 20,
+      driverPayoutPerKm: 4,
+      fallbackDeliveryFee: 50,
+      isDistanceBasedEnabled: true,
+    };
+    
+    const defaultDeliveryZones = [
+      {
+        id: "zone-1",
+        label: "Nearby (0–3 km)",
+        maxDistanceKm: 3,
+        deliveryFee: 20,
+        freeDeliveryMinOrder: 200,
+        minOrderAmount: 99,
+        driverPayout: 15,
+        isActive: true,
+      },
+      {
+        id: "zone-2",
+        label: "Medium (3–5 km)",
+        maxDistanceKm: 5,
+        deliveryFee: 30,
+        freeDeliveryMinOrder: 400,
+        minOrderAmount: 200,
+        driverPayout: 20,
+        isActive: true,
+      },
+      {
+        id: "zone-3",
+        label: "Far (5–10 km)",
+        maxDistanceKm: 10,
+        deliveryFee: 50,
+        freeDeliveryMinOrder: 800,
+        minOrderAmount: 500,
+        driverPayout: 40,
+        isActive: true,
+      },
+      {
+        id: "zone-4",
+        label: "Extended (10–20 km)",
+        maxDistanceKm: 20,
+        deliveryFee: 80,
+        freeDeliveryMinOrder: 1500,
+        minOrderAmount: 1000,
+        driverPayout: 80,
+        isActive: true,
+      },
+    ];
+
+    await prisma.restaurantSetting.upsert({
+      where: { key: "delivery_config" },
+      update: {},
+      create: {
+        key: "delivery_config",
+        value: defaultDeliveryConfig,
+      },
+    });
+
+    await prisma.restaurantSetting.upsert({
+      where: { key: "delivery_zones" },
+      update: {},
+      create: {
+        key: "delivery_zones",
+        value: defaultDeliveryZones,
+      },
+    });
+    console.log('Seeded delivery configurations.');
 
     console.log('Seeding completed successfully.');
   } catch (error) {

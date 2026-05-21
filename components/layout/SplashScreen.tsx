@@ -92,12 +92,12 @@ export default function SplashScreen() {
     }
   }, [address, detectLocation]);
 
-  // Auto-skip ads after 15 seconds (longer display for promotions)
+  // Auto-skip ads after 30 seconds (longer display for promotions)
   useEffect(() => {
     if (step !== "ad" || !visible) return;
     const autoSkip = setTimeout(() => {
       setStep("location");
-    }, 15000);
+    }, 30000);
     return () => clearTimeout(autoSkip);
   }, [step, visible]);
 

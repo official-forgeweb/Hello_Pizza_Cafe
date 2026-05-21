@@ -16,13 +16,20 @@ import {
   Check,
   Truck,
   Clock,
+  Compass,
+  AlertTriangle,
+  Loader2,
 } from "lucide-react";
 import { useCartStore } from "@/store/cart";
+import { useLocationStore } from "@/store/location";
 import VegBadge from "@/components/menu/VegBadge";
 
 export default function CartPage() {
   const { items, removeItem, updateQuantity, clearCart, getCartTotal, getCartCount } =
     useCartStore();
+  const { coordinates, address, detectLocation, isDetecting } = useLocationStore();
+  const [deliveryResult, setDeliveryResult] = useState<any>(null);
+  const [loadingFee, setLoadingFee] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [couponCode, setCouponCode] = useState("");
   const [couponApplied, setCouponApplied] = useState<string | null>(null);
@@ -72,6 +79,43 @@ export default function CartPage() {
     fetchRecs();
   }, [mounted, items.length]);
 
+  const total = getCartTotal();
+
+  useEffect(() => {
+    if (!coordinates) {
+      setDeliveryResult(null);
+      return;
+    }
+
+    const fetchDeliveryFee = async () => {
+      setLoadingFee(true);
+      try {
+        const res = await fetch("/api/delivery-fee", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            lat: coordinates.lat,
+            lng: coordinates.lng,
+            orderTotal: total,
+          }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setDeliveryResult(data);
+        } else {
+          setDeliveryResult(null);
+        }
+      } catch (err) {
+        console.error("Error fetching delivery fee:", err);
+        setDeliveryResult(null);
+      } finally {
+        setLoadingFee(false);
+      }
+    };
+
+    fetchDeliveryFee();
+  }, [coordinates, total]);
+
   if (!mounted) {
     return (
       <div className="min-h-screen bg-warm-50 flex items-center justify-center">
@@ -80,10 +124,9 @@ export default function CartPage() {
     );
   }
 
-  const total = getCartTotal();
   const count = getCartCount();
   const taxRate = 0.05;
-  const deliveryFee = total >= 499 ? 0 : 30;
+  const deliveryFee = deliveryResult ? deliveryResult.deliveryFee : (total >= 499 ? 0 : 30);
   const tax = Math.round(total * taxRate);
   const grandTotal = total + tax + deliveryFee - couponDiscount;
 
@@ -522,6 +565,95 @@ export default function CartPage() {
               )}
             </div>
 
+            {/* Delivery Location Check */}
+            <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-warm-200/60 relative overflow-hidden">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-5 h-5 text-primary" />
+                  <h3 className="font-bold text-warm-900 text-base">Delivery Location</h3>
+                </div>
+                {coordinates && (
+                  <button
+                    onClick={detectLocation}
+                    disabled={isDetecting}
+                    className="text-xs font-bold text-primary hover:text-[#cc1530] cursor-pointer disabled:opacity-50 flex items-center gap-1"
+                  >
+                    {isDetecting ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+                    ) : (
+                      "Change"
+                    )}
+                  </button>
+                )}
+              </div>
+
+              {coordinates ? (
+                <div className="space-y-3">
+                  <div className="p-3.5 bg-warm-50 rounded-2xl border border-warm-200/40">
+                    <span className="text-[10px] font-bold text-warm-400 uppercase block mb-1">Delivering to:</span>
+                    <p className="text-xs font-bold text-warm-800 line-clamp-2 leading-relaxed">
+                      {address || "Fetching address details..."}
+                    </p>
+                    {deliveryResult && (
+                      <div className="mt-2 pt-2 border-t border-warm-200/50 flex items-center justify-between text-[11px] font-bold">
+                        <span className="text-warm-500">Distance:</span>
+                        <span className="text-warm-800">{deliveryResult.distanceKm} km</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {loadingFee ? (
+                    <div className="flex items-center gap-2 text-xs font-semibold text-warm-500 justify-center py-2">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" /> Calculating delivery fee...
+                    </div>
+                  ) : deliveryResult ? (
+                    <div className="space-y-2">
+                      <div className={`p-3 rounded-xl text-xs font-semibold leading-relaxed ${
+                        deliveryResult.isDeliverable 
+                          ? "bg-green-50 text-green-700 border border-green-200/55" 
+                          : "bg-red-50 text-red-700 border border-red-200/55"
+                      }`}>
+                        {deliveryResult.message}
+                      </div>
+
+                      {deliveryResult.isDeliverable && total < deliveryResult.minOrderAmount && (
+                        <div className="p-3 bg-amber-50 text-amber-800 border border-amber-200/55 rounded-xl text-xs font-semibold leading-relaxed flex items-start gap-2">
+                          <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                          <div>
+                            <span className="font-bold block">Min Order Required</span>
+                            <span>Add ₹{deliveryResult.minOrderAmount - total} more to deliver to your zone.</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="text-center py-4 bg-warm-50 rounded-2xl border border-dashed border-warm-200/60">
+                  <Truck className="w-8 h-8 text-warm-300 mx-auto mb-2" />
+                  <p className="text-xs font-semibold text-warm-600 mb-3 px-4">
+                    Detect your coordinates to see real-time delivery fees & minimum order criteria.
+                  </p>
+                  <motion.button
+                    onClick={detectLocation}
+                    disabled={isDetecting}
+                    className="bg-warm-900 text-white px-5 py-2.5 rounded-xl text-xs font-bold hover:bg-black transition-colors cursor-pointer flex items-center justify-center gap-2 mx-auto disabled:opacity-50"
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    {isDetecting ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Detecting Location...
+                      </>
+                    ) : (
+                      <>
+                        <Compass className="w-3.5 h-3.5" /> Detect Location
+                      </>
+                    )}
+                  </motion.button>
+                </div>
+              )}
+            </div>
+
             {/* Bill Summary */}
             <div id="order-summary-section" className="bg-warm-900 text-white rounded-[2rem] p-8 shadow-xl relative overflow-hidden scroll-mt-32">
               {/* Background abstract element */}
@@ -564,18 +696,28 @@ export default function CartPage() {
                 </div>
               </div>
 
-              <Link href="/checkout">
-                <motion.button
-                  className="w-full mt-8 bg-primary text-white py-5 rounded-2xl font-extrabold text-base shadow-lg hover:bg-[#cc1530] transition-colors flex items-center justify-center gap-3 cursor-pointer group"
-                  whileTap={{ scale: 0.98 }}
-                  initial={{ y: 20, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: 0.2 }}
+              {coordinates && deliveryResult && (!deliveryResult.isDeliverable || total < deliveryResult.minOrderAmount) ? (
+                <button
+                  disabled
+                  className="w-full mt-8 bg-warm-800 text-warm-500 py-5 rounded-2xl font-extrabold text-base transition-colors flex items-center justify-center gap-3 cursor-not-allowed opacity-50"
                 >
                   Confirm Order
-                  <ChevronRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
-                </motion.button>
-              </Link>
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              ) : (
+                <Link href="/checkout">
+                  <motion.button
+                    className="w-full mt-8 bg-primary text-white py-5 rounded-2xl font-extrabold text-base shadow-lg hover:bg-[#cc1530] transition-colors flex items-center justify-center gap-3 cursor-pointer group"
+                    whileTap={{ scale: 0.98 }}
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.2 }}
+                  >
+                    Confirm Order
+                    <ChevronRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+                  </motion.button>
+                </Link>
+              )}
               
               {/* Trust badges */}
               <div className="mt-8 flex items-center justify-center gap-6 opacity-40 grayscale hover:grayscale-0 transition-all duration-500">

@@ -15,6 +15,8 @@ import {
   Loader2,
   Check,
   Utensils,
+  AlertTriangle,
+  Compass,
 } from "lucide-react";
 import { useCartStore } from "@/store/cart";
 import { useLocationStore } from "@/store/location";
@@ -28,7 +30,9 @@ export default function CheckoutPage() {
   const [showSummary, setShowSummary] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { address: detectedAddress, isDetecting } = useLocationStore();
+  const { address: detectedAddress, isDetecting, coordinates, detectLocation } = useLocationStore();
+  const [deliveryResult, setDeliveryResult] = useState<any>(null);
+  const [loadingFee, setLoadingFee] = useState(false);
 
   // Form state
   const [name, setName] = useState("");
@@ -50,10 +54,46 @@ export default function CheckoutPage() {
     setMounted(true);
   }, []);
 
+  // Fetch delivery fee dynamically
+  useEffect(() => {
+    if (orderType !== "delivery" || !coordinates) {
+      setDeliveryResult(null);
+      return;
+    }
+
+    const fetchDeliveryFee = async () => {
+      setLoadingFee(true);
+      try {
+        const res = await fetch("/api/delivery-fee", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            lat: coordinates.lat,
+            lng: coordinates.lng,
+            orderTotal: total,
+          }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setDeliveryResult(data);
+        } else {
+          setDeliveryResult(null);
+        }
+      } catch (err) {
+        console.error("Error fetching delivery fee:", err);
+        setDeliveryResult(null);
+      } finally {
+        setLoadingFee(false);
+      }
+    };
+
+    fetchDeliveryFee();
+  }, [coordinates, total, orderType]);
+
   const count = getCartCount();
   const total = getCartTotal();
   const tax = Math.round(total * 0.05);
-  const deliveryFee = orderType === "delivery" ? (total >= 499 ? 0 : 30) : 0;
+  const deliveryFee = orderType === "delivery" && deliveryResult ? deliveryResult.deliveryFee : 0;
   const grandTotal = total + tax + deliveryFee;
 
   useEffect(() => {
@@ -81,6 +121,19 @@ export default function CheckoutPage() {
       newErrors.email = "Email is required for order confirmation";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
       newErrors.email = "Enter a valid email address";
+
+    if (orderType === "delivery") {
+      if (!coordinates) {
+        newErrors.location = "Delivery requires detecting your location GPS coordinates. Please click 'Detect My Location' above.";
+      } else if (deliveryResult) {
+        if (!deliveryResult.isDeliverable) {
+          newErrors.location = deliveryResult.message;
+        } else if (total < deliveryResult.minOrderAmount) {
+          newErrors.location = `Minimum order amount for delivery to your zone is ₹${deliveryResult.minOrderAmount}`;
+        }
+      }
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -98,6 +151,8 @@ export default function CheckoutPage() {
         orderType: orderType === "delivery" ? "DELIVERY" : orderType === "pickup" ? "PICKUP" : "DINE_IN",
         deliveryAddress: orderType === "delivery" ? address : null,
         deliveryInstructions: instructions,
+        deliveryLat: orderType === "delivery" && coordinates ? coordinates.lat : null,
+        deliveryLng: orderType === "delivery" && coordinates ? coordinates.lng : null,
         items: items.map(item => ({
           menuItemId: item.menuItemId,
           itemName: item.name,
@@ -328,10 +383,7 @@ export default function CheckoutPage() {
                           <label className="text-xs font-bold text-warm-400 uppercase tracking-widest">Full Address</label>
                           <button
                             type="button"
-                            onClick={() => {
-                              const { detectLocation } = useLocationStore.getState();
-                              detectLocation().catch(err => alert(err.message));
-                            }}
+                            onClick={detectLocation}
                             disabled={isDetecting}
                             className="flex items-center gap-1.5 text-primary text-[10px] font-black uppercase tracking-wider hover:underline disabled:opacity-50 cursor-pointer"
                           >
@@ -356,6 +408,53 @@ export default function CheckoutPage() {
                           />
                         </div>
                         {errors.address && <p className="text-red-500 text-[10px] font-bold px-1">{errors.address}</p>}
+
+                        {/* GPS Coordinates Validation details */}
+                        {coordinates ? (
+                          <div className="mt-3 p-4 bg-warm-50 rounded-2xl border border-warm-200/50 space-y-2">
+                            <div className="flex items-center justify-between text-xs font-bold text-warm-700">
+                              <span>GPS Coordinates:</span>
+                              <span className="text-warm-800 font-mono text-[11px]">{coordinates.lat.toFixed(5)}, {coordinates.lng.toFixed(5)}</span>
+                            </div>
+                            {loadingFee ? (
+                              <div className="flex items-center gap-2 text-xs font-semibold text-warm-500 py-1">
+                                <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" /> Calculating delivery fee...
+                              </div>
+                            ) : deliveryResult ? (
+                              <div className="space-y-2 pt-1 border-t border-warm-200/50">
+                                <div className="flex justify-between text-xs font-semibold">
+                                  <span className="text-warm-500">Cafe Distance:</span>
+                                  <span className="text-warm-800 font-bold">{deliveryResult.distanceKm} km</span>
+                                </div>
+                                <div className={`p-3 rounded-xl text-xs font-semibold leading-relaxed ${
+                                  deliveryResult.isDeliverable 
+                                    ? "bg-green-50 text-green-700 border border-green-200/55" 
+                                    : "bg-red-50 text-red-700 border border-red-200/55"
+                                }`}>
+                                  {deliveryResult.message}
+                                </div>
+                                {deliveryResult.isDeliverable && total < deliveryResult.minOrderAmount && (
+                                  <div className="p-3 bg-amber-50 text-amber-800 border border-amber-200/55 rounded-xl text-xs font-semibold leading-relaxed flex items-start gap-2">
+                                    <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                                    <div>
+                                      <span className="font-bold block">Min Order Required</span>
+                                      <span>Add ₹{deliveryResult.minOrderAmount - total} more to deliver to your zone.</span>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <div className="mt-3 p-4 bg-amber-50 text-amber-800 border border-amber-200/50 rounded-2xl text-xs font-semibold leading-relaxed flex items-start gap-2">
+                            <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                            <div>
+                              <span className="font-bold block">GPS Location Required</span>
+                              <span>Please click &apos;Detect My Location&apos; above to verify your delivery distance.</span>
+                            </div>
+                          </div>
+                        )}
+                        {errors.location && <p className="text-red-500 text-[10px] font-bold px-1 mt-1">{errors.location}</p>}
                       </div>
 
                       <div className="space-y-1.5">
@@ -467,7 +566,7 @@ export default function CheckoutPage() {
               {/* Action Button - Main CTA in Sticky Summary */}
               <motion.button
                 onClick={handlePlaceOrder}
-                disabled={isSubmitting}
+                disabled={isSubmitting || (orderType === "delivery" && !!coordinates && !!deliveryResult && (!deliveryResult.isDeliverable || total < deliveryResult.minOrderAmount))}
                 className="w-full mt-8 bg-primary text-white py-5 rounded-2xl font-extrabold text-base shadow-lg hover:bg-[#cc1530] transition-colors flex items-center justify-center gap-3 cursor-pointer group disabled:opacity-70 disabled:grayscale"
                 whileTap={{ scale: isSubmitting ? 1 : 0.98 }}
               >
@@ -517,8 +616,8 @@ export default function CheckoutPage() {
         </div>
         <button
           onClick={handlePlaceOrder}
-          disabled={isSubmitting}
-          className="bg-primary text-white font-black px-8 py-3.5 rounded-xl text-sm shadow-xl flex items-center gap-2 active:scale-95 transition-all disabled:opacity-50"
+          disabled={isSubmitting || (orderType === "delivery" && !!coordinates && !!deliveryResult && (!deliveryResult.isDeliverable || total < deliveryResult.minOrderAmount))}
+          className="bg-primary text-white font-black px-8 py-3.5 rounded-xl text-sm shadow-xl flex items-center gap-2 active:scale-95 transition-all disabled:opacity-50 disabled:grayscale"
         >
           {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Place Order"}
         </button>

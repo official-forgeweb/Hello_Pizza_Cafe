@@ -80,11 +80,7 @@ function MenuContent() {
       !searchQuery ||
       item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.description?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesVeg =
-      vegFilter === "all" ||
-      (vegFilter === "veg" && item.isVeg) ||
-      (vegFilter === "nonveg" && !item.isVeg);
-    return matchesSearch && matchesVeg;
+    return matchesSearch;
   });
 
   // ─── Group items by category ───
@@ -223,42 +219,6 @@ function MenuContent() {
             </motion.button>
           </div>
 
-          {/* Veg/Non-veg Filter */}
-          <AnimatePresence>
-            {showFilters && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="overflow-hidden"
-              >
-                <div className="flex items-center gap-2 pt-3">
-                  <span className="text-xs font-medium text-warm-500 mr-1">Type:</span>
-                  {[
-                    { value: "all" as const, label: "All" },
-                    { value: "veg" as const, label: "Veg" },
-                    { value: "nonveg" as const, label: "Non-Veg" },
-                  ].map((opt) => (
-                    <button
-                      key={opt.value}
-                      onClick={() => setVegFilter(opt.value)}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
-                        vegFilter === opt.value
-                          ? "bg-primary text-white"
-                          : "bg-warm-100 text-warm-600 hover:bg-warm-200"
-                      }`}
-                      suppressHydrationWarning={true}
-                    >
-                      {opt.value === "veg" && <VegBadge isVeg={true} size="sm" />}
-                      {opt.value === "nonveg" && <VegBadge isVeg={false} size="sm" />}
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
       </div>
 
@@ -310,7 +270,6 @@ function MenuContent() {
             <button
               onClick={() => {
                 setSearchQuery("");
-                setVegFilter("all");
                 setActiveCategory("all");
               }}
               className="mt-4 text-primary font-semibold text-sm hover:underline cursor-pointer"
