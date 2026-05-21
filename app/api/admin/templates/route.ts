@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
       if (matches) {
         // Collect unique variable indices in ascending order
         const uniqueIndices = Array.from(
-          new Set(matches.map((m: string) => parseInt(m.replace(/[^0-9]/g, ''), 10)))
+          new Set<number>(matches.map((m: string) => parseInt(m.replace(/[^0-9]/g, ''), 10)))
         ).sort((a, b) => a - b);
 
         if (uniqueIndices.length > 0) {

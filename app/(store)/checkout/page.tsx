@@ -55,8 +55,14 @@ export default function CheckoutPage() {
   }, []);
 
   // Fetch delivery fee dynamically
+  const count = getCartCount();
+  const total = getCartTotal();
+  const tax = Math.round(total * 0.05);
+  const deliveryFee = orderType === "delivery" && deliveryResult ? deliveryResult.deliveryFee : 0;
+  const grandTotal = total + tax + deliveryFee;
+
   useEffect(() => {
-    if (orderType !== "delivery" || !coordinates) {
+    if (orderType !== "delivery" || !coordinates || !total) {
       setDeliveryResult(null);
       return;
     }
@@ -89,12 +95,6 @@ export default function CheckoutPage() {
 
     fetchDeliveryFee();
   }, [coordinates, total, orderType]);
-
-  const count = getCartCount();
-  const total = getCartTotal();
-  const tax = Math.round(total * 0.05);
-  const deliveryFee = orderType === "delivery" && deliveryResult ? deliveryResult.deliveryFee : 0;
-  const grandTotal = total + tax + deliveryFee;
 
   useEffect(() => {
     // Only redirect if cart is empty and we're NOT in the middle of placing an order

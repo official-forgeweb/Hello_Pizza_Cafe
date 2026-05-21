@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import {
   Plus, Search, Edit2, Trash2, X, ChevronDown, Eye, EyeOff,
-  Save, Loader2, LayoutGrid, List, Sparkles, RefreshCw, UploadCloud,
+  Save, Loader2, LayoutGrid, List, Sparkles, RefreshCw, UploadCloud, Image as ImageIcon,
 } from "lucide-react";
 import VegBadge from "@/components/menu/VegBadge";
 import { useAdminStore } from "@/store/admin";
@@ -436,7 +436,7 @@ export default function MenuManagementPage() {
                             </div>
                           ) : (
                             <div className="text-center text-warm-400">
-                              <Image className="w-12 h-12 mx-auto mb-2 opacity-50 text-warm-300" />
+                              <ImageIcon className="w-12 h-12 mx-auto mb-2 opacity-50 text-warm-300" />
                               <p className="text-sm">No image selected</p>
                             </div>
                           )}
