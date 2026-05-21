@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { MapPin, Clock, Phone, Mail, Globe, Heart } from "lucide-react";
 
 export default function Footer() {
@@ -8,9 +9,14 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 mb-12">
           {/* Brand */}
           <div className="lg:col-span-2">
-            <span className="text-2xl font-extrabold tracking-tight text-white">
-              Hello<span className="text-primary">Pizza</span>
-            </span>
+            <div className="relative w-40 h-12 -ml-1">
+              <Image
+                src="/logo-footer.png"
+                alt="Hello Pizza"
+                fill
+                className="object-contain"
+              />
+            </div>
             <p className="mt-4 text-warm-400 max-w-md leading-relaxed text-sm">
               Delivering hot, fresh, and delicious pizzas right to your doorstep.
               Crafted with the finest ingredients and baked to perfection with love.

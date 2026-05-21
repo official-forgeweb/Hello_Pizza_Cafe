@@ -3,10 +3,24 @@ import './globals.css';
 import ScrollToTop from '@/components/layout/ScrollToTop';
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://hello-pizza-cafe.vercel.app'),
   title: 'Hello Pizza — Fresh, Hot & Delicious Pizza Delivered',
   description:
     'Order mouth-watering pizzas, sides, and beverages from Hello Pizza. Fresh ingredients, fast delivery, and amazing flavors. Order now!',
   keywords: ['pizza', 'delivery', 'food', 'order online', 'hello pizza'],
+  icons: {
+    icon: '/favicon.png',
+  },
+  openGraph: {
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'Hello Pizza Café',
+      },
+    ],
+  },
 };
 
 export const viewport: Viewport = {

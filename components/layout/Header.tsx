@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { 
   ShoppingCart, 
@@ -56,9 +57,15 @@ export default function Header() {
             </button>
 
             <Link href="/" className="flex items-center gap-1">
-              <span className="text-2xl font-extrabold tracking-tight text-warm-900">
-                Hello<span className="text-primary">Pizza</span>
-              </span>
+              <div className="relative w-36 h-10 -ml-1">
+                <Image
+                  src="/logo-navbar.png"
+                  alt="Hello Pizza"
+                  fill
+                  className="object-contain"
+                  priority
+                />
+              </div>
             </Link>
 
             {/* Desktop nav links */}

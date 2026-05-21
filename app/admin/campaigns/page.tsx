@@ -281,6 +281,7 @@ function CampaignWizard({ onClose, onComplete }: { onClose: () => void, onComple
   const [targetType, setTargetType] = useState("all");
   const [targetGroup, setTargetGroup] = useState("regular");
   const [headerImage, setHeaderImage] = useState("");
+  const [bodyParameters, setBodyParameters] = useState<string[]>([]);
 
   const selectedTemplate = templates.find(t => t.templateName === templateName);
   const requiresImageHeader = selectedTemplate?.components?.some((c: any) => c.type === 'HEADER' && c.format === 'IMAGE');
@@ -307,8 +308,15 @@ function CampaignWizard({ onClose, onComplete }: { onClose: () => void, onComple
       } else {
         setHeaderImage(PHOTO_PRESETS[0].url);
       }
+
+      if (selected && selected.variables && selected.variables.length > 0) {
+        setBodyParameters(selected.variables.map((_: any, i: number) => i === 0 ? "{name}" : ""));
+      } else {
+        setBodyParameters([]);
+      }
     } else {
       setHeaderImage("");
+      setBodyParameters([]);
     }
   }, [templateName, templates]);
   
@@ -346,7 +354,8 @@ function CampaignWizard({ onClose, onComplete }: { onClose: () => void, onComple
           templateName,
           targetType,
           targetGroup: targetType === 'group' ? targetGroup : undefined,
-          headerImage: requiresImageHeader ? headerImage : undefined
+          headerImage: requiresImageHeader ? headerImage : undefined,
+          bodyParameters
         })
       });
       if (res.ok) {
@@ -456,6 +465,30 @@ function CampaignWizard({ onClose, onComplete }: { onClose: () => void, onComple
                   ))}
                 </div>
               </div>
+            </div>
+          )}
+
+          {selectedTemplate?.variables?.length > 0 && (
+            <div className="bg-warm-100 p-4 rounded-xl space-y-3">
+              <label className="block text-xs font-bold text-warm-700 uppercase tracking-wider">Template Variables</label>
+              <p className="text-[10px] text-warm-500 mb-2">Use <code className="bg-white px-1 py-0.5 rounded text-primary border border-warm-200">{"{name}"}</code> to automatically insert the customer's name.</p>
+              
+              {selectedTemplate.variables.map((v: string, idx: number) => (
+                <div key={idx}>
+                  <label className="block text-[10px] font-bold text-warm-600 mb-1">{`{{${idx + 1}}} - ${v}`}</label>
+                  <input
+                    type="text"
+                    value={bodyParameters[idx] || ""}
+                    onChange={e => {
+                      const newParams = [...bodyParameters];
+                      newParams[idx] = e.target.value;
+                      setBodyParameters(newParams);
+                    }}
+                    placeholder={`Value for {{${idx + 1}}}`}
+                    className="w-full px-3 py-2 bg-white border border-warm-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-primary/20 font-mono"
+                  />
+                </div>
+              ))}
             </div>
           )}
 

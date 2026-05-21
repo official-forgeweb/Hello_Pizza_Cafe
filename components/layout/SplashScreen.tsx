@@ -1,114 +1,106 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MapPin, ChevronRight, Loader2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useLocationStore } from "@/store/location";
 
-const ADS = [
-  {
-    id: 1,
-    image: "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&q=80&w=1200&h=800",
-    title: "Flat ₹100 OFF",
-    subtitle: "On your first order above ₹499",
-    code: "HELLO100",
-    gradient: "from-orange-600 to-red-600",
-  },
-  {
-    id: 2,
-    image: "https://images.unsplash.com/photo-1604382354936-07c5d9983bd3?auto=format&fit=crop&q=80&w=1200&h=800",
-    title: "Buy 1 Get 1 Free",
-    subtitle: "On all large pizzas every Tuesday",
-    code: "BOGO",
-    gradient: "from-emerald-600 to-teal-600",
-  },
-];
+// Splash flow: loading → ad → location → done
+type SplashStep = "loading" | "ad" | "location" | "done";
 
-// Step enum
-type SplashStep = "ad" | "location" | "done";
+// Minimum time (ms) the branded loader stays visible — acts as content buffer
+const MIN_LOADING_MS = 2200;
+// How long each ad shows before cycling
+const AD_CYCLE_MS = 6000;
+// Auto-skip ads after this many ms
+const AD_AUTO_SKIP_MS = 30000;
 
 export default function SplashScreen() {
-  const [step, setStep] = useState<SplashStep>("ad");
-  const [visible, setVisible] = useState(false);
+  const [step, setStep] = useState<SplashStep>("loading");
+  const [visible, setVisible] = useState(true); // Always start visible
+  const [ads, setAds] = useState<any[]>([]);
   const [currentAd, setCurrentAd] = useState(0);
-  const [ads, setAds] = useState<any[]>(ADS); // Fallback to hardcoded initially
+  const [adsReady, setAdsReady] = useState(false);
+  const loadStartRef = useRef(Date.now());
   const { address, isDetecting, detectLocation } = useLocationStore();
 
-  // Fetch dynamic splash ads
+  // ── STEP 1: Branded loading screen + fetch ads in parallel ──
   useEffect(() => {
-    fetch("/api/admin/splash-ads")
+    loadStartRef.current = Date.now();
+
+    const fetchAds = fetch("/api/admin/splash-ads")
       .then(res => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
       })
       .then(data => {
         if (Array.isArray(data)) {
-          const activeAds = data.filter(ad => ad.isActive);
-          if (activeAds.length > 0) {
-            setAds(activeAds);
-          } else {
-            // If no active ads, skip the ad step entirely
-            setStep("location");
-          }
+          const activeAds = data.filter((ad: any) => ad.isActive);
+          return activeAds;
         }
+        return [];
       })
       .catch(err => {
         console.error("Failed to load splash ads:", err);
-        // On error, fall through to static fallback ads
+        return [];
       });
+
+    // Wait for BOTH minimum loading time AND ads fetch to complete
+    const minWait = new Promise(resolve => setTimeout(resolve, MIN_LOADING_MS));
+
+    Promise.all([fetchAds, minWait]).then(([fetchedAds]) => {
+      if (fetchedAds.length > 0) {
+        setAds(fetchedAds);
+        setAdsReady(true);
+        setStep("ad");
+      } else {
+        // No active ads — skip straight to location
+        setStep("location");
+      }
+    });
   }, []);
 
-  // Show splash only once per session, and auto-skip location if already saved
-  useEffect(() => {
-    const hasSeenSplash = sessionStorage.getItem("hello-pizza-splash-seen");
-    if (hasSeenSplash) return;
-
-    // If user already has a saved address (from Zustand persist), skip entirely
-    if (address) {
-      sessionStorage.setItem("hello-pizza-splash-seen", "true");
-      return;
-    }
-
-    setVisible(true);
-
-    // Check if browser already has location permission granted
-    // If yes, auto-detect and skip the modal entirely
-    if (navigator.permissions) {
-      navigator.permissions.query({ name: "geolocation" }).then(async (result) => {
-        if (result.state === "granted") {
-          // Permission already granted, auto-detect silently
-          try {
-            await detectLocation();
-          } catch {}
-          sessionStorage.setItem("hello-pizza-splash-seen", "true");
-          setStep("done");
-          setTimeout(() => setVisible(false), 300);
-        }
-      }).catch(() => {
-        // permissions API not supported, continue normally
-      });
-    }
-  }, [address, detectLocation]);
-
-  // Auto-skip ads after 30 seconds (longer display for promotions)
+  // ── Auto-skip ads after 30 seconds ──
   useEffect(() => {
     if (step !== "ad" || !visible) return;
     const autoSkip = setTimeout(() => {
       setStep("location");
-    }, 30000);
+    }, AD_AUTO_SKIP_MS);
     return () => clearTimeout(autoSkip);
   }, [step, visible]);
 
-  // Auto-cycle ads every 6 seconds (more time to read each ad)
+  // ── Auto-cycle ads every 6 seconds ──
   useEffect(() => {
-    if (step !== "ad") return;
+    if (step !== "ad" || ads.length <= 1) return;
     const timer = setInterval(() => {
-      setCurrentAd((prev) => (prev + 1) % (ads.length || 1));
-    }, 6000);
+      setCurrentAd(prev => (prev + 1) % ads.length);
+    }, AD_CYCLE_MS);
     return () => clearInterval(timer);
   }, [step, ads.length]);
+
+  // ── Auto-detect location if permission already granted ──
+  useEffect(() => {
+    if (step !== "location") return;
+
+    // If user already has a saved address, skip location step
+    if (address) {
+      finishSplash();
+      return;
+    }
+
+    if (navigator.permissions) {
+      navigator.permissions.query({ name: "geolocation" }).then(async (result) => {
+        if (result.state === "granted") {
+          try {
+            await detectLocation();
+          } catch {}
+          finishSplash();
+        }
+      }).catch(() => {});
+    }
+  }, [step, address, detectLocation]);
 
   const handleSkipAd = () => {
     setStep("location");
@@ -129,9 +121,8 @@ export default function SplashScreen() {
   };
 
   const finishSplash = () => {
-    sessionStorage.setItem("hello-pizza-splash-seen", "true");
     setStep("done");
-    setTimeout(() => setVisible(false), 300);
+    setTimeout(() => setVisible(false), 400);
   };
 
   if (!visible) return null;
@@ -143,25 +134,93 @@ export default function SplashScreen() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.3 }}
+          transition={{ duration: 0.4 }}
           className="fixed inset-0 z-[200] flex items-center justify-center"
         >
           {/* Backdrop */}
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-md" />
+          <div className="absolute inset-0 bg-black/85 backdrop-blur-lg" />
 
-          {/* Content */}
           <AnimatePresence mode="wait">
-            {/* ─── STEP 1: Advertisement ─── */}
-            {step === "ad" && (
+            {/* ─── LOADING / BUFFER SCREEN ─── */}
+            {step === "loading" && (
+              <motion.div
+                key="loading-step"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.4, ease: "easeOut" }}
+                className="relative z-10 flex flex-col items-center justify-center gap-6"
+              >
+                {/* Animated Logo */}
+                <motion.div
+                  animate={{
+                    scale: [1, 1.05, 1],
+                  }}
+                  transition={{
+                    duration: 2,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
+                  className="relative"
+                >
+                  <div className="w-64 h-64 md:w-80 md:h-80 relative">
+                    <Image
+                      src="/logo-splash.png"
+                      alt="Hello Pizza Café"
+                      fill
+                      className="object-contain drop-shadow-2xl"
+                      priority
+                    />
+                  </div>
+                </motion.div>
+
+                {/* Loading Indicator */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.5 }}
+                  className="flex flex-col items-center gap-3"
+                >
+                  {/* Animated dots loader */}
+                  <div className="flex items-center gap-1.5">
+                    {[0, 1, 2].map(i => (
+                      <motion.div
+                        key={i}
+                        className="w-2 h-2 rounded-full bg-primary"
+                        animate={{
+                          scale: [1, 1.4, 1],
+                          opacity: [0.4, 1, 0.4],
+                        }}
+                        transition={{
+                          duration: 0.8,
+                          repeat: Infinity,
+                          delay: i * 0.15,
+                          ease: "easeInOut",
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <p className="text-white/40 text-xs font-medium tracking-wide">
+                    Preparing your experience...
+                  </p>
+                </motion.div>
+
+                {/* Decorative glow ring behind logo */}
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 md:w-60 md:h-60 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+              </motion.div>
+            )}
+
+            {/* ─── STEP 2: ADVERTISEMENT ─── */}
+            {step === "ad" && adsReady && (
               <motion.div
                 key="ad-step"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -15 }}
-                transition={{ duration: 0.3 }}
+                transition={{ duration: 0.35 }}
                 className="relative z-10 w-[92vw] max-w-md mx-auto"
               >
-                {/* Close / Skip */}
+                {/* Skip button */}
                 <button
                   onClick={handleSkipAd}
                   className="absolute -top-12 right-0 text-white/70 hover:text-white text-sm font-bold flex items-center gap-1 z-50 transition-colors cursor-pointer"
@@ -171,16 +230,28 @@ export default function SplashScreen() {
 
                 {/* Ad Card */}
                 <div className="rounded-3xl overflow-hidden bg-warm-900 shadow-2xl">
-                  {/* Ad Image - bg-warm-900 prevents white flash */}
+                  {/* Ad Image */}
                   <div className="relative w-full aspect-[4/3] overflow-hidden bg-warm-900">
-                    <Image
-                      src={ads[currentAd]?.imageUrl || "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&q=80"}
-                      alt={ads[currentAd]?.title || "Promo"}
-                      fill
-                      className="object-cover"
-                      sizes="(max-width: 768px) 92vw, 448px"
-                      priority
-                    />
+                    <AnimatePresence mode="wait">
+                      <motion.div
+                        key={currentAd}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.4 }}
+                        className="absolute inset-0"
+                      >
+                        <Image
+                          src={ads[currentAd]?.imageUrl || "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&q=80"}
+                          alt={ads[currentAd]?.title || "Promo"}
+                          fill
+                          className="object-cover"
+                          sizes="(max-width: 768px) 92vw, 448px"
+                          priority
+                        />
+                      </motion.div>
+                    </AnimatePresence>
+
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
 
                     {/* Floating Offer Badge */}
@@ -188,6 +259,17 @@ export default function SplashScreen() {
                       <div className={`bg-gradient-to-r ${ads[currentAd]?.gradient || "from-orange-600 to-red-600"} text-white px-4 py-1.5 rounded-full text-xs font-bold shadow-lg`}>
                         🔥 Limited Time Offer
                       </div>
+                    </div>
+
+                    {/* Countdown Timer Bar */}
+                    <div className="absolute top-0 left-0 right-0 h-1 bg-white/10">
+                      <motion.div
+                        key={`timer-${currentAd}`}
+                        className="h-full bg-primary"
+                        initial={{ width: "0%" }}
+                        animate={{ width: "100%" }}
+                        transition={{ duration: AD_CYCLE_MS / 1000, ease: "linear" }}
+                      />
                     </div>
 
                     {/* Ad Content Overlay */}
@@ -210,7 +292,7 @@ export default function SplashScreen() {
                   <div className="px-6 py-5 bg-white">
                     {/* Dots */}
                     <div className="flex items-center justify-center gap-2 mb-4">
-                      {ads.map((_, i) => (
+                      {ads.map((_: any, i: number) => (
                         <button
                           key={i}
                           onClick={() => setCurrentAd(i)}
@@ -233,7 +315,7 @@ export default function SplashScreen() {
               </motion.div>
             )}
 
-            {/* ─── STEP 2: Location Detection ─── */}
+            {/* ─── STEP 3: LOCATION DETECTION ─── */}
             {step === "location" && (
               <motion.div
                 key="location-step"
