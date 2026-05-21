@@ -57,7 +57,7 @@ export default function Header() {
             </button>
 
             <Link href="/" className="flex items-center gap-1">
-              <div className="relative w-36 h-10 -ml-1">
+              <div className="relative w-36 h-14 md:w-44 md:h-16 -ml-1">
                 <Image
                   src="/logo-navbar.png"
                   alt="Hello Pizza"
@@ -192,9 +192,15 @@ export default function Header() {
               className="fixed top-0 left-0 bottom-0 w-72 glass bg-white/95 z-[70] p-6 flex flex-col"
             >
               <div className="flex items-center justify-between mb-8">
-                <span className="text-xl font-extrabold tracking-tight text-warm-900">
-                  Hello<span className="text-primary">Pizza</span>
-                </span>
+                <div className="relative w-32 h-12 -ml-1">
+                  <Image
+                    src="/logo-navbar.png"
+                    alt="Hello Pizza"
+                    fill
+                    className="object-contain"
+                    priority
+                  />
+                </div>
                 <button
                   onClick={() => setMobileMenuOpen(false)}
                   className="p-2 -mr-2 rounded-lg hover:bg-warm-100 transition-colors cursor-pointer"
