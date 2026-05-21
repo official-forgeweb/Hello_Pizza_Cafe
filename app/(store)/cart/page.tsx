@@ -126,7 +126,10 @@ export default function CartPage() {
 
   const count = getCartCount();
   const taxRate = 0.05;
-  const deliveryFee = deliveryResult ? deliveryResult.deliveryFee : (total >= 499 ? 0 : 30);
+  const freeDeliveryGoal = deliveryResult && deliveryResult.freeDeliveryMinOrder > 0
+    ? deliveryResult.freeDeliveryMinOrder
+    : 499;
+  const deliveryFee = deliveryResult ? deliveryResult.deliveryFee : (total >= freeDeliveryGoal ? 0 : 30);
   const tax = Math.round(total * taxRate);
   const grandTotal = total + tax + deliveryFee - couponDiscount;
 
@@ -265,15 +268,15 @@ export default function CartPage() {
                   <span className="text-sm font-semibold text-warm-800">
                     {deliveryFee === 0 
                       ? "You've unlocked FREE Delivery! 🚚" 
-                      : `Add ₹${Math.max(0, 499 - total)} more for FREE delivery`}
+                      : `Add ₹${Math.max(0, freeDeliveryGoal - total)} more for FREE delivery`}
                   </span>
                 </div>
-                <span className="text-xs font-bold text-warm-400">₹499 Goal</span>
+                <span className="text-xs font-bold text-warm-400">₹{freeDeliveryGoal} Goal</span>
               </div>
               <div className="h-2 w-full bg-warm-100 rounded-full overflow-hidden">
                 <motion.div 
                   initial={{ width: 0 }}
-                  animate={{ width: `${Math.min(100, (total / 499) * 100)}%` }}
+                  animate={{ width: `${Math.min(100, (total / freeDeliveryGoal) * 100)}%` }}
                   transition={{ duration: 1, ease: "easeOut" }}
                   className="h-full bg-gradient-to-r from-primary to-accent-orange"
                 />
@@ -691,7 +694,7 @@ export default function CartPage() {
                     <span className="text-3xl font-extrabold tracking-tight">₹{grandTotal}</span>
                   </div>
                   <div className="text-right">
-                    <p className="text-green-400 text-[10px] font-bold uppercase tracking-wider">Saved ₹{couponDiscount + (deliveryFee === 0 ? 30 : 0)}</p>
+                    <p className="text-green-400 text-[10px] font-bold uppercase tracking-wider">Saved ₹{couponDiscount + (deliveryFee === 0 ? (deliveryResult?.zone?.deliveryFee ?? 30) : 0)}</p>
                   </div>
                 </div>
               </div>
