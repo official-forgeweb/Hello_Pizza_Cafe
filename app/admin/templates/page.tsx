@@ -36,10 +36,10 @@ interface Preset {
 
 const UTILITY_PRESETS: Preset[] = [
   {
-    id: "order_confirmation",
+    id: "order_confirmation2",
     title: "Order Confirmed",
     description: "Send automatically when order is accepted by restaurant",
-    templateName: "order_confirmation",
+    templateName: "order_confirmation2",
     category: "MARKETING",
     headerType: "TEXT",
     headerText: "Order Accepted",
@@ -50,10 +50,10 @@ const UTILITY_PRESETS: Preset[] = [
     ]
   },
   {
-    id: "order_preparing",
+    id: "order_preparing2",
     title: "Order Preparing",
     description: "Send when order is sent to the kitchen",
-    templateName: "order_preparing",
+    templateName: "order_preparing2",
     category: "MARKETING",
     headerType: "TEXT",
     headerText: "Order Preparing",
@@ -61,10 +61,10 @@ const UTILITY_PRESETS: Preset[] = [
     footerText: "Hello Pizza Cafe"
   },
   {
-    id: "order_out_for_delivery",
+    id: "order_out_for_delivery2",
     title: "Out for Delivery",
     description: "Send when order is picked up by rider",
-    templateName: "order_out_for_delivery",
+    templateName: "order_out_for_delivery2",
     category: "MARKETING",
     headerType: "TEXT",
     headerText: "Out for Delivery",
@@ -75,10 +75,10 @@ const UTILITY_PRESETS: Preset[] = [
     ]
   },
   {
-    id: "order_delivered",
+    id: "order_delivered2",
     title: "Order Delivered",
     description: "Send when order is delivered successfully",
-    templateName: "order_delivered",
+    templateName: "order_delivered2",
     category: "MARKETING",
     headerType: "TEXT",
     headerText: "Order Delivered",
@@ -89,10 +89,10 @@ const UTILITY_PRESETS: Preset[] = [
     ]
   },
   {
-    id: "order_cancelled",
+    id: "order_cancelled2",
     title: "Order Cancelled",
     description: "Send if order is rejected or cancelled",
-    templateName: "order_cancelled",
+    templateName: "order_cancelled2",
     category: "MARKETING",
     headerType: "TEXT",
     headerText: "Order Cancelled",

@@ -17,7 +17,7 @@ export class OrderNotificationService {
 
       const result = await WhatsAppService.sendTemplateMessage(
         order.customerPhone,
-        'order_confirmation',
+        'order_confirmation2',
         'en_US',
         [
           {
@@ -41,8 +41,8 @@ export class OrderNotificationService {
             customerId: order.customerId,
             orderId: order.id,
             phone: order.customerPhone,
-            messageType: 'order_confirmation',
-            templateUsed: 'order_confirmation',
+            messageType: 'order_confirmation2',
+            templateUsed: 'order_confirmation2',
             status: 'sent',
             whatsappMessageId: result.data?.messages?.[0]?.id || ''
           }
@@ -71,7 +71,7 @@ export class OrderNotificationService {
 
       const result = await WhatsAppService.sendTemplateMessage(
         order.customerPhone,
-        'order_preparing',
+        'order_preparing2',
         'en_US',
         [
           {
@@ -95,8 +95,8 @@ export class OrderNotificationService {
             customerId: order.customerId,
             orderId: order.id,
             phone: order.customerPhone,
-            messageType: 'order_preparing',
-            templateUsed: 'order_preparing',
+            messageType: 'order_preparing2',
+            templateUsed: 'order_preparing2',
             status: 'sent',
             whatsappMessageId: result.data?.messages?.[0]?.id || ''
           }
@@ -234,7 +234,7 @@ export class OrderNotificationService {
 
       const result = await WhatsAppService.sendTemplateMessage(
         order.customerPhone,
-        'order_cancelled',
+        'order_cancelled2',
         'en_US',
         [
           {
@@ -254,8 +254,8 @@ export class OrderNotificationService {
             customerId: order.customerId,
             orderId: order.id,
             phone: order.customerPhone,
-            messageType: 'order_cancelled',
-            templateUsed: 'order_cancelled',
+            messageType: 'order_cancelled2',
+            templateUsed: 'order_cancelled2',
             status: 'sent',
             whatsappMessageId: result.data?.messages?.[0]?.id || ''
           }
