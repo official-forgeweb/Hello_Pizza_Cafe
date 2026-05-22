@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { 
   ShoppingCart, 
   Search, 
@@ -24,6 +24,7 @@ export default function Header() {
   const cartCount = useCartStore((s) => s.getCartCount());
   const { address, isDetecting, detectLocation } = useLocationStore();
   const pathname = usePathname();
+  const router = useRouter();
   const isHome = pathname === "/";
   
   const [mounted, setMounted] = useState(false);
@@ -119,7 +120,7 @@ export default function Header() {
                     e.preventDefault();
                     const query = (e.target as any).search.value;
                     if (query.trim()) {
-                      window.location.href = `/menu?q=${encodeURIComponent(query)}`;
+                      router.push(`/menu?q=${encodeURIComponent(query)}`);
                     }
                   }}
                   className="flex items-center"
@@ -140,6 +141,7 @@ export default function Header() {
 
             {/* Mobile search icon */}
             <button 
+              onClick={() => router.push('/menu')}
               className="md:hidden p-2 rounded-lg hover:bg-warm-100 transition-colors cursor-pointer"
               suppressHydrationWarning={true}
             >
