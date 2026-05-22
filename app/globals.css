@@ -244,3 +244,15 @@
     overflow: hidden;
   }
 }
+
+/* Lighten shadows and enhance performance on mobile viewports */
+@media (max-width: 640px) {
+  :root {
+    --shadow-card: 0 2px 6px rgba(0, 0, 0, 0.03), inset 0 0 0 1px rgba(0, 0, 0, 0.02);
+    --shadow-card-hover: 0 4px 12px rgba(0, 0, 0, 0.05), inset 0 0 0 1px rgba(0, 0, 0, 0.03);
+    --shadow-sticky: 0 2px 10px rgba(0, 0, 0, 0.04);
+    --shadow-button: 0 2px 6px rgba(227, 24, 55, 0.12);
+    --shadow-button-hover: 0 4px 10px rgba(227, 24, 55, 0.18);
+    --shadow-glass: 0 4px 16px rgba(31, 38, 135, 0.04);
+  }
+}

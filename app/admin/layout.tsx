@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { useAdminStore } from "@/store/admin";
 import AdminToasts from "@/components/admin/Toast";
+import AdminAlertProvider from "@/components/admin/AdminAlertProvider";
 
 const NAV_ITEMS = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
@@ -89,6 +90,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const currentPage = NAV_ITEMS.find((item) => item.href === pathname)?.label || "Dashboard";
 
   return (
+    <AdminAlertProvider>
     <div className="flex-1 min-h-[100dvh] bg-warm-50 flex w-full">
       {/* Toast notifications */}
       <AdminToasts />
@@ -270,5 +272,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <main className="flex-1 p-4 md:p-6 lg:p-8">{children}</main>
       </div>
     </div>
+    </AdminAlertProvider>
   );
 }

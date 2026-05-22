@@ -8,6 +8,7 @@ import {
   Image as ImageIcon, Sparkles, GripVertical, UtensilsCrossed,
 } from "lucide-react";
 import { useAdminStore } from "@/store/admin";
+import { useAdminAlert } from "@/components/admin/AdminAlertProvider";
 
 interface HeroSlide {
   id: string;
@@ -27,6 +28,7 @@ const TAGS = ["NEW", "OFFER", "TRENDING", "HOT", "LIMITED"];
 
 export default function HeroCMSPage() {
   const { addToast } = useAdminStore();
+  const { showConfirm } = useAdminAlert();
   const [slides, setSlides] = useState<HeroSlide[]>([]);
   const [menuItems, setMenuItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -93,7 +95,8 @@ export default function HeroCMSPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Delete this slide?")) return;
+    const confirmed = await showConfirm("Are you sure you want to delete this slide?", "Delete Hero Slide", { confirmLabel: "Delete", type: "danger" });
+    if (!confirmed) return;
     try {
       const res = await fetch(`/api/admin/hero-slides/${id}`, { method: "DELETE" });
       if (res.ok) {

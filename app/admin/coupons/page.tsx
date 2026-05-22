@@ -7,6 +7,7 @@ import {
   CheckCheck, Calendar, Percent,
 } from "lucide-react";
 import { useAdminStore } from "@/store/admin";
+import { useAdminAlert } from "@/components/admin/AdminAlertProvider";
 
 interface Coupon {
   id: string;
@@ -37,6 +38,7 @@ const MOCK_COUPONS: Coupon[] = [
 
 export default function CouponsPage() {
   const { addToast } = useAdminStore();
+  const { showConfirm } = useAdminAlert();
   const [coupons, setCoupons] = useState<Coupon[]>(MOCK_COUPONS);
   const [editCoupon, setEditCoupon] = useState<EditCoupon | null>(null);
   const [saving, setSaving] = useState(false);
@@ -82,7 +84,8 @@ export default function CouponsPage() {
   };
 
   const deleteCoupon = async (id: string) => {
-    if (!confirm("Delete this coupon?")) return;
+    const confirmed = await showConfirm("Are you sure you want to delete this coupon?", "Delete Coupon", { confirmLabel: "Delete", type: "danger" });
+    if (!confirmed) return;
     try {
       await fetch(`/api/coupons/${id}`, { method: "DELETE" });
       addToast("Coupon deleted", "success");

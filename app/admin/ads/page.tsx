@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Edit2, Trash2, X, Save, Loader2, Image as ImageIcon, Layout, Megaphone, UploadCloud, Sparkles, UtensilsCrossed } from "lucide-react";
 import { useAdminStore } from "@/store/admin";
+import { useAdminAlert } from "@/components/admin/AdminAlertProvider";
 
 interface HeroSlide {
   id: string;
@@ -31,6 +32,7 @@ interface SplashAd {
 
 export default function AdsManagementPage() {
   const { addToast } = useAdminStore();
+  const { showConfirm } = useAdminAlert();
   const [activeTab, setActiveTab] = useState<"hero" | "splash">("hero");
   
   // Data states
@@ -162,7 +164,8 @@ export default function AdsManagementPage() {
   };
 
   const handleDeleteSlide = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this hero slide?")) return;
+    const confirmed = await showConfirm("Are you sure you want to delete this hero slide?", "Delete Hero Slide", { confirmLabel: "Delete", type: "danger" });
+    if (!confirmed) return;
     try {
       const res = await fetch(`/api/admin/hero-slides/${id}`, { method: "DELETE" });
       if (res.ok) {
@@ -202,7 +205,8 @@ export default function AdsManagementPage() {
   };
 
   const handleDeleteAd = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this splash ad?")) return;
+    const confirmed = await showConfirm("Are you sure you want to delete this splash ad?", "Delete Splash Ad", { confirmLabel: "Delete", type: "danger" });
+    if (!confirmed) return;
     try {
       const res = await fetch(`/api/admin/splash-ads/${id}`, { method: "DELETE" });
       if (res.ok) {

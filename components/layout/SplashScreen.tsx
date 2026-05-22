@@ -214,24 +214,25 @@ export default function SplashScreen() {
             {step === "ad" && adsReady && (
               <motion.div
                 key="ad-step"
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -15 }}
+                exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.35 }}
-                className="relative z-10 w-[92vw] max-w-md mx-auto"
+                className="relative z-10 w-full h-[100dvh] sm:h-auto sm:w-[92vw] sm:max-w-md sm:mx-auto flex flex-col justify-end overflow-hidden"
               >
-                {/* Skip button */}
+                {/* Skip button - Floating pill on mobile, absolute top-right link on desktop */}
                 <button
                   onClick={handleSkipAd}
-                  className="absolute -top-12 right-0 text-white/70 hover:text-white text-sm font-bold flex items-center gap-1 z-50 transition-colors cursor-pointer"
+                  className="fixed top-6 right-6 sm:absolute sm:-top-12 sm:right-0 bg-black/40 backdrop-blur-md border border-white/10 sm:border-none sm:bg-transparent sm:backdrop-blur-none px-3.5 py-1.5 sm:px-0 sm:py-0 rounded-full text-white/90 hover:bg-black/60 sm:text-white/70 sm:hover:text-white text-xs sm:text-sm font-bold flex items-center gap-1 z-50 transition-all cursor-pointer shadow-lg sm:shadow-none"
                 >
                   Skip <ChevronRight className="w-4 h-4" />
                 </button>
 
-                {/* Ad Card */}
-                <div className="rounded-3xl overflow-hidden bg-warm-900 shadow-2xl">
-                  {/* Ad Image */}
-                  <div className="relative w-full aspect-[4/3] overflow-hidden bg-warm-900">
+                {/* Ad Card: Fullscreen on mobile, rounded card on desktop */}
+                <div className="w-full h-full sm:h-auto sm:rounded-3xl overflow-hidden bg-black sm:bg-warm-900 sm:shadow-2xl flex flex-col justify-end relative">
+                  
+                  {/* Ad Image: Absolute overlay on mobile, aspect ratio box on desktop */}
+                  <div className="absolute inset-0 w-full h-full sm:relative sm:aspect-[4/3] overflow-hidden bg-black sm:bg-warm-900">
                     <AnimatePresence mode="wait">
                       <motion.div
                         key={currentAd}
@@ -246,23 +247,24 @@ export default function SplashScreen() {
                           alt={ads[currentAd]?.title || "Promo"}
                           fill
                           className="object-cover"
-                          sizes="(max-width: 768px) 92vw, 448px"
+                          sizes="(max-width: 768px) 100vw, 448px"
                           priority
                         />
                       </motion.div>
                     </AnimatePresence>
 
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                    {/* Gradient Overlay for better contrast */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent sm:from-black/70 sm:via-black/20" />
 
-                    {/* Floating Offer Badge */}
-                    <div className="absolute top-4 left-4">
+                    {/* Floating Offer Badge - padded safely below notch on mobile */}
+                    <div className="absolute top-6 left-6 sm:top-4 sm:left-4 z-20">
                       <div className={`bg-gradient-to-r ${ads[currentAd]?.gradient || "from-orange-600 to-red-600"} text-white px-4 py-1.5 rounded-full text-xs font-bold shadow-lg`}>
                         🔥 Limited Time Offer
                       </div>
                     </div>
 
                     {/* Countdown Timer Bar */}
-                    <div className="absolute top-0 left-0 right-0 h-1 bg-white/10">
+                    <div className="absolute top-0 left-0 right-0 h-1 bg-white/10 z-20">
                       <motion.div
                         key={`timer-${currentAd}`}
                         className="h-full bg-primary"
@@ -271,42 +273,44 @@ export default function SplashScreen() {
                         transition={{ duration: AD_CYCLE_MS / 1000, ease: "linear" }}
                       />
                     </div>
+                  </div>
 
-                    {/* Ad Content Overlay */}
-                    <div className="absolute bottom-0 left-0 right-0 p-6">
-                      <h2 className="text-3xl font-black text-white mb-1 leading-tight">
+                  {/* Bottom Content Area: transparent gradient overlay on mobile, solid white on desktop */}
+                  <div className="px-6 pb-10 pt-6 sm:py-5 bg-gradient-to-t from-black via-black/85 to-transparent sm:bg-white flex flex-col z-20 relative">
+                    
+                    {/* Ad Content Overlay: sits above buttons on mobile, absolutely positioned on top of the image on desktop */}
+                    <div className="mb-5 sm:absolute sm:bottom-full sm:left-0 sm:right-0 sm:p-6 sm:mb-0 pointer-events-none">
+                      <h2 className="text-3xl sm:text-2xl font-black text-white mb-1 leading-tight drop-shadow-md">
                         {ads[currentAd]?.title}
                       </h2>
-                      <p className="text-white/80 text-sm mb-3">
+                      <p className="text-white/90 sm:text-white/80 text-sm mb-3 drop-shadow-sm leading-relaxed">
                         {ads[currentAd]?.subtitle}
                       </p>
                       {ads[currentAd]?.code && (
-                        <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm border border-white/30 px-4 py-2 rounded-xl text-white text-xs font-bold">
-                          Use Code: <span className="text-amber-300 tracking-wider">{ads[currentAd]?.code}</span>
+                        <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm border border-white/30 px-3.5 py-1.5 rounded-xl text-white text-xs font-bold pointer-events-auto shadow-sm">
+                          Use Code: <span className="text-amber-300 tracking-wider font-mono">{ads[currentAd]?.code}</span>
                         </div>
                       )}
                     </div>
-                  </div>
 
-                  {/* Dots + CTA */}
-                  <div className="px-6 py-5 bg-white">
-                    {/* Dots */}
+                    {/* Dots / Page Indicators */}
                     <div className="flex items-center justify-center gap-2 mb-4">
                       {ads.map((_: any, i: number) => (
                         <button
                           key={i}
                           onClick={() => setCurrentAd(i)}
                           className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
-                            i === currentAd ? "w-6 bg-primary" : "w-1.5 bg-warm-300"
+                            i === currentAd ? "w-6 bg-primary" : "w-1.5 bg-white/40 sm:bg-warm-300"
                           }`}
                         />
                       ))}
                     </div>
 
+                    {/* Call to Action */}
                     <Link 
                       href={ads[currentAd]?.linkUrl || "/offers"}
                       onClick={finishSplash}
-                      className="w-full bg-primary text-white py-3.5 rounded-2xl font-bold text-sm hover:shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                      className="w-full bg-primary hover:bg-[#cc1530] text-white py-3.5 sm:py-3 rounded-2xl font-bold text-sm hover:shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-primary/25 sm:shadow-none"
                     >
                       Explore Offers <ChevronRight className="w-4 h-4" />
                     </Link>

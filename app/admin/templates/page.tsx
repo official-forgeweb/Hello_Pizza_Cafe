@@ -9,6 +9,7 @@ import {
   Sparkles, AlertCircle, Info, FileText, Image as ImageIcon,
   ChevronRight, Laptop, HelpCircle
 } from "lucide-react";
+import { useAdminAlert } from "@/components/admin/AdminAlertProvider";
 
 interface Template {
   id: string;
@@ -104,6 +105,7 @@ const UTILITY_PRESETS: Preset[] = [
 
 export default function TemplatesPage() {
   const router = useRouter();
+  const { showConfirm } = useAdminAlert();
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -154,7 +156,8 @@ export default function TemplatesPage() {
   };
 
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Are you sure you want to delete '${name}'? This will remove it from Meta and local DB. (Note: You cannot reuse the name for 30 days on Meta).`)) {
+    const confirmed = await showConfirm(`Are you sure you want to delete '${name}'? This will remove it from Meta and local DB. (Note: You cannot reuse the name for 30 days on Meta).`, "Delete Template", { confirmLabel: "Delete", type: "danger" });
+    if (!confirmed) {
       return;
     }
     

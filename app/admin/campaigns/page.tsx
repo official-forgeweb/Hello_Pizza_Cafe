@@ -8,6 +8,7 @@ import {
   XCircle, AlertTriangle, ChevronRight, Info, Eye, Image as ImageIcon,
   Trash2
 } from "lucide-react";
+import { useAdminAlert } from "@/components/admin/AdminAlertProvider";
 
 interface Campaign {
   id: string;
@@ -35,6 +36,7 @@ interface MessageLog {
 }
 
 export default function CampaignsPage() {
+  const { showAlert, showConfirm } = useAdminAlert();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [showWizard, setShowWizard] = useState(false);
@@ -60,14 +62,16 @@ export default function CampaignsPage() {
   }, []);
 
   const handleStartCampaign = async (id: string) => {
-    if (!confirm("Are you sure you want to send this campaign now?")) return;
+    const confirmed = await showConfirm("Are you sure you want to send this campaign now? Messages will be sent to all recipients.", "Send Campaign", { confirmLabel: "Send Now", type: "warning" });
+    if (!confirmed) return;
     
     try {
       const res = await fetch(`/api/admin/campaigns/${id}/send`, { method: "POST" });
       if (res.ok) {
+        showAlert("Campaign started successfully!", "success");
         fetchCampaigns();
       } else {
-        alert("Failed to start campaign");
+        showAlert("Failed to start campaign", "error");
       }
     } catch (error) {
       console.error("Failed to start campaign:", error);
@@ -75,14 +79,16 @@ export default function CampaignsPage() {
   };
 
   const handleDeleteCampaign = async (id: string, name: string) => {
-    if (!confirm(`Are you sure you want to delete campaign '${name}'? This will delete all its delivery logs too.`)) return;
+    const confirmed = await showConfirm(`Are you sure you want to delete campaign '${name}'? This will delete all its delivery logs too.`, "Delete Campaign", { confirmLabel: "Delete", type: "danger" });
+    if (!confirmed) return;
     
     try {
       const res = await fetch(`/api/admin/campaigns/${id}`, { method: "DELETE" });
       if (res.ok) {
+        showAlert("Campaign deleted successfully", "success");
         setCampaigns(prev => prev.filter(c => c.id !== id));
       } else {
-        alert("Failed to delete campaign");
+        showAlert("Failed to delete campaign", "error");
       }
     } catch (error) {
       console.error("Failed to delete campaign:", error);
@@ -270,6 +276,7 @@ export default function CampaignsPage() {
 
 // Campaign creation Wizard Component
 function CampaignWizard({ onClose, onComplete }: { onClose: () => void, onComplete: () => void }) {
+  const { showAlert } = useAdminAlert();
   const [loading, setLoading] = useState(false);
   
   const [templates, setTemplates] = useState<any[]>([]);
@@ -362,10 +369,10 @@ function CampaignWizard({ onClose, onComplete }: { onClose: () => void, onComple
         onComplete();
         onClose();
       } else {
-        alert("Failed to create campaign");
+        showAlert("Failed to create campaign", "error");
       }
     } catch (e) {
-      alert("Error occurred");
+      showAlert("An error occurred while creating the campaign", "error");
     }
     setLoading(false);
   };

@@ -10,6 +10,7 @@ import {
 import VegBadge from "@/components/menu/VegBadge";
 import { useAdminStore } from "@/store/admin";
 import { getFallbackImage } from "@/lib/utils/menuHelper";
+import { useAdminAlert } from "@/components/admin/AdminAlertProvider";
 
 interface MenuItem {
   id: string;
@@ -56,6 +57,7 @@ function SafeMenuImage({ src, fallbackSrc, alt, fill, className }: { src: string
 
 export default function MenuManagementPage() {
   const { addToast } = useAdminStore();
+  const { showConfirm, showAlert } = useAdminAlert();
   const [items, setItems] = useState<MenuItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -147,7 +149,8 @@ export default function MenuManagementPage() {
   };
 
   const deleteItem = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this item?")) return;
+    const confirmed = await showConfirm("Are you sure you want to delete this item? This action cannot be undone.", "Delete Menu Item", { confirmLabel: "Delete", type: "danger" });
+    if (!confirmed) return;
     try {
       await fetch(`/api/menu-items/${id}`, { method: "DELETE" });
       addToast("Item deleted", "success");

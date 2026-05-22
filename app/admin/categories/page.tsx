@@ -7,6 +7,7 @@ import {
   Eye, EyeOff, GripVertical,
 } from "lucide-react";
 import { useAdminStore } from "@/store/admin";
+import { useAdminAlert } from "@/components/admin/AdminAlertProvider";
 
 interface Category {
   id: string;
@@ -24,6 +25,7 @@ type EditCategory = Partial<Category> & { isNew?: boolean };
 
 export default function CategoriesPage() {
   const { addToast } = useAdminStore();
+  const { showConfirm } = useAdminAlert();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [editCat, setEditCat] = useState<EditCategory | null>(null);
@@ -71,7 +73,8 @@ export default function CategoriesPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Delete this category? Items in this category will become uncategorized.")) return;
+    const confirmed = await showConfirm("Are you sure you want to delete this category? Items in this category will become uncategorized.", "Delete Category", { confirmLabel: "Delete", type: "danger" });
+    if (!confirmed) return;
     try {
       const res = await fetch(`/api/categories/${id}`, { method: "DELETE" });
       if (res.ok) {

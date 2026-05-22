@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { useAdminStore } from "@/store/admin";
 import VegBadge from "@/components/menu/VegBadge";
+import { useAdminAlert } from "@/components/admin/AdminAlertProvider";
 
 interface AddOn {
   id: string;
@@ -25,6 +26,7 @@ const ADDON_GROUPS = ["Extra Cheese", "Toppings", "Sauces", "Sides", "Drinks", "
 
 export default function AddOnsPage() {
   const { addToast } = useAdminStore();
+  const { showConfirm } = useAdminAlert();
   const [addons, setAddons] = useState<AddOn[]>([]);
   const [loading, setLoading] = useState(true);
   const [editAddon, setEditAddon] = useState<EditAddOn | null>(null);
@@ -71,7 +73,8 @@ export default function AddOnsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Delete this add-on?")) return;
+    const confirmed = await showConfirm("Are you sure you want to delete this add-on?", "Delete Add-on", { confirmLabel: "Delete", type: "danger" });
+    if (!confirmed) return;
     try {
       await fetch(`/api/admin/addons/${id}`, { method: "DELETE" });
       addToast("Add-on deleted", "success");

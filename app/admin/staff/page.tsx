@@ -7,6 +7,7 @@ import {
   Truck, ChefHat, Shield, Star,
 } from "lucide-react";
 import { useAdminStore } from "@/store/admin";
+import { useAdminAlert } from "@/components/admin/AdminAlertProvider";
 
 interface Staff {
   id: string;
@@ -34,6 +35,7 @@ const ROLE_TABS = ["ALL", "DELIVERY", "KITCHEN", "MANAGER"] as const;
 
 export default function StaffPage() {
   const { addToast } = useAdminStore();
+  const { showConfirm } = useAdminAlert();
   const [staff, setStaff] = useState<Staff[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeRole, setActiveRole] = useState<string>("ALL");
@@ -77,7 +79,8 @@ export default function StaffPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Deactivate this staff member?")) return;
+    const confirmed = await showConfirm("Are you sure you want to deactivate this staff member?", "Deactivate Staff Member", { confirmLabel: "Deactivate", type: "danger" });
+    if (!confirmed) return;
     try {
       await fetch(`/api/admin/staff/${id}`, { method: "DELETE" });
       addToast("Staff deactivated", "success");
