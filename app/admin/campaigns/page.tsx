@@ -303,17 +303,21 @@ function CampaignWizard({ onClose, onComplete }: { onClose: () => void, onComple
   useEffect(() => {
     if (templateName) {
       const selected = templates.find(t => t.templateName === templateName);
-      const headerComp = selected?.components?.find((c: any) => c.type === 'HEADER' && c.format === 'IMAGE');
-      if (headerComp && headerComp.example?.header_handle?.[0]) {
-        const handle = headerComp.example.header_handle[0];
-        // If it looks like temporary Meta URL, pre-fill with our Pizza Table preset
-        if (handle.includes("fbcdn.net") || handle.includes("whatsapp.net")) {
-          setHeaderImage(PHOTO_PRESETS[0].url);
-        } else {
-          setHeaderImage(handle);
-        }
+      if (selected?.headerImageUrl) {
+        setHeaderImage(selected.headerImageUrl);
       } else {
-        setHeaderImage(PHOTO_PRESETS[0].url);
+        const headerComp = selected?.components?.find((c: any) => c.type === 'HEADER' && c.format === 'IMAGE');
+        if (headerComp && headerComp.example?.header_handle?.[0]) {
+          const handle = headerComp.example.header_handle[0];
+          // If it looks like temporary Meta URL, pre-fill with our Pizza Table preset
+          if (handle.includes("fbcdn.net") || handle.includes("whatsapp.net")) {
+            setHeaderImage(PHOTO_PRESETS[0].url);
+          } else {
+            setHeaderImage(handle);
+          }
+        } else {
+          setHeaderImage(PHOTO_PRESETS[0].url);
+        }
       }
 
       if (selected && selected.variables && selected.variables.length > 0) {

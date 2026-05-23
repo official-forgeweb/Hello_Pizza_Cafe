@@ -61,18 +61,15 @@ export class CampaignService {
     });
     const languageCode = template?.language || 'en_US';
 
-    // Resolve header image (fallback to template example if null, but replace temporary Meta CDN links)
-    let headerImgUrl = campaign.headerImage || undefined;
+    // Resolve header image (fallback to template's stored headerImageUrl, then to template components)
+    let headerImgUrl = campaign.headerImage || template?.headerImageUrl || undefined;
     if (!headerImgUrl && template) {
       const headerComp = (template.components as any[]).find(
         (c) => c.type === 'HEADER' && c.format === 'IMAGE'
       );
       if (headerComp && headerComp.example?.header_handle?.[0]) {
         const handle = headerComp.example.header_handle[0];
-        if (handle.includes('fbcdn.net') || handle.includes('whatsapp.net')) {
-          // Replace temporary expired Meta link with a stable direct Wikimedia pizza image (ends with .jpg)
-          headerImgUrl = "https://upload.wikimedia.org/wikipedia/commons/9/91/Pizza-3007395.jpg";
-        } else {
+        if (!handle.includes('fbcdn.net') && !handle.includes('whatsapp.net')) {
           headerImgUrl = handle;
         }
       }

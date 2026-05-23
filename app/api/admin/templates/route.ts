@@ -58,10 +58,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Process IMAGE header components: upload to Meta to get a valid handle
+    let originalHeaderImageUrl = null;
     const headerComponent = components.find((c: any) => c.type === 'HEADER');
     if (headerComponent && headerComponent.format === 'IMAGE' && headerComponent.example?.header_handle?.[0]) {
       const imageUrl = headerComponent.example.header_handle[0];
       if (imageUrl.startsWith('http')) {
+        originalHeaderImageUrl = imageUrl;
         const uploadResult = await WhatsAppService.uploadImageToMeta(imageUrl);
         if (!uploadResult.success) {
           return NextResponse.json(
@@ -105,6 +107,7 @@ export async function POST(request: NextRequest) {
         components,
         variables,
         metaTemplateId,
+        headerImageUrl: originalHeaderImageUrl,
       },
       create: {
         templateName,
@@ -114,6 +117,7 @@ export async function POST(request: NextRequest) {
         components,
         variables,
         metaTemplateId,
+        headerImageUrl: originalHeaderImageUrl,
       },
     });
 
