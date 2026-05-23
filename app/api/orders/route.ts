@@ -158,9 +158,37 @@ export async function POST(request: NextRequest) {
 
     const totalAmount = subtotal + taxAmount + deliveryFee - discountAmount;
 
-    // Generate order number
-    const orderCount = await prisma.order.count();
-    const orderNumber = `ORD-${String(orderCount + 1).padStart(6, "0")}`;
+    // Generate order number in YYMMDD501 format with collision handling
+    const now = new Date();
+    const yy = String(now.getFullYear()).slice(-2);
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+    const dd = String(now.getDate()).padStart(2, "0");
+    const prefix = `${yy}${mm}${dd}`;
+    const minOrderNumber = `${prefix}500`;
+    
+    let orderNumber = "";
+    let attempts = 0;
+    while (attempts < 10) {
+      const ordersToday = await prisma.order.count({
+        where: {
+          orderNumber: {
+            gt: minOrderNumber,
+            startsWith: prefix,
+          },
+        },
+      });
+      const seq = String(500 + ordersToday + 1 + attempts).padStart(3, "0");
+      orderNumber = `${prefix}${seq}`;
+      
+      const existing = await prisma.order.findUnique({
+        where: { orderNumber },
+      });
+      if (!existing) {
+        break;
+      }
+      attempts++;
+    }
+
 
     let customer = await prisma.customer.findFirst({
       where: { phone: customerPhone },
