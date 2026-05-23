@@ -9,7 +9,7 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 mb-12">
           {/* Brand */}
           <div className="lg:col-span-2">
-            <div className="relative w-64 h-20 md:w-72 md:h-24 -ml-1">
+            <div className="relative w-64 h-20 md:w-72 md:h-24 -ml-4 md:-ml-6">
               <Image
                 src="/logo-footer.png"
                 alt="Hello Pizza"

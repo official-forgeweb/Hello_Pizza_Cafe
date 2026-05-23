@@ -218,7 +218,7 @@ export default function SplashScreen() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.35 }}
-                className="relative z-10 w-full h-[100dvh] sm:h-auto sm:w-[92vw] sm:max-w-md sm:mx-auto flex flex-col justify-end overflow-hidden"
+                className="relative z-10 w-full h-[100dvh] sm:h-auto sm:w-[92vw] sm:max-w-md sm:mx-auto flex flex-col justify-end overflow-hidden sm:overflow-visible"
               >
                 {/* Skip button - Floating pill on mobile, absolute top-right link on desktop */}
                 <button

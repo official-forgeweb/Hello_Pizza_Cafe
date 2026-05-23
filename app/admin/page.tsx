@@ -75,7 +75,7 @@ export default function AdminDashboard() {
           // Merge default dailyRevenue structure with fetched stats just in case it's empty
           setData({
              ...apiData,
-             dailyRevenue: apiData.dailyRevenue?.length > 0 ? apiData.dailyRevenue.reverse() : DEFAULT_STATS.dailyRevenue
+             dailyRevenue: apiData.dailyRevenue?.length > 0 ? apiData.dailyRevenue : DEFAULT_STATS.dailyRevenue
           });
         }
       } catch (err) {
@@ -211,7 +211,7 @@ export default function AdminDashboard() {
               <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f4" />
               <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#a8a29e" }} />
               <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#a8a29e" }}
-                tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
+                tickFormatter={(v) => v >= 1000 ? `₹${(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1)}k` : `₹${v}`} />
               <Tooltip
                 contentStyle={{
                   background: "#1c1917", border: "none", borderRadius: "12px",
