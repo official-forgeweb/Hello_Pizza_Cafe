@@ -152,11 +152,10 @@ export async function POST(request: NextRequest) {
                 }
               });
 
-              // Trigger WhatsApp order confirmation ONLY for recent orders (placed within last 2 hours).
-              // This prevents old queued POS orders from sending notifications when they first sync.
-              const orderAge = Date.now() - new Date(record.created_at || timestamp || new Date()).getTime();
-              const isRecentOrder = orderAge < 2 * 60 * 60 * 1000; // 2 hours
-              if (!waConfirmationSent && record.customer_phone && isRecentOrder) {
+              // Only send WhatsApp if the POS explicitly flagged this order with wa_notify:true.
+              // Historical backlog orders syncing for the first time won't have this flag and
+              // will be stored silently — preventing spam to customers.
+              if (!waConfirmationSent && record.customer_phone && record.wa_notify === true) {
                 const { OrderNotificationService } = await import("@/lib/services/orderNotificationService");
                 OrderNotificationService.sendOrderConfirmation(createdOrder.id).catch(err => {
                   console.error("[Sync Batch] WhatsApp confirmation failed:", err);
