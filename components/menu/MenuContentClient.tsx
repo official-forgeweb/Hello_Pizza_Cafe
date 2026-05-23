@@ -16,6 +16,8 @@ interface MenuContentClientProps {
 export default function MenuContentClient({ initialCategories, initialMenuItems }: MenuContentClientProps) {
   const searchParams = useSearchParams();
   const urlQuery = searchParams.get("q") || "";
+  const focusParam = searchParams.get("focus") === "true";
+  const inputRef = useRef<HTMLInputElement>(null);
   
   const [activeCategory, setActiveCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState(urlQuery);
@@ -30,6 +32,17 @@ export default function MenuContentClient({ initialCategories, initialMenuItems 
       setSearchQuery(urlQuery);
     }
   }, [urlQuery]);
+
+  // Handle automatic focus from header search trigger
+  useEffect(() => {
+    if (focusParam && inputRef.current) {
+      const timer = setTimeout(() => {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        inputRef.current?.focus();
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [focusParam]);
 
   // ─── Filter items ───
   const filteredItems = initialMenuItems.filter((item) => {
@@ -143,6 +156,8 @@ export default function MenuContentClient({ initialCategories, initialMenuItems 
             <div className="relative flex-1">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-warm-400" />
               <input
+                id="menu-search-input"
+                ref={inputRef}
                 type="text"
                 placeholder="Search for pizza, burgers, desserts..."
                 value={searchQuery}

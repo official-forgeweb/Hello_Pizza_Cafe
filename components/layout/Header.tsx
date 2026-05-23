@@ -141,7 +141,17 @@ export default function Header() {
 
             {/* Mobile search icon */}
             <button 
-              onClick={() => router.push('/menu')}
+              onClick={() => {
+                if (pathname === '/menu') {
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                  const input = document.getElementById('menu-search-input');
+                  if (input) {
+                    setTimeout(() => input.focus(), 200);
+                  }
+                } else {
+                  router.push('/menu?focus=true');
+                }
+              }}
               className="md:hidden p-2 rounded-lg hover:bg-warm-100 transition-colors cursor-pointer"
               suppressHydrationWarning={true}
             >
