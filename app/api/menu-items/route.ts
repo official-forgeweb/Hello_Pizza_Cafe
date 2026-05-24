@@ -51,13 +51,29 @@ export async function GET(request: NextRequest) {
       prisma.menuItem.count({ where }),
     ]);
 
+    const uniqueItemsMap = new Map<string, any>();
+    for (const item of items) {
+      const key = item.name.toLowerCase().trim();
+      const price = Number(item.basePrice || 0);
+      const existing = uniqueItemsMap.get(key);
+      if (!existing) {
+        uniqueItemsMap.set(key, item);
+      } else {
+        const existingPrice = Number(existing.basePrice || 0);
+        if (price > existingPrice) {
+          uniqueItemsMap.set(key, item);
+        }
+      }
+    }
+    const filteredItems = Array.from(uniqueItemsMap.values());
+
     return NextResponse.json({
-      items,
+      items: filteredItems,
       pagination: {
         page,
         limit,
-        total,
-        totalPages: Math.ceil(total / limit),
+        total: filteredItems.length,
+        totalPages: Math.ceil(filteredItems.length / limit),
       },
     }, {
       headers: {

@@ -35,6 +35,21 @@ export default async function MenuPage() {
     isVeg: i.itemType === "VEG" || i.isVeg === true
   }));
 
+  // De-duplicate items by name (case-insensitive) - keep the one with the greater price
+  const uniqueItemsMap = new Map<string, any>();
+  for (const item of transformedItems) {
+    const key = item.name.toLowerCase().trim();
+    const existing = uniqueItemsMap.get(key);
+    if (!existing) {
+      uniqueItemsMap.set(key, item);
+    } else {
+      if (item.price > existing.price) {
+        uniqueItemsMap.set(key, item);
+      }
+    }
+  }
+  const filteredTransformedItems = Array.from(uniqueItemsMap.values());
+
   const allCategories = [{ id: "all", name: "All" }, ...categories];
 
   return (
@@ -47,7 +62,7 @@ export default async function MenuPage() {
     >
       <MenuContentClient 
         initialCategories={allCategories} 
-        initialMenuItems={transformedItems} 
+        initialMenuItems={filteredTransformedItems} 
       />
     </Suspense>
   );
