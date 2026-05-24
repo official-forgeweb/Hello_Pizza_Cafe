@@ -120,18 +120,26 @@ export default function CheckoutPage() {
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
-    if (!name.trim()) newErrors.name = "Name is required";
-    if (!phone.trim()) newErrors.phone = "Phone number is required";
-    else if (!/^[6-9]\d{9}$/.test(phone.replace(/\s/g, "")))
-      newErrors.phone = "Enter a valid 10-digit phone number";
-    if (orderType === "delivery" && !address.trim())
-      newErrors.address = "Delivery address is required";
-    if (!email.trim())
-      newErrors.email = "Email is required for order confirmation";
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+
+    // Phone is required only for pickup and delivery
+    if (orderType !== "dine_in") {
+      if (!phone.trim()) {
+        newErrors.phone = "Phone number is required";
+      } else if (!/^[6-9]\d{9}$/.test(phone.replace(/\s/g, ""))) {
+        newErrors.phone = "Enter a valid 10-digit phone number";
+      }
+    } else {
+      // For dine-in, still validate format if a number is provided
+      if (phone.trim() && !/^[6-9]\d{9}$/.test(phone.replace(/\s/g, "")))
+        newErrors.phone = "Enter a valid 10-digit phone number";
+    }
+
+    // Email format validation (always optional)
+    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
       newErrors.email = "Enter a valid email address";
 
     if (orderType === "delivery") {
+      if (!address.trim()) newErrors.address = "Delivery address is required";
       if (!coordinates) {
         newErrors.location = "Delivery requires detecting your location GPS coordinates. Please click 'Detect My Location' above.";
       } else if (deliveryResult) {
@@ -155,7 +163,7 @@ export default function CheckoutPage() {
       const orderPayload = {
         customerName: name,
         customerPhone: phone,
-        customerEmail: email,
+        customerEmail: email.trim() || null,
         whatsappOptIn,
         orderType: orderType === "delivery" ? "DELIVERY" : orderType === "pickup" ? "PICKUP" : "DINE_IN",
         deliveryAddress: orderType === "delivery" ? address : null,
@@ -298,26 +306,33 @@ export default function CheckoutPage() {
             >
               <div className="flex items-center gap-2 mb-6">
                 <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold">2</div>
-                <h3 className="font-bold text-warm-900 text-lg">Who are we delivering to?</h3>
+                <div>
+                  <h3 className="font-bold text-warm-900 text-lg">Contact Details</h3>
+                  <p className="text-[11px] text-warm-400 font-medium mt-0.5">
+                    {orderType === "dine_in"
+                      ? "All fields are optional for dine-in."
+                      : "Phone number is required. Name and email are optional."}
+                  </p>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-warm-400 uppercase tracking-widest px-1">Full Name</label>
+                  <label className="text-xs font-bold text-warm-400 uppercase tracking-widest px-1">Full Name <span className="normal-case text-warm-300 font-medium">(optional)</span></label>
                   <input
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="e.g. Aryan"
-                    className={`w-full px-5 py-4 bg-warm-50 rounded-2xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all placeholder:text-warm-300 border-0 ${
-                      errors.name ? "ring-2 ring-red-300" : ""
-                    }`}
+                    placeholder="e.g. Aryan (optional)"
+                    className="w-full px-5 py-4 bg-warm-50 rounded-2xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all placeholder:text-warm-300 border-0"
                   />
-                  {errors.name && <p className="text-red-500 text-[10px] font-bold px-1">{errors.name}</p>}
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-warm-400 uppercase tracking-widest px-1">Phone Number</label>
+                  <label className="text-xs font-bold text-warm-400 uppercase tracking-widest px-1">
+                    Phone Number
+                    {orderType === "dine_in" && <span className="normal-case text-warm-300 font-medium"> (optional)</span>}
+                  </label>
                   <div className="flex">
                     <span className="inline-flex items-center px-4 py-4 bg-warm-200 rounded-l-2xl text-sm text-warm-600 font-bold border-0">
                       +91
@@ -326,7 +341,7 @@ export default function CheckoutPage() {
                       type="tel"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                      placeholder="98765 43210"
+                      placeholder={orderType === "dine_in" ? "98765 43210 (optional)" : "98765 43210"}
                       className={`flex-1 px-5 py-4 bg-warm-50 rounded-r-2xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all placeholder:text-warm-300 border-0 ${
                         errors.phone ? "ring-2 ring-red-300" : ""
                       }`}
@@ -336,12 +351,12 @@ export default function CheckoutPage() {
                 </div>
 
                 <div className="space-y-1.5 md:col-span-2">
-                  <label className="text-xs font-bold text-warm-400 uppercase tracking-widest px-1">Email Address</label>
+                  <label className="text-xs font-bold text-warm-400 uppercase tracking-widest px-1">Email Address (Optional)</label>
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="hello@pizza.com"
+                    placeholder="hello@pizza.com (optional)"
                     className={`w-full px-5 py-4 bg-warm-50 rounded-2xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all placeholder:text-warm-300 border-0 ${
                       errors.email ? "ring-2 ring-red-300" : ""
                     }`}
