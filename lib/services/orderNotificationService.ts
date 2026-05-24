@@ -63,17 +63,28 @@ export class OrderNotificationService {
    */
   static async sendPOSReceipt(orderId: string) {
     try {
+      console.log(`[POS Receipt] Starting for orderId: ${orderId}`);
       const order = await prisma.order.findUnique({
         where: { id: orderId },
         include: { customer: true }
       });
 
-      if (!order || !order.customerPhone) return { success: false, error: 'No order or phone found' };
-      if (order.customerPhone === '0000000000') return { success: true, note: 'Skipped for dummy phone' };
-      if (order.waConfirmationSent) return { success: true, note: 'Already sent' };
+      if (!order || !order.customerPhone) {
+        console.log(`[POS Receipt] Skipped: no order or phone. order=${!!order}, phone=${order?.customerPhone}`);
+        return { success: false, error: 'No order or phone found' };
+      }
+      if (order.customerPhone === '0000000000') {
+        console.log(`[POS Receipt] Skipped: dummy phone for order ${order.orderNumber}`);
+        return { success: true, note: 'Skipped for dummy phone' };
+      }
+      if (order.waConfirmationSent) {
+        console.log(`[POS Receipt] Skipped: already sent for order ${order.orderNumber}`);
+        return { success: true, note: 'Already sent' };
+      }
 
       // Total amount formatted to two decimal places
       const billAmount = Number(order.totalAmount).toFixed(2);
+      console.log(`[POS Receipt] Sending to ${order.customerPhone}, amount: ${billAmount}, order: ${order.orderNumber}`);
 
       const result = await WhatsAppService.sendTemplateMessage(
         order.customerPhone,
@@ -88,6 +99,8 @@ export class OrderNotificationService {
           }
         ]
       );
+
+      console.log(`[POS Receipt] WhatsApp API result:`, JSON.stringify(result));
 
       if (result.success) {
         await prisma.order.update({
@@ -110,7 +123,7 @@ export class OrderNotificationService {
 
       return result;
     } catch (error: any) {
-      console.error('Error sending POS order receipt:', error);
+      console.error('[POS Receipt] Error:', error);
       return { success: false, error: error.message };
     }
   }

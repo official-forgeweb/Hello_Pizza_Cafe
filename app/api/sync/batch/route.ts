@@ -20,6 +20,8 @@ export async function POST(request: NextRequest) {
             const orderId = record.id;
             const orderNumber = String(record.order_number);
 
+            console.log(`[Sync Batch] Processing order INSERT: id=${orderId}, number=${orderNumber}, website_order_id=${record.website_order_id || 'none'}, wa_notify=${record.wa_notify}, phone=${record.customer_phone}`);
+
             // Handle linking and merging of website orders to avoid duplicates
             let waConfirmationSent = false;
             if (record.website_order_id) {
@@ -28,10 +30,20 @@ export async function POST(request: NextRequest) {
               });
               if (existingWebOrder) {
                 waConfirmationSent = existingWebOrder.waConfirmationSent;
+                console.log(`[Sync Batch] Found website order ${record.website_order_id}, waConfirmationSent=${waConfirmationSent}. Disconnecting message logs and deleting to replace with POS order.`);
+                
+                // Disconnect message logs to avoid foreign key violations on deletion
+                await prisma.messageLog.updateMany({
+                  where: { orderId: record.website_order_id },
+                  data: { orderId: null }
+                });
+
                 // Delete the pending website order to replace it with the POS order
                 await prisma.order.delete({
                   where: { id: record.website_order_id }
                 });
+              } else {
+                console.log(`[Sync Batch] Website order ${record.website_order_id} not found in DB (may have been already replaced).`);
               }
             }
 
@@ -180,24 +192,43 @@ export async function POST(request: NextRequest) {
                 }
               });
 
-              // Only send WhatsApp if the POS explicitly flagged this order with wa_notify:true.
-              // Historical backlog orders syncing for the first time won't have this flag and
-              // will be stored silently — preventing spam to customers.
+              // Send WhatsApp notification if conditions are met
+              // This runs for both new and website-linked orders
               if (!waConfirmationSent && record.customer_phone && record.wa_notify === true) {
-                const { OrderNotificationService } = await import("@/lib/services/orderNotificationService");
-                OrderNotificationService.sendPOSReceipt(createdOrder.id).catch(err => {
+                console.log(`[Sync Batch] Triggering WhatsApp for NEW order ${createdOrder.id}, phone: ${record.customer_phone}`);
+                try {
+                  const { OrderNotificationService } = await import("@/lib/services/orderNotificationService");
+                  const waResult = await OrderNotificationService.sendPOSReceipt(createdOrder.id);
+                  console.log(`[Sync Batch] WhatsApp result for ${createdOrder.id}:`, JSON.stringify(waResult));
+                } catch (err) {
                   console.error("[Sync Batch] WhatsApp POS receipt failed:", err);
-                });
+                }
+              } else {
+                console.log(`[Sync Batch] Skipping WhatsApp for new order ${createdOrder.id}: waConfirmationSent=${waConfirmationSent}, phone=${record.customer_phone}, wa_notify=${record.wa_notify}`);
               }
             } else {
-              // Update order status if it already exists
-              await prisma.order.update({
+              // Order already exists — update status
+              const updatedOrder = await prisma.order.update({
                 where: { id: orderId },
                 data: {
                   status: status as any,
                   updatedAt: new Date(),
                 }
               });
+
+              // Also trigger WhatsApp here if it was never sent
+              // This handles the case where a previous sync created the order
+              // but the WhatsApp notification failed or was skipped
+              if (!updatedOrder.waConfirmationSent && record.customer_phone && record.wa_notify === true) {
+                console.log(`[Sync Batch] Triggering WhatsApp for EXISTING order ${orderId}, phone: ${record.customer_phone}`);
+                try {
+                  const { OrderNotificationService } = await import("@/lib/services/orderNotificationService");
+                  const waResult = await OrderNotificationService.sendPOSReceipt(orderId);
+                  console.log(`[Sync Batch] WhatsApp result for existing ${orderId}:`, JSON.stringify(waResult));
+                } catch (err) {
+                  console.error("[Sync Batch] WhatsApp POS receipt for existing order failed:", err);
+                }
+              }
             }
 
             results.push({ localId, status: "success" });

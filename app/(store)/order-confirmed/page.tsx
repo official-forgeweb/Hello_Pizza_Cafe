@@ -153,11 +153,11 @@ function OrderConfirmedContent() {
             Call us directly and we'll be happy to assist you with any questions.
           </p>
           <a
-            href="tel:8510882886"
+            href="tel:8586076383"
             className="px-8 py-4 bg-warm-900 text-white rounded-[1rem] font-black shadow-xl shadow-warm-900/20 hover:bg-black transition-all flex items-center gap-3 active:scale-95 relative z-10"
           >
             <PhoneCall className="w-5 h-5" />
-            +91 8510882886
+            +91 8586076383
           </a>
         </motion.div>
 
