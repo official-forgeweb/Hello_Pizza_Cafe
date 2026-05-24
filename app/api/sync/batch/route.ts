@@ -185,8 +185,8 @@ export async function POST(request: NextRequest) {
               // will be stored silently — preventing spam to customers.
               if (!waConfirmationSent && record.customer_phone && record.wa_notify === true) {
                 const { OrderNotificationService } = await import("@/lib/services/orderNotificationService");
-                OrderNotificationService.sendOrderConfirmation(createdOrder.id).catch(err => {
-                  console.error("[Sync Batch] WhatsApp confirmation failed:", err);
+                OrderNotificationService.sendPOSReceipt(createdOrder.id).catch(err => {
+                  console.error("[Sync Batch] WhatsApp POS receipt failed:", err);
                 });
               }
             } else {

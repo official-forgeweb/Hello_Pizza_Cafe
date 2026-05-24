@@ -57,6 +57,62 @@ export class OrderNotificationService {
   }
 
   /**
+   * Send POS order receipt notification
+   */
+  static async sendPOSReceipt(orderId: string) {
+    try {
+      const order = await prisma.order.findUnique({
+        where: { id: orderId },
+        include: { customer: true }
+      });
+
+      if (!order || !order.customerPhone) return { success: false, error: 'No order or phone found' };
+      if (order.waConfirmationSent) return { success: true, note: 'Already sent' };
+
+      // Total amount formatted to two decimal places
+      const billAmount = Number(order.totalAmount).toFixed(2);
+
+      const result = await WhatsAppService.sendTemplateMessage(
+        order.customerPhone,
+        'pos_order_receipt',
+        'en_US',
+        [
+          {
+            type: 'body',
+            parameters: [
+              { type: 'text', text: billAmount }
+            ]
+          }
+        ]
+      );
+
+      if (result.success) {
+        await prisma.order.update({
+          where: { id: order.id },
+          data: { waConfirmationSent: true }
+        });
+
+        await prisma.messageLog.create({
+          data: {
+            customerId: order.customerId,
+            orderId: order.id,
+            phone: order.customerPhone,
+            messageType: 'pos_order_receipt',
+            templateUsed: 'pos_order_receipt',
+            status: 'sent',
+            whatsappMessageId: result.data?.messages?.[0]?.id || ''
+          }
+        });
+      }
+
+      return result;
+    } catch (error: any) {
+      console.error('Error sending POS order receipt:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
    * Send order preparing update
    */
   static async sendOrderPreparing(orderId: string) {
