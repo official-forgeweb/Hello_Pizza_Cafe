@@ -13,18 +13,20 @@ export class OrderNotificationService {
       });
 
       if (!order || !order.customerPhone) return { success: false, error: 'No order or phone found' };
+      if (order.customerPhone === '0000000000') return { success: true, note: 'Skipped for dummy phone' };
       if (order.waConfirmationSent) return { success: true, note: 'Already sent' };
+
+      const billAmount = Number(order.totalAmount).toFixed(2);
 
       const result = await WhatsAppService.sendTemplateMessage(
         order.customerPhone,
-        'order_confirmation2',
+        'pos_order_receipt',
         'en_US',
         [
           {
             type: 'body',
             parameters: [
-              { type: 'text', text: order.customerName },
-              { type: 'text', text: order.orderNumber }
+              { type: 'text', text: billAmount }
             ]
           }
         ]
@@ -41,8 +43,8 @@ export class OrderNotificationService {
             customerId: order.customerId,
             orderId: order.id,
             phone: order.customerPhone,
-            messageType: 'order_confirmation2',
-            templateUsed: 'order_confirmation2',
+            messageType: 'pos_order_receipt',
+            templateUsed: 'pos_order_receipt',
             status: 'sent',
             whatsappMessageId: result.data?.messages?.[0]?.id || ''
           }
@@ -67,6 +69,7 @@ export class OrderNotificationService {
       });
 
       if (!order || !order.customerPhone) return { success: false, error: 'No order or phone found' };
+      if (order.customerPhone === '0000000000') return { success: true, note: 'Skipped for dummy phone' };
       if (order.waConfirmationSent) return { success: true, note: 'Already sent' };
 
       // Total amount formatted to two decimal places
@@ -123,6 +126,7 @@ export class OrderNotificationService {
       });
 
       if (!order || !order.customerPhone) return { success: false, error: 'No order or phone found' };
+      if (order.customerPhone === '0000000000') return { success: true, note: 'Skipped for dummy phone' };
       if (order.waPreparingSent) return { success: true, note: 'Already sent' };
 
       const result = await WhatsAppService.sendTemplateMessage(
@@ -177,6 +181,7 @@ export class OrderNotificationService {
       });
 
       if (!order || !order.customerPhone) return { success: false, error: 'No order or phone found' };
+      if (order.customerPhone === '0000000000') return { success: true, note: 'Skipped for dummy phone' };
       if (order.waOutForDeliverySent) return { success: true, note: 'Already sent' };
 
       const result = await WhatsAppService.sendTemplateMessage(
@@ -233,6 +238,7 @@ export class OrderNotificationService {
       });
 
       if (!order || !order.customerPhone) return { success: false, error: 'No order or phone found' };
+      if (order.customerPhone === '0000000000') return { success: true, note: 'Skipped for dummy phone' };
       if (order.waDeliveredSent) return { success: true, note: 'Already sent' };
 
       const result = await WhatsAppService.sendTemplateMessage(
@@ -287,6 +293,7 @@ export class OrderNotificationService {
       });
 
       if (!order || !order.customerPhone) return { success: false, error: 'No order or phone found' };
+      if (order.customerPhone === '0000000000') return { success: true, note: 'Skipped for dummy phone' };
 
       const result = await WhatsAppService.sendTemplateMessage(
         order.customerPhone,

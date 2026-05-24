@@ -27,12 +27,36 @@ export async function POST(request: NextRequest) {
       deliveryLng,
     } = body;
 
-    if (!customerName || !customerPhone || !items || items.length === 0) {
+    let finalPhone = customerPhone?.trim() || "";
+    let finalName = customerName?.trim() || "";
+
+    if (orderType === "DINE_IN") {
+      if (!finalPhone) {
+        finalPhone = "0000000000";
+      }
+      if (!finalName) {
+        finalName = "Dine-in Guest";
+      }
+    } else {
+      if (!finalPhone) {
+        return NextResponse.json(
+          { error: "Phone number is required for pickup and delivery" },
+          { status: 400 }
+        );
+      }
+      if (!finalName) {
+        finalName = "Guest";
+      }
+    }
+
+    if (!items || items.length === 0) {
       return NextResponse.json(
-        { error: "Missing required fields" },
+        { error: "Missing required items" },
         { status: 400 }
       );
     }
+
+    const finalWhatsappOptIn = finalPhone === "0000000000" ? false : whatsappOptIn;
 
     // Verify all menu items exist to prevent Foreign Key failures
     const validMenuItems = new Set<string>();
@@ -191,15 +215,15 @@ export async function POST(request: NextRequest) {
 
 
     let customer = await prisma.customer.findFirst({
-      where: { phone: customerPhone },
+      where: { phone: finalPhone },
     });
     if (!customer) {
       customer = await prisma.customer.create({
         data: {
-          name: customerName,
-          phone: customerPhone,
+          name: finalName,
+          phone: finalPhone,
           email: customerEmail,
-          whatsappOptIn,
+          whatsappOptIn: finalWhatsappOptIn,
           totalOrders: 1,
           totalSpent: totalAmount,
           lastOrderDate: new Date(),
@@ -209,7 +233,7 @@ export async function POST(request: NextRequest) {
       customer = await prisma.customer.update({
         where: { id: customer.id },
         data: {
-          whatsappOptIn: whatsappOptIn ? true : customer.whatsappOptIn, // Don't opt out if already opted in, only opt in
+          whatsappOptIn: finalWhatsappOptIn ? true : customer.whatsappOptIn, // Don't opt out if already opted in, only opt in
           totalOrders: { increment: 1 },
           totalSpent: { increment: totalAmount },
           lastOrderDate: new Date(),
@@ -222,8 +246,8 @@ export async function POST(request: NextRequest) {
       data: {
         orderNumber,
         customerId: customer.id,
-        customerName,
-        customerPhone,
+        customerName: finalName,
+        customerPhone: finalPhone,
         customerEmail,
         orderType,
         deliveryAddress,
@@ -283,11 +307,8 @@ export async function POST(request: NextRequest) {
       console.error("Admin order notification failed:", err);
     });
 
-    // WhatsApp Order Confirmation
-    const { OrderNotificationService } = await import("@/lib/services/orderNotificationService");
-    OrderNotificationService.sendOrderConfirmation(order.id).catch(err => {
-      console.error("WhatsApp confirmation failed:", err);
-    });
+    // Note: Immediate WhatsApp Order Confirmation is bypassed here.
+    // It will be sent via the sync batch route once the order is loaded and confirmed/printed in the POS software.
 
     return NextResponse.json(order, { status: 201 });
   } catch (error) {
