@@ -84,12 +84,6 @@ export default function SplashScreen() {
   useEffect(() => {
     if (step !== "location") return;
 
-    // If user already has a saved address, skip location step
-    if (address) {
-      finishSplash();
-      return;
-    }
-
     if (navigator.permissions) {
       navigator.permissions.query({ name: "geolocation" }).then(async (result) => {
         if (result.state === "granted") {
@@ -97,8 +91,19 @@ export default function SplashScreen() {
             await detectLocation();
           } catch {}
           finishSplash();
+        } else {
+          // If not granted, and we already have a saved address, skip to home
+          if (address) {
+            finishSplash();
+          }
         }
-      }).catch(() => {});
+      }).catch(() => {
+        if (address) {
+          finishSplash();
+        }
+      });
+    } else if (address) {
+      finishSplash();
     }
   }, [step, address, detectLocation]);
 

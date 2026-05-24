@@ -52,6 +52,15 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     setMounted(true);
+
+    // Auto-update to current location if permission is granted
+    if (typeof window !== "undefined" && navigator.permissions) {
+      navigator.permissions.query({ name: "geolocation" }).then((result) => {
+        if (result.state === "granted") {
+          useLocationStore.getState().detectLocation().catch(err => console.warn("Checkout auto-location failed:", err));
+        }
+      }).catch(() => {});
+    }
   }, []);
 
   // Fetch delivery fee dynamically

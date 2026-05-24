@@ -49,6 +49,15 @@ export default function CartPage() {
         }
       })
       .catch(console.error);
+
+    // Auto-update to current location if permission is granted
+    if (typeof window !== "undefined" && navigator.permissions) {
+      navigator.permissions.query({ name: "geolocation" }).then((result) => {
+        if (result.state === "granted") {
+          useLocationStore.getState().detectLocation().catch(err => console.warn("Cart auto-location failed:", err));
+        }
+      }).catch(() => {});
+    }
   }, []);
 
   // Fetch smart recommendations based on cart items
