@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Check, Pizza, ShoppingBag, Plus, Minus } from "lucide-react";
+import { X, Check, ShoppingBag, Plus, Minus } from "lucide-react";
 import Image from "next/image";
 import { useCartStore, type CartItem } from "@/store/cart";
 import { MenuItemData } from "./MenuItemCard";
+import { getFallbackImage } from "@/lib/utils/menuHelper";
 
 interface ItemCustomizationModalProps {
   item: MenuItemData | null;
@@ -260,20 +261,14 @@ export default function ItemCustomizationModal({ item, onClose }: ItemCustomizat
               {/* Header Info */}
               <div className="flex gap-4 mb-4">
                 <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden bg-warm-100 flex-shrink-0">
-                  {item.imageUrl ? (
-                    <Image
-                      src={item.imageUrl}
-                      alt={item.name}
-                      fill
-                      sizes="(max-width: 768px) 80px, 96px"
-                      loading="lazy"
-                      className="object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-warm-300">
-                      <Pizza className="w-8 h-8" />
-                    </div>
-                  )}
+                  <Image
+                    src={item.imageUrl || getFallbackImage(item.name, item.category?.name)}
+                    alt={item.name}
+                    fill
+                    sizes="(max-width: 768px) 80px, 96px"
+                    loading="lazy"
+                    className="object-cover"
+                  />
                 </div>
                 <div className="flex flex-col justify-center">
                   <h2 className="text-lg sm:text-xl font-bold text-warm-900 mb-1 leading-tight line-clamp-1">

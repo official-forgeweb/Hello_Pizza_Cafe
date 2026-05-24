@@ -9,35 +9,30 @@ const prisma = new PrismaClient({ adapter });
 
 async function main() {
   const items = await prisma.menuItem.findMany({
+    where: {
+      OR: [
+        { name: { contains: 'Pizza', mode: 'insensitive' } },
+        { category: { name: { contains: 'Pizza', mode: 'insensitive' } } }
+      ]
+    },
     select: {
       id: true,
       name: true,
-      basePrice: true,
-      isAvailable: true,
-    }
+      imageUrl: true,
+      category: {
+        select: {
+          name: true
+        }
+      }
+    },
+    take: 20
   });
 
-  const nameMap = {};
+  console.log('--- Pizza Images in DB ---');
   items.forEach(item => {
-    const key = item.name.toLowerCase().trim();
-    if (!nameMap[key]) {
-      nameMap[key] = [];
-    }
-    nameMap[key].push(item);
+    console.log(`Item: "${item.name}" (Category: "${item.category?.name}")`);
+    console.log(`  Image: ${item.imageUrl}`);
   });
-
-  console.log('--- DUPLICATE ITEMS ---');
-  let duplicateCount = 0;
-  for (const name in nameMap) {
-    if (nameMap[name].length > 1) {
-      duplicateCount++;
-      console.log(`Item: "${nameMap[name][0].name}"`);
-      nameMap[name].forEach(item => {
-        console.log(`  ID: ${item.id}, Price: ${item.basePrice}, Available: ${item.isAvailable}`);
-      });
-    }
-  }
-  console.log(`Total duplicates: ${duplicateCount}`);
 }
 
 main()
