@@ -52,6 +52,11 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     setMounted(true);
+    
+    // Scroll to top on navigation/mount
+    if (typeof window !== "undefined") {
+      window.scrollTo(0, 0);
+    }
 
     // Auto-update to current location if permission is granted
     if (typeof window !== "undefined" && navigator.permissions) {
