@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
               }
             }
 
-            // Clean up customer upsert
+            // Upsert customer from POS data
             let customerId = null;
             if (record.customer_phone) {
               let customer = await prisma.customer.findFirst({
@@ -43,24 +43,52 @@ export async function POST(request: NextRequest) {
               });
 
               const totalAmount = Number(record.total_amount || 0);
+              const orderDate = new Date(record.created_at || timestamp || new Date());
 
               if (!customer) {
+                // New customer from POS — auto opt-in for WhatsApp (they gave their number in person)
+                // and tag as "pos-customer" for marketing segmentation
                 customer = await prisma.customer.create({
                   data: {
                     name: record.customer_name || "Walk-in Customer",
                     phone: record.customer_phone,
+                    email: record.customer_email || null,
+                    address: record.customer_address || null,
+                    whatsappOptIn: true,   // POS customers always opt-in
+                    group: "new",
+                    tags: ["pos-customer"],
                     totalOrders: 1,
                     totalSpent: totalAmount,
-                    lastOrderDate: new Date(record.created_at || timestamp || new Date()),
+                    lastOrderDate: orderDate,
                   }
                 });
               } else {
+                // Existing customer — update stats and ensure pos-customer tag exists
+                const newOrderCount = customer.totalOrders + 1;
+                const newGroup =
+                  newOrderCount >= 5 ? "vip" :
+                  newOrderCount >= 2 ? "regular" :
+                  customer.group;
+
+                const existingTags: string[] = customer.tags || [];
+                const updatedTags = existingTags.includes("pos-customer")
+                  ? existingTags
+                  : [...existingTags, "pos-customer"];
+
                 customer = await prisma.customer.update({
                   where: { id: customer.id },
                   data: {
+                    // Update name only if it was a default placeholder
+                    ...(customer.name === "Walk-in Customer" && record.customer_name
+                      ? { name: record.customer_name }
+                      : {}),
+                    // Ensure they are opted-in now that we have them in POS too
+                    whatsappOptIn: true,
+                    group: newGroup,
+                    tags: updatedTags,
                     totalOrders: { increment: 1 },
                     totalSpent: { increment: totalAmount },
-                    lastOrderDate: new Date(record.created_at || timestamp || new Date()),
+                    lastOrderDate: orderDate,
                   }
                 });
               }

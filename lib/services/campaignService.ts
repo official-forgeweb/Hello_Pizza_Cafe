@@ -32,6 +32,14 @@ export class CampaignService {
       targetCustomers = await prisma.customer.findMany({
         where: { whatsappOptIn: true, group: campaign.targetGroup }
       });
+    } else if (campaign.targetType === 'tag' && campaign.targetGroup) {
+      // Tag-based targeting — e.g. target all "pos-customer" contacts
+      targetCustomers = await prisma.customer.findMany({
+        where: {
+          whatsappOptIn: true,
+          tags: { has: campaign.targetGroup }
+        }
+      });
     } else if (campaign.targetType === 'custom' && campaign.targetCustomers.length > 0) {
       targetCustomers = await prisma.customer.findMany({
         where: { 

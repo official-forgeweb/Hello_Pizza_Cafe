@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, Phone, Mail, MapPin, UserCheck, ShoppingBag,
   DollarSign, RefreshCw, Calendar, Users, Filter, Upload,
-  X, Check, AlertCircle, MessageSquare
+  X, Check, AlertCircle, MessageSquare, Trash2, AlertTriangle
 } from "lucide-react";
 
 interface Customer {
@@ -41,6 +41,10 @@ export default function CustomersPage() {
   const [importResult, setImportResult] = useState<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Delete state
+  const [deletingCustomer, setDeletingCustomer] = useState<Customer | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const handleToggleOptIn = async (customerId: string, currentStatus: boolean) => {
     try {
       const res = await fetch(`/api/admin/customers/${customerId}`, {
@@ -56,6 +60,26 @@ export default function CustomersPage() {
     } catch (error) {
       console.error("Failed to toggle opt-in status:", error);
     }
+  };
+
+  const handleDeleteCustomer = async () => {
+    if (!deletingCustomer) return;
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/admin/customers/${deletingCustomer.id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setCustomers(prev => prev.filter(c => c.id !== deletingCustomer.id));
+        setDeletingCustomer(null);
+      } else {
+        const data = await res.json();
+        console.error("Delete failed:", data.error);
+      }
+    } catch (error) {
+      console.error("Failed to delete customer:", error);
+    }
+    setIsDeleting(false);
   };
 
   const fetchCustomers = useCallback(async (showRefresh = false) => {
@@ -307,7 +331,7 @@ export default function CustomersPage() {
                     )}
                   </button>
 
-                  {/* Customer Name & Avatar */}
+                   {/* Customer Name & Avatar */}
                   <div className="flex items-start gap-3 mb-4 mt-2">
                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-[#cc1530] flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
                       {customer.name.charAt(0).toUpperCase()}
@@ -324,6 +348,14 @@ export default function CustomersPage() {
                         <p className="text-xs text-warm-500">Last Order: {formatDate(customer.lastOrderDate)}</p>
                       </div>
                     </div>
+                    {/* Delete button */}
+                    <button
+                      onClick={() => setDeletingCustomer(customer)}
+                      title="Delete customer"
+                      className="p-1.5 rounded-lg text-warm-300 hover:text-red-500 hover:bg-red-50 transition-colors cursor-pointer flex-shrink-0"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
 
                   {/* Contact Info */}
@@ -455,6 +487,73 @@ export default function CustomersPage() {
                   </>
                 )}
               </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {deletingCustomer && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+              onClick={() => !isDeleting && setDeletingCustomer(null)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-3xl p-6 md:p-8 w-full max-w-sm relative z-10 shadow-2xl"
+            >
+              <div className="w-12 h-12 bg-red-100 rounded-2xl flex items-center justify-center mb-4">
+                <AlertTriangle className="w-6 h-6 text-red-600" />
+              </div>
+
+              <h2 className="text-xl font-bold text-warm-900 mb-1">Delete Customer?</h2>
+              <p className="text-sm text-warm-500 mb-4">
+                This will permanently remove the customer from your database. They will no longer receive any WhatsApp marketing messages.
+              </p>
+
+              <div className="bg-warm-50 rounded-xl p-4 mb-6 space-y-1">
+                <p className="text-sm font-bold text-warm-900">{deletingCustomer.name}</p>
+                <p className="text-xs text-warm-500 flex items-center gap-1.5">
+                  <Phone className="w-3 h-3" /> {deletingCustomer.phone}
+                </p>
+                {deletingCustomer.email && (
+                  <p className="text-xs text-warm-500 flex items-center gap-1.5">
+                    <Mail className="w-3 h-3" /> {deletingCustomer.email}
+                  </p>
+                )}
+                <p className="text-xs text-warm-400 pt-1">
+                  {deletingCustomer.totalOrders} order{deletingCustomer.totalOrders !== 1 ? "s" : ""} · ₹{Math.round(deletingCustomer.totalSpend || 0).toLocaleString()} spent
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setDeletingCustomer(null)}
+                  disabled={isDeleting}
+                  className="flex-1 py-2.5 rounded-xl font-bold text-warm-700 bg-warm-100 hover:bg-warm-200 transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteCustomer}
+                  disabled={isDeleting}
+                  className="flex-1 py-2.5 rounded-xl font-bold text-white bg-red-600 hover:bg-red-700 transition-colors cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isDeleting ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-4 h-4" />
+                  )}
+                  {isDeleting ? "Deleting..." : "Delete"}
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

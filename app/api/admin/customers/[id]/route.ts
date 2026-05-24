@@ -32,3 +32,38 @@ export async function PATCH(
     );
   }
 }
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+
+    // Run in a transaction: unlink orders first (keep order history),
+    // then delete message logs, then delete the customer record.
+    await prisma.$transaction([
+      // Unlink orders so historical order records are preserved
+      prisma.order.updateMany({
+        where: { customerId: id },
+        data: { customerId: null },
+      }),
+      // Delete message logs tied to this customer
+      prisma.messageLog.deleteMany({
+        where: { customerId: id },
+      }),
+      // Delete the customer
+      prisma.customer.delete({
+        where: { id },
+      }),
+    ]);
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error("Error deleting customer:", error);
+    return NextResponse.json(
+      { error: error.message || "Failed to delete customer" },
+      { status: 500 }
+    );
+  }
+}

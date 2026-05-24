@@ -364,7 +364,7 @@ function CampaignWizard({ onClose, onComplete }: { onClose: () => void, onComple
           name,
           templateName,
           targetType,
-          targetGroup: targetType === 'group' ? targetGroup : undefined,
+          targetGroup: (targetType === 'group' || targetType === 'tag') ? targetGroup : undefined,
           headerImage: requiresImageHeader ? headerImage : undefined,
           bodyParameters
         })
@@ -525,6 +525,16 @@ function CampaignWizard({ onClose, onComplete }: { onClose: () => void, onComple
                   {targetType === 'group' && <CheckCircle2 className="w-4 h-4 text-primary" />}
                 </div>
                 <p className="text-xs text-warm-500">Target a specific customer segment</p>
+              </div>
+              <div 
+                onClick={() => { setTargetType('tag'); setTargetGroup('pos-customer'); }}
+                className={`p-4 rounded-xl border-2 cursor-pointer transition-colors ${targetType === 'tag' && targetGroup === 'pos-customer' ? 'border-primary bg-primary/5' : 'border-warm-200 bg-white hover:border-warm-300'}`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <p className="font-bold text-warm-900 text-sm">🖥️ POS Customers</p>
+                  {targetType === 'tag' && targetGroup === 'pos-customer' && <CheckCircle2 className="w-4 h-4 text-primary" />}
+                </div>
+                <p className="text-xs text-warm-500">Offline / walk-in customers from the POS software</p>
               </div>
             </div>
           </div>
