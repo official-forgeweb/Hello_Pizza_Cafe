@@ -98,3 +98,30 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { group } = body;
+
+    const whereClause: any = {};
+    if (group && group !== "all") {
+      whereClause.group = group;
+    }
+
+    const result = await prisma.customer.updateMany({
+      where: whereClause,
+      data: {
+        whatsappOptIn: true
+      }
+    });
+
+    return NextResponse.json({ success: true, count: result.count });
+  } catch (error: any) {
+    console.error("Error bulk updating customers:", error);
+    return NextResponse.json(
+      { error: "Failed to bulk update customers: " + error.message },
+      { status: 500 }
+    );
+  }
+}

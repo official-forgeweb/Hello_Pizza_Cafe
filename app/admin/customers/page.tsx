@@ -45,6 +45,49 @@ export default function CustomersPage() {
   const [deletingCustomer, setDeletingCustomer] = useState<Customer | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Bulk Opt-In and Toast Notification state
+  const [bulkUpdating, setBulkUpdating] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
+
+  const handleBulkOptIn = async (group: string) => {
+    setBulkUpdating(group);
+    try {
+      const res = await fetch("/api/admin/customers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ group }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        fetchCustomers(true);
+        setToast({
+          message: `Successfully opted-in ${data.count} customers in "${group === 'all' ? 'All' : group}" group!`,
+          type: "success"
+        });
+      } else {
+        const data = await res.json();
+        setToast({
+          message: data.error || "Failed to bulk update customers",
+          type: "error"
+        });
+      }
+    } catch (error: any) {
+      setToast({
+        message: error.message || "An unexpected error occurred",
+        type: "error"
+      });
+    } finally {
+      setBulkUpdating(null);
+    }
+  };
+
   const handleToggleOptIn = async (customerId: string, currentStatus: boolean) => {
     try {
       const res = await fetch(`/api/admin/customers/${customerId}`, {
@@ -250,6 +293,92 @@ export default function CustomersPage() {
           <p className="text-xs text-warm-500 mt-1">Avg Orders</p>
         </motion.div>
       </div>
+
+      {/* Bulk WhatsApp Opt-In Panel */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.18 }}
+        className="bg-white p-6 rounded-2xl border border-warm-200/60 shadow-sm"
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+          <div>
+            <h2 className="text-base font-bold text-warm-900 flex items-center gap-2">
+              <MessageSquare className="w-5 h-5 text-[#25D366]" />
+              Bulk WhatsApp Opt-In
+            </h2>
+            <p className="text-xs text-warm-500 mt-1">
+              Bulk subscribe customer groups to receive updates, promotions, and receipt notifications.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {/* Button: Opt-in All */}
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            disabled={bulkUpdating !== null}
+            onClick={() => handleBulkOptIn("all")}
+            className="flex items-center justify-center gap-2 px-4 py-3 bg-[#25D366] hover:bg-[#1fa952] disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm shadow-[#25D366]/20 cursor-pointer border-0 w-full"
+          >
+            {bulkUpdating === "all" ? (
+              <RefreshCw className="w-4 h-4 animate-spin" />
+            ) : (
+              <MessageSquare className="w-4 h-4" />
+            )}
+            {bulkUpdating === "all" ? "Opting In..." : "Opt-in All"}
+          </motion.button>
+
+          {/* Button: Opt-in VIP */}
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            disabled={bulkUpdating !== null}
+            onClick={() => handleBulkOptIn("vip")}
+            className="flex items-center justify-center gap-2 px-4 py-3 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm shadow-amber-500/20 cursor-pointer border-0 w-full"
+          >
+            {bulkUpdating === "vip" ? (
+              <RefreshCw className="w-4 h-4 animate-spin" />
+            ) : (
+              <Check className="w-4 h-4" />
+            )}
+            {bulkUpdating === "vip" ? "Opting In..." : "Opt-in VIP"}
+          </motion.button>
+
+          {/* Button: Opt-in Regular */}
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            disabled={bulkUpdating !== null}
+            onClick={() => handleBulkOptIn("regular")}
+            className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm shadow-blue-500/20 cursor-pointer border-0 w-full"
+          >
+            {bulkUpdating === "regular" ? (
+              <RefreshCw className="w-4 h-4 animate-spin" />
+            ) : (
+              <Check className="w-4 h-4" />
+            )}
+            {bulkUpdating === "regular" ? "Opting In..." : "Opt-in Regular"}
+          </motion.button>
+
+          {/* Button: Opt-in New */}
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            disabled={bulkUpdating !== null}
+            onClick={() => handleBulkOptIn("new")}
+            className="flex items-center justify-center gap-2 px-4 py-3 bg-purple-500 hover:bg-purple-600 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm shadow-purple-500/20 cursor-pointer border-0 w-full"
+          >
+            {bulkUpdating === "new" ? (
+              <RefreshCw className="w-4 h-4 animate-spin" />
+            ) : (
+              <Check className="w-4 h-4" />
+            )}
+            {bulkUpdating === "new" ? "Opting In..." : "Opt-in New"}
+          </motion.button>
+        </div>
+      </motion.div>
 
       {/* Filters */}
       <div className="flex flex-col md:flex-row gap-4 items-center bg-white p-4 rounded-2xl border border-warm-200/60 shadow-sm">
@@ -556,6 +685,42 @@ export default function CustomersPage() {
               </div>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.9 }}
+            className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl border border-warm-200/80 bg-white max-w-sm"
+          >
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+              toast.type === "success" ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-500"
+            }`}>
+              {toast.type === "success" ? (
+                <Check className="w-4 h-4" />
+              ) : (
+                <AlertCircle className="w-4 h-4" />
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-warm-900 leading-tight">
+                {toast.type === "success" ? "Success" : "Error"}
+              </p>
+              <p className="text-xs text-warm-500 mt-1 leading-normal">
+                {toast.message}
+              </p>
+            </div>
+            <button
+              onClick={() => setToast(null)}
+              className="p-1 rounded-lg text-warm-400 hover:text-warm-700 hover:bg-warm-100 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
