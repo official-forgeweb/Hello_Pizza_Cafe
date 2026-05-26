@@ -47,7 +47,12 @@ export async function PUT(
     if (body.isBestSeller !== undefined) updateData.isBestSeller = body.isBestSeller;
     if (body.isAvailable !== undefined) updateData.isAvailable = body.isAvailable;
     if (body.imageUrl !== undefined) updateData.imageUrl = body.imageUrl;
-    if (body.categoryId !== undefined) updateData.categoryId = body.categoryId;
+    if (body.categoryId !== undefined) {
+      if (body.categoryId === "" || body.categoryId === null) {
+        return NextResponse.json({ error: "Category is required" }, { status: 400 });
+      }
+      updateData.categoryId = body.categoryId;
+    }
 
     const updatedItem = await prisma.menuItem.update({
       where: { id },

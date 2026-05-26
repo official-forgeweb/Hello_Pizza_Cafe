@@ -89,9 +89,9 @@ async function main() {
   let failed = 0;
 
   for (const item of menuItems) {
-    // Optional: Skip items that already have a spoonacular image to save quota!
-    if (item.imageUrl?.includes("img.spoonacular.com")) {
-      console.log(`⏭ Skipping "${item.name}" (Already has Spoonacular image)`);
+    // Skip items that already have any image (e.g. manually uploaded Cloudinary ones)
+    if (item.imageUrl) {
+      console.log(`⏭ Skipping "${item.name}" (Already has image: ${item.imageUrl})`);
       skipped++;
       continue;
     }

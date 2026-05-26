@@ -139,12 +139,49 @@ export async function POST(request: NextRequest) {
       // Small chunk size of 20 for menu items because each item performs multiple queries (variants, addons)
       await Promise.all(chunk.map(async (item) => {
         let categoryId = item.categoryId;
+        if (!categoryId) {
+          console.warn(`[MenuSync] Skipping item "${item.name}" - categoryId is empty or missing`);
+          return;
+        }
         if (categoryId && !validCatIds.has(categoryId) && !dbCatIds.has(categoryId)) {
           console.warn(`[MenuSync] Skipping item "${item.name}" - categoryId "${categoryId}" not found`);
           return;
         }
 
         const itemSlug = item.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '-' + item.id.slice(0, 8);
+
+        // Check if item exists by ID
+        const existingById = await prisma.menuItem.findUnique({
+          where: { id: item.id }
+        });
+
+        let currentImageUrl = existingById?.imageUrl || null;
+
+        // If not found by ID, look up by name (case-insensitive) to prevent duplicate names and preserve image
+        if (!existingById) {
+          const existingByName = await prisma.menuItem.findFirst({
+            where: {
+              name: {
+                equals: item.name,
+                mode: 'insensitive'
+              }
+            }
+          });
+
+          if (existingByName) {
+            console.log(`[MenuSync] Found matching item by name: "${item.name}". Merging and updating ID from "${existingByName.id}" to "${item.id}"`);
+            currentImageUrl = existingByName.imageUrl;
+
+            try {
+              // Delete the old duplicate item (safely cascading variants and addons)
+              await prisma.menuItem.delete({
+                where: { id: existingByName.id }
+              });
+            } catch (err) {
+              console.error(`[MenuSync] Failed to delete duplicate item ${existingByName.id}:`, err);
+            }
+          }
+        }
 
         await prisma.menuItem.upsert({
           where: { id: item.id },
@@ -156,6 +193,7 @@ export async function POST(request: NextRequest) {
             itemType: item.isVeg ? "VEG" : "NON_VEG",
             categoryId: categoryId || undefined,
             isAvailable: item.isAvailable !== false,
+            imageUrl: currentImageUrl || undefined,
           },
           create: {
             id: item.id,
@@ -166,6 +204,7 @@ export async function POST(request: NextRequest) {
             itemType: item.isVeg ? "VEG" : "NON_VEG",
             categoryId: categoryId,
             isAvailable: item.isAvailable !== false,
+            imageUrl: currentImageUrl || null,
           }
         });
         itemsSynced++;

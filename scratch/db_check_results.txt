@@ -1,0 +1,109 @@
+Total menu items in DB: 301
+
+--- Checking duplicates ---
+
+Total duplicate names: 0
+
+--- Checking items with images ---
+Total items with images: 101
+- Mix Veg Cheesy Delight: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089424/hello-pizza/menu/mix-veg-cheesy-delight.jpg
+- Veg Calzone: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089421/hello-pizza/menu/veg-calzone.jpg
+- Brownie With Ice Cream: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089715/hello-pizza/menu/brownie-with-ice-cream.jpg
+- Sweet Corn: https://img.spoonacular.com/recipes/640259-636x393.jpg
+- Onion: https://img.spoonacular.com/recipes/715415-636x393.jpg
+- Strawberry Mojito: https://img.spoonacular.com/recipes/1697641-636x393.jpg
+- Burger: https://img.spoonacular.com/recipes/642540-636x393.jpg
+- Spicy Mix Veg Delight: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089428/hello-pizza/menu/spicy-mix-veg-delight.jpg
+- 4 Pizzas Cheesy Small Single Topping Pizza: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089473/hello-pizza/menu/4-pizzas-cheesy-small-single-topping-pizza.jpg
+- 4 Pizzas Small Single Topping Pizza: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089475/hello-pizza/menu/4-pizzas-small-single-topping-pizza.jpg
+- Tomato Pizza: https://img.spoonacular.com/recipes/663553-636x393.jpg
+- Sweet Corn Double Cheese: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089426/hello-pizza/menu/sweet-corn-double-cheese.jpg
+- Mix Veg Pizza(No Onion): https://img.spoonacular.com/recipes/652100-636x393.jpg
+- Pan White Sauce Pasta: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089600/hello-pizza/menu/pan-white-sauce-pasta.jpg
+- Combo 350(mix Veg+paneer+ 2 Masala Coke): https://res.cloudinary.com/dsk80td7v/image/upload/v1777089478/hello-pizza/menu/combo-350-mix-veg-paneer-2-masala-coke.jpg
+- Veggie Crunchy Burger: https://img.spoonacular.com/recipes/649940-636x393.jpg
+- Chilly Paneer Fried Rice Combo: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089677/hello-pizza/menu/chilly-paneer-fried-rice-combo.jpg
+- Mineral Water: https://img.spoonacular.com/recipes/659465-636x393.jpg
+- Fresh Lime Soda: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089556/hello-pizza/menu/fresh-lime-soda.jpg
+- Masala Banta: https://img.spoonacular.com/recipes/651180-636x393.jpg
+- Virgin Mojito: https://img.spoonacular.com/recipes/1697641-636x393.jpg
+- Hot Coffee: https://img.spoonacular.com/recipes/647433-636x393.jpg
+- Burger Korean Aloo Tikki: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089527/hello-pizza/menu/burger-korean-aloo-tikki.jpg
+- Coke Glass (No Ice): https://res.cloudinary.com/dsk80td7v/image/upload/v1777089562/hello-pizza/menu/coke-glass-no-ice.jpg
+- Green Tea (No Milk): https://img.spoonacular.com/recipes/645530-636x393.jpg
+- Hot Chocolate: https://img.spoonacular.com/recipes/700026-636x393.png
+- Coke Can Big: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089557/hello-pizza/menu/coke-can-big.jpg
+- Coke With Ice: https://img.spoonacular.com/recipes/637744-636x393.jpg
+- Oven White Sauce Pasta: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089597/hello-pizza/menu/oven-white-sauce-pasta.jpg
+- Regular Grilled Sandwich: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089608/hello-pizza/menu/regular-grilled-sandwich.jpg
+- Veg Manchow Soup: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089576/hello-pizza/menu/veg-manchow-soup.jpg
+- Chocolate Sandwich: https://img.spoonacular.com/recipes/647928-636x393.jpg
+- Cheese Pizza Fingers(8 Pcs): https://img.spoonacular.com/recipes/644953-636x393.jpg
+- Veggie Pockets(8 Pcs): https://img.spoonacular.com/recipes/640832-636x393.jpg
+- Mango Shake: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089585/hello-pizza/menu/mango-shake.jpg
+- Kadhai Paneer Garlic Bread: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089481/hello-pizza/menu/kadhai-paneer-garlic-bread.jpg
+- Paneer Corn Sandwich: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089620/hello-pizza/menu/paneer-corn-sandwich.jpg
+- Kadhai Paneer Rice Meal: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089633/hello-pizza/menu/kadhai-paneer-rice-meal.jpg
+- Paneer Makhani Rice Meal: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089632/hello-pizza/menu/paneer-makhani-rice-meal.jpg
+- Tandoori Paneer Rice Meal: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089634/hello-pizza/menu/tandoori-paneer-rice-meal.jpg
+- Potato Wrap: https://img.spoonacular.com/recipes/664017-636x393.jpg
+- Vegetables Wrap: https://img.spoonacular.com/recipes/1096010-636x393.jpg
+- Apple Pie: https://img.spoonacular.com/recipes/632575-636x393.jpg
+- Vanilla Pie: https://img.spoonacular.com/recipes/665310-636x393.jpg
+- Doodles Noodles: https://img.spoonacular.com/recipes/653251-636x393.jpg
+- Maggi Masala Pasta: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089604/hello-pizza/menu/maggi-masala-pasta.jpg
+- Strawberry Sundae: https://img.spoonacular.com/recipes/634191-636x393.jpg
+- Pineapple Sundae: https://img.spoonacular.com/recipes/653178-636x393.jpg
+- Regular French Fries: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089678/hello-pizza/menu/regular-french-fries.jpg
+- Peri Peri Fries: https://img.spoonacular.com/recipes/716296-636x393.jpg
+- Peri Peri Cheesy Fries: https://img.spoonacular.com/recipes/665378-636x393.jpg
+- Potato Wedges: https://img.spoonacular.com/recipes/1099404-636x393.jpg
+- Malai Paneer Tikka: https://i.ytimg.com/vi/Oy3YX7OTVqI/maxresdefault.jpg
+- Extra Curd: https://img.spoonacular.com/recipes/715629-636x393.jpg
+- Gulab Jamun With Ice Cream: https://img.spoonacular.com/recipes/632080-636x393.jpg
+- Veg Cheese Grilled Sandwich: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089616/hello-pizza/menu/veg-cheese-grilled-sandwich.jpg
+- Veggie Delite Salad: https://img.spoonacular.com/recipes/632269-636x393.jpg
+- Mix Sauce Pasta: https://img.spoonacular.com/recipes/652130-636x393.jpg
+- Smokey Peri Peri: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089530/hello-pizza/menu/smokey-peri-peri.jpg
+- Potato Kiev(8 Pcs): https://res.cloudinary.com/dsk80td7v/image/upload/v1777089615/hello-pizza/menu/potato-kiev-8-pcs.jpg
+- African Piri Piri Sandwich: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089618/hello-pizza/menu/african-piri-piri-sandwich.jpg
+- Green Apple Mojito: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089536/hello-pizza/menu/green-apple-mojito.jpg
+- Chilli Garlic Paneer Rice Meal: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089630/hello-pizza/menu/chilli-garlic-paneer-rice-meal.jpg
+- Brownie Sundae: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089709/hello-pizza/menu/brownie-sundae.jpg
+- Paneer Makhani Sandwich: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089619/hello-pizza/menu/paneer-makhani-sandwich.jpg
+- Cheesy French Fries: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089679/hello-pizza/menu/cheesy-french-fries.jpg
+- Korean Spicy French Fries: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089688/hello-pizza/menu/korean-spicy-french-fries.jpg
+- Manchurian Chowmein Combo: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089673/hello-pizza/menu/manchurian-chowmein-combo.jpg
+- Paneer Tikka Masala Rice Meal: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089635/hello-pizza/menu/paneer-tikka-masala-rice-meal.jpg
+- Wrap Spinach Corn: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089611/hello-pizza/menu/wrap-spinach-corn.jpg
+- Chilly Garlic Potato Shots: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089614/hello-pizza/menu/chilly-garlic-potato-shots.jpg
+- Chilly Paneer Chowmein Combo: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089676/hello-pizza/menu/chilly-paneer-chowmein-combo.jpg
+- Hot Chocolate Fudge: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089708/hello-pizza/menu/hot-chocolate-fudge.jpg
+- Mango Sundae: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089711/hello-pizza/menu/mango-sundae.jpg
+- Fruit Cocktail With Ice Cream: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089710/hello-pizza/menu/fruit-cocktail-with-ice-cream.jpg
+- Small Vanilla Ice Cream: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089712/hello-pizza/menu/small-vanilla-ice-cream.jpg
+- Paneer Tikka Masala Pasta: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089602/hello-pizza/menu/paneer-tikka-masala-pasta.jpg
+- Red Sauce Pasta: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089599/hello-pizza/menu/red-sauce-pasta.jpg
+- Mushroom Pasta: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089605/hello-pizza/menu/mushroom-pasta.jpg
+- Manchurian Fried Rice Combo: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089675/hello-pizza/menu/manchurian-fried-rice-combo.jpg
+- Chocolate Lava Cake: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089713/hello-pizza/menu/chocolate-lava-cake.jpg
+- Masala Maggi: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089606/hello-pizza/menu/masala-maggi.jpg
+- Kitkat Shake: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089594/hello-pizza/menu/kitkat-shake.jpg
+- Extra Pav: https://img.spoonacular.com/recipes/655031-636x393.jpg
+- Gulab Jamun (2 Pcs): https://res.cloudinary.com/dsk80td7v/image/upload/v1777089716/hello-pizza/menu/gulab-jamun-2-pcs.jpg
+- Shahi Kesari Phirni: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089718/hello-pizza/menu/shahi-kesari-phirni.jpg
+- Chocolate Brownie: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089714/hello-pizza/menu/chocolate-brownie.jpg
+- Vanilla Shake: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089598/hello-pizza/menu/vanilla-shake.jpg
+- Chocolate Brownie Shake: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089593/hello-pizza/menu/chocolate-brownie-shake.jpg
+- Spicy Paneer Tikki Wrap: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089629/hello-pizza/menu/spicy-paneer-tikki-wrap.jpg
+- Paneer Wrap: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089625/hello-pizza/menu/paneer-wrap.jpg
+- Chatpata chap tikka: https://media-assets.swiggy.com/swiggy/image/upload/fl_lossy,f_auto,q_auto,w_400/a9eefa81fbe1553c5d8ccc68acd49418
+- Paneer tikka: https://www.jcookingodyssey.com/wp-content/uploads/2025/07/tandoori-paneer-tikka.jpg
+- Lemon Chap Tikka: https://storage.googleapis.com/shy-pub/273385/1673566572833_SKU-1256_0.jpeg
+- Pudina Chap Tikka: https://media-cdn.tripadvisor.com/media/photo-s/0f/a8/f5/ef/tandoori-soya-chaap.jpg
+- Afghani Malai Chap: https://c.ndtvimg.com/2021-11/6q5hauo_malai-chaap_625x300_24_November_21.jpg
+- Rumali Roti: https://recipes.timesofindia.com/thumb/64290244.cms?width=1200&height=900
+- Kali Mirch Chap Tikka: https://thewoods.net.in/wp-content/uploads/2021/02/afganimctikka.jpg
+- Mushroom Tikka: https://media-cdn.tripadvisor.com/media/photo-s/19/22/0a/04/tandoor-mushroom-tikka.jpg
+- Tandoori Malai Chap: https://i.pinimg.com/736x/50/c3/e7/50c3e7fd1f011d5c0d59b583ece86f32.jpg
+- Iced Coffee: https://res.cloudinary.com/dsk80td7v/image/upload/v1777089596/hello-pizza/menu/iced-coffee.jpg

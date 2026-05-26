@@ -93,6 +93,10 @@ export async function POST(request: NextRequest) {
   try {
     const data = await request.json();
     
+    if (!data.categoryId || data.categoryId === "") {
+      return NextResponse.json({ error: "Category is required" }, { status: 400 });
+    }
+    
     // Generate a unique slug
     const slug = data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Math.floor(Math.random() * 1000);
 

@@ -160,6 +160,12 @@ export default function MenuManagementPage() {
 
   const handleSave = async () => {
     if (!editItem) return;
+
+    if (!editItem.categoryId || editItem.categoryId === "") {
+      addToast("Please select a category", "error");
+      return;
+    }
+
     setSaving(true);
 
     try {
@@ -193,35 +199,16 @@ export default function MenuManagementPage() {
             })));
           }
         }
+        setEditItem(null); // Only close modal on success
       } else {
-        // Fallback local update
-        if (editItem.isNew) {
-          const newItem: MenuItem = {
-            id: String(Date.now()),
-            name: editItem.name || "New Item",
-            description: editItem.description || null,
-            price: editItem.price || 0,
-            isVeg: editItem.isVeg ?? true,
-            isAvailable: true,
-            isBestSeller: false,
-            imageUrl: editItem.imageUrl || null,
-            categoryId: editItem.categoryId || null,
-            category: null,
-          };
-          setItems((prev) => [...prev, newItem]);
-        } else {
-          setItems((prev) =>
-            prev.map((i) => (i.id === editItem.id ? { ...i, ...(editItem as MenuItem) } : i))
-          );
-        }
-        addToast(editItem.isNew ? "Item added (local)" : "Item updated (local)", "info");
+        const err = await res.json().catch(() => ({}));
+        addToast(err.error || "Failed to save menu item", "error");
       }
     } catch {
-      addToast("Failed to save", "error");
+      addToast("Failed to save menu item", "error");
+    } finally {
+      setSaving(false);
     }
-
-    setSaving(false);
-    setEditItem(null);
   };
 
   return (
