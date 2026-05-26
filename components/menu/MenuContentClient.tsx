@@ -17,6 +17,7 @@ export default function MenuContentClient({ initialCategories, initialMenuItems 
   const searchParams = useSearchParams();
   const urlQuery = searchParams.get("q") || "";
   const focusParam = searchParams.get("focus") === "true";
+  const itemParam = searchParams.get("item") || "";
   const inputRef = useRef<HTMLInputElement>(null);
   
   const [activeCategory, setActiveCategory] = useState("all");
@@ -43,6 +44,55 @@ export default function MenuContentClient({ initialCategories, initialMenuItems 
       return () => clearTimeout(timer);
     }
   }, [focusParam]);
+
+  // Handle scrolling to and highlighting a specific item passed via URL query parameter
+  useEffect(() => {
+    if (itemParam && initialMenuItems.length > 0) {
+      const normalizedParam = itemParam.toLowerCase().trim();
+      const targetItem = initialMenuItems.find(
+        (item) => item.name.toLowerCase().trim() === normalizedParam || 
+                  item.name.toLowerCase().trim().includes(normalizedParam)
+      );
+
+      if (targetItem) {
+        const timer = setTimeout(() => {
+          const element = document.getElementById(`item-${targetItem.id}`);
+          if (element) {
+            const headerOffset = 64 + 52 + 24; // header + tabs + gap
+            const elementPosition = element.getBoundingClientRect().top;
+            const offsetPosition = elementPosition + window.scrollY - headerOffset;
+
+            window.scrollTo({
+              top: offsetPosition,
+              behavior: "smooth"
+            });
+
+            // Highlight animation classes
+            element.classList.add(
+              "ring-4",
+              "ring-primary/80",
+              "ring-offset-4",
+              "scale-[1.03]",
+              "shadow-2xl",
+              "z-10"
+            );
+            
+            setTimeout(() => {
+              element.classList.remove(
+                "ring-4",
+                "ring-primary/80",
+                "ring-offset-4",
+                "scale-[1.03]",
+                "shadow-2xl",
+                "z-10"
+              );
+            }, 3000);
+          }
+        }, 600);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [itemParam, initialMenuItems]);
 
   // ─── Filter items ───
   const filteredItems = initialMenuItems.filter((item) => {
@@ -251,7 +301,8 @@ export default function MenuContentClient({ initialCategories, initialMenuItems 
                   {items.map((item: any, index: number) => (
                     <div
                       key={`${category.id}-${item.id}-${index}`}
-                      className="w-full h-full"
+                      id={`item-${item.id}`}
+                      className="w-full h-full transition-all duration-700 ease-out"
                     >
                       <MenuItemCard item={item} onCustomize={(item) => setItemToCustomize(item)} />
                     </div>

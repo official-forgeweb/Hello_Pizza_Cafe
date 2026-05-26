@@ -514,19 +514,25 @@ export default function HomePage() {
                     ));
                   }
                   const galleryItems = adsData.length > 0
-                    ? adsData.map((ad: any) => ({
-                        id: ad.id,
-                        image: ad.image || ad.imageUrl,
-                        title: ad.title,
-                        tag: ad.tag,
-                        linkUrl: ad.linkUrl || "/offers",
-                      }))
+                    ? adsData.map((ad: any) => {
+                        let targetLink = ad.linkUrl;
+                        if (!targetLink || targetLink === "/offers") {
+                          targetLink = `/menu?item=${encodeURIComponent(ad.title)}`;
+                        }
+                        return {
+                          id: ad.id,
+                          image: ad.image || ad.imageUrl,
+                          title: ad.title,
+                          tag: ad.tag,
+                          linkUrl: targetLink,
+                        };
+                      })
                     : bestSellers.filter((b: any) => b.imageUrl).map((b: any) => ({
                         id: b.id,
                         image: b.imageUrl,
                         title: b.name,
                         tag: b.isBestSeller ? "BESTSELLER" : "POPULAR",
-                        linkUrl: null,
+                        linkUrl: `/menu?item=${encodeURIComponent(b.name)}`,
                       }));
                   // Triple the items for infinite scroll feel
                   const tripled = [...galleryItems, ...galleryItems, ...galleryItems];
@@ -557,7 +563,7 @@ export default function HomePage() {
                         <h3 className="text-white text-3xl font-bold leading-tight mb-4">
                           {item.title}
                         </h3>
-                        <Link href={item.linkUrl || `/menu?q=${encodeURIComponent(item.title)}`}>
+                        <Link href={item.linkUrl || `/menu?item=${encodeURIComponent(item.title)}`}>
                           <div className="flex items-center justify-center gap-2 bg-white text-warm-900 px-5 py-3 rounded-xl text-sm font-bold w-max group-hover:bg-primary group-hover:text-white transition-colors shadow-lg cursor-pointer">
                             Explore Now <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                           </div>

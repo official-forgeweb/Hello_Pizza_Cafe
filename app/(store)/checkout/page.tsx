@@ -53,11 +53,6 @@ export default function CheckoutPage() {
   useEffect(() => {
     setMounted(true);
     
-    // Scroll to top on navigation/mount
-    if (typeof window !== "undefined") {
-      window.scrollTo(0, 0);
-    }
-
     // Auto-update to current location if permission is granted
     if (typeof window !== "undefined" && navigator.permissions) {
       navigator.permissions.query({ name: "geolocation" }).then((result) => {
@@ -67,6 +62,31 @@ export default function CheckoutPage() {
       }).catch(() => {});
     }
   }, []);
+
+  // Force scroll to top on mobile/all-devices once mounted and rendered
+  useEffect(() => {
+    if (mounted) {
+      const scrollToTop = () => {
+        try {
+          window.scrollTo({ top: 0, left: 0, behavior: "instant" as any });
+        } catch (e) {
+          window.scrollTo(0, 0);
+        }
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+      };
+      
+      scrollToTop();
+      // Ensure it fires even after layout calculations/framer-motion transitions complete
+      const timeoutId = setTimeout(scrollToTop, 10);
+      const frameId = requestAnimationFrame(scrollToTop);
+      
+      return () => {
+        clearTimeout(timeoutId);
+        cancelAnimationFrame(frameId);
+      };
+    }
+  }, [mounted]);
 
   // Fetch delivery fee dynamically
   const count = getCartCount();
