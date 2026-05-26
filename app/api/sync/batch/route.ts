@@ -9,6 +9,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Invalid payload format. Expected array." }, { status: 400 });
     }
 
+    // Fetch all valid MenuItem IDs to validate referential integrity
+    const allMenuItems = await prisma.menuItem.findMany({
+      select: { id: true }
+    });
+    const validMenuItemIds = new Set(allMenuItems.map(m => m.id));
+
     const results = [];
 
     for (const item of batch) {
@@ -25,25 +31,38 @@ export async function POST(request: NextRequest) {
             // Handle linking and merging of website orders to avoid duplicates
             let waConfirmationSent = false;
             if (record.website_order_id) {
-              const existingWebOrder = await prisma.order.findUnique({
+              let websiteOrderIdToUse = record.website_order_id;
+              let existingWebOrder = await prisma.order.findUnique({
                 where: { id: record.website_order_id }
               });
+
+              // Fallback: If not found by ID, match by orderNumber to recover from ID mismatch/dev database resets
+              if (!existingWebOrder && orderNumber) {
+                existingWebOrder = await prisma.order.findUnique({
+                  where: { orderNumber: orderNumber }
+                });
+                if (existingWebOrder) {
+                  websiteOrderIdToUse = existingWebOrder.id;
+                  console.log(`[Sync Batch] Website order not found by ID but matched by orderNumber ${orderNumber}. Using ID ${websiteOrderIdToUse}`);
+                }
+              }
+
               if (existingWebOrder) {
                 waConfirmationSent = existingWebOrder.waConfirmationSent;
-                console.log(`[Sync Batch] Found website order ${record.website_order_id}, waConfirmationSent=${waConfirmationSent}. Disconnecting message logs and deleting to replace with POS order.`);
+                console.log(`[Sync Batch] Found website order ${websiteOrderIdToUse}, waConfirmationSent=${waConfirmationSent}. Disconnecting message logs and deleting to replace with POS order.`);
                 
                 // Disconnect message logs to avoid foreign key violations on deletion
                 await prisma.messageLog.updateMany({
-                  where: { orderId: record.website_order_id },
+                  where: { orderId: websiteOrderIdToUse },
                   data: { orderId: null }
                 });
 
                 // Delete the pending website order to replace it with the POS order
                 await prisma.order.delete({
-                  where: { id: record.website_order_id }
+                  where: { id: websiteOrderIdToUse }
                 });
               } else {
-                console.log(`[Sync Batch] Website order ${record.website_order_id} not found in DB (may have been already replaced).`);
+                console.log(`[Sync Batch] Website order ${record.website_order_id} not found in DB by ID or orderNumber.`);
               }
             }
 
@@ -118,9 +137,18 @@ export async function POST(request: NextRequest) {
             else if (record.status === "cancelled") status = "CANCELLED";
 
             // Check if order already exists in website db (deduplicate)
-            const exists = await prisma.order.findUnique({
+            let exists = await prisma.order.findUnique({
               where: { id: orderId }
             });
+
+            // Fallback: check by orderNumber to prevent unique constraint failures
+            if (!exists && orderNumber) {
+              exists = await prisma.order.findUnique({
+                where: { orderNumber: orderNumber }
+              });
+            }
+
+            const targetOrderId = exists ? exists.id : orderId;
 
             if (!exists) {
               // Create new synced order
@@ -169,8 +197,11 @@ export async function POST(request: NextRequest) {
                       const addonsPrice = addonsList.reduce((sum: number, add: any) => sum + Number(add.price || 0), 0);
                       const itemTotal = (basePrice + addonsPrice) * (item.quantity || 1);
 
+                      const itemId = item.menu_item_id;
+                      const menuItemIdToUse = (itemId && validMenuItemIds.has(itemId)) ? itemId : null;
+
                       return {
-                        menuItemId: item.menu_item_id || null,
+                        menuItemId: menuItemIdToUse,
                         itemName: item.name || "Unknown Item",
                         variantName,
                         basePrice,
@@ -209,7 +240,7 @@ export async function POST(request: NextRequest) {
             } else {
               // Order already exists — update status
               const updatedOrder = await prisma.order.update({
-                where: { id: orderId },
+                where: { id: targetOrderId },
                 data: {
                   status: status as any,
                   updatedAt: new Date(),
@@ -220,11 +251,11 @@ export async function POST(request: NextRequest) {
               // This handles the case where a previous sync created the order
               // but the WhatsApp notification failed or was skipped
               if (!updatedOrder.waConfirmationSent && record.customer_phone && record.wa_notify === true) {
-                console.log(`[Sync Batch] Triggering WhatsApp for EXISTING order ${orderId}, phone: ${record.customer_phone}`);
+                console.log(`[Sync Batch] Triggering WhatsApp for EXISTING order ${targetOrderId}, phone: ${record.customer_phone}`);
                 try {
                   const { OrderNotificationService } = await import("@/lib/services/orderNotificationService");
-                  const waResult = await OrderNotificationService.sendPOSReceipt(orderId);
-                  console.log(`[Sync Batch] WhatsApp result for existing ${orderId}:`, JSON.stringify(waResult));
+                  const waResult = await OrderNotificationService.sendPOSReceipt(targetOrderId);
+                  console.log(`[Sync Batch] WhatsApp result for existing ${targetOrderId}:`, JSON.stringify(waResult));
                 } catch (err) {
                   console.error("[Sync Batch] WhatsApp POS receipt for existing order failed:", err);
                 }
