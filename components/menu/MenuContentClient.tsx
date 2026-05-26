@@ -12,6 +12,34 @@ interface MenuContentClientProps {
   initialCategories: any[];
   initialMenuItems: any[];
 }
+function findBestMatch(query: string, items: any[], isItemParam: boolean) {
+  if (!query) return null;
+  const normalized = query.toLowerCase().trim();
+  
+  // 1. Try exact match
+  let match = items.find(item => item.name.toLowerCase().trim() === normalized);
+  if (match) return match;
+  
+  // 2. If it's a specific item parameter (or close match), allow partials
+  if (isItemParam) {
+    match = items.find(item => normalized.includes(item.name.toLowerCase().trim()));
+    if (match) return match;
+
+    match = items.find(item => item.name.toLowerCase().trim().includes(normalized));
+    if (match) return match;
+  } else {
+    // For q=..., only allow if length difference is small (<= 6 chars)
+    match = items.find(item => {
+      const nameLower = item.name.toLowerCase().trim();
+      const isClose = normalized.includes(nameLower) || nameLower.includes(normalized);
+      const lenDiff = Math.abs(normalized.length - nameLower.length);
+      return isClose && lenDiff <= 6;
+    });
+    if (match) return match;
+  }
+
+  return null;
+}
 
 export default function MenuContentClient({ initialCategories, initialMenuItems }: MenuContentClientProps) {
   const searchParams = useSearchParams();
@@ -22,16 +50,21 @@ export default function MenuContentClient({ initialCategories, initialMenuItems 
 
   // Synchronously compute initial search and highlight state to avoid layout flashes
   let initialSearch = urlQuery;
-  let initialHighlight = itemParam;
+  let initialHighlight = "";
 
-  if (urlQuery && initialMenuItems.length > 0) {
-    const normalizedQuery = urlQuery.toLowerCase().trim();
-    const exactMatch = initialMenuItems.find(
-      (item) => item.name.toLowerCase().trim() === normalizedQuery
-    );
-    if (exactMatch) {
-      initialSearch = "";
-      initialHighlight = exactMatch.name;
+  if (initialMenuItems.length > 0) {
+    if (itemParam) {
+      const matched = findBestMatch(itemParam, initialMenuItems, true);
+      if (matched) {
+        initialSearch = "";
+        initialHighlight = matched.name;
+      }
+    } else if (urlQuery) {
+      const matched = findBestMatch(urlQuery, initialMenuItems, false);
+      if (matched) {
+        initialSearch = "";
+        initialHighlight = matched.name;
+      }
     }
   }
   
@@ -46,16 +79,21 @@ export default function MenuContentClient({ initialCategories, initialMenuItems 
   // Sync searchQuery with URL parameters, clearing filter if matching a specific item name
   useEffect(() => {
     let finalSearch = urlQuery;
-    let finalHighlight = itemParam;
+    let finalHighlight = "";
 
-    if (urlQuery && initialMenuItems.length > 0) {
-      const normalizedQuery = urlQuery.toLowerCase().trim();
-      const exactMatch = initialMenuItems.find(
-        (item) => item.name.toLowerCase().trim() === normalizedQuery
-      );
-      if (exactMatch) {
-        finalSearch = "";
-        finalHighlight = exactMatch.name;
+    if (initialMenuItems.length > 0) {
+      if (itemParam) {
+        const matched = findBestMatch(itemParam, initialMenuItems, true);
+        if (matched) {
+          finalSearch = "";
+          finalHighlight = matched.name;
+        }
+      } else if (urlQuery) {
+        const matched = findBestMatch(urlQuery, initialMenuItems, false);
+        if (matched) {
+          finalSearch = "";
+          finalHighlight = matched.name;
+        }
       }
     }
 
@@ -132,15 +170,42 @@ export default function MenuContentClient({ initialCategories, initialMenuItems 
     return matchesSearch;
   });
 
+  // Find the exact highlighted item
+  const highlightedItem = itemHighlight && initialMenuItems.length > 0
+    ? initialMenuItems.find(item => item.name.toLowerCase().trim() === itemHighlight.toLowerCase().trim())
+    : null;
+
   // ─── Group items by category ───
-  const groupedItems = initialCategories.filter((c) => c.id !== "all").map(
+  let groupedItems = initialCategories.filter((c) => c.id !== "all").map(
     (cat) => {
-      const items = filteredItems.filter((item) => 
+      let items = filteredItems.filter((item) => 
         item.categoryId === cat.id || item.categoryId === cat.slug
       );
+      
+      // If this category contains the highlighted item, move it to the front of this category's items list
+      if (highlightedItem && (highlightedItem.categoryId === cat.id || highlightedItem.categoryId === cat.slug)) {
+        const otherItems = items.filter(item => item.id !== highlightedItem.id);
+        const matchedInItems = items.find(item => item.id === highlightedItem.id);
+        if (matchedInItems) {
+          items = [matchedInItems, ...otherItems];
+        }
+      }
+
       return { category: cat, items, totalCount: items.length };
     }
   ).filter(g => g.items.length > 0);
+
+  // If there is a highlighted item, move its category to the very front of groupedItems
+  if (highlightedItem) {
+    const targetCatIndex = groupedItems.findIndex(g => 
+      g.category.id === highlightedItem.categoryId || g.category.slug === highlightedItem.categoryId
+    );
+    if (targetCatIndex > 0) {
+      const targetGroup = groupedItems[targetCatIndex];
+      const otherGroups = groupedItems.filter((_, idx) => idx !== targetCatIndex);
+      groupedItems = [targetGroup, ...otherGroups];
+    }
+  }
 
   const isScrollingRef = useRef(false);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
