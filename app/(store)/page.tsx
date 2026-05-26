@@ -518,6 +518,8 @@ export default function HomePage() {
                         let targetLink = ad.linkUrl;
                         if (!targetLink || targetLink === "/offers") {
                           targetLink = `/menu?item=${encodeURIComponent(ad.title)}`;
+                        } else if (targetLink.includes("?q=")) {
+                          targetLink = targetLink.replace("?q=", "?item=");
                         }
                         return {
                           id: ad.id,

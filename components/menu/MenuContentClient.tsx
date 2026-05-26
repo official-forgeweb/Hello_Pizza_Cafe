@@ -19,20 +19,49 @@ export default function MenuContentClient({ initialCategories, initialMenuItems 
   const focusParam = searchParams.get("focus") === "true";
   const itemParam = searchParams.get("item") || "";
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Synchronously compute initial search and highlight state to avoid layout flashes
+  let initialSearch = urlQuery;
+  let initialHighlight = itemParam;
+
+  if (urlQuery && initialMenuItems.length > 0) {
+    const normalizedQuery = urlQuery.toLowerCase().trim();
+    const exactMatch = initialMenuItems.find(
+      (item) => item.name.toLowerCase().trim() === normalizedQuery
+    );
+    if (exactMatch) {
+      initialSearch = "";
+      initialHighlight = exactMatch.name;
+    }
+  }
   
   const [activeCategory, setActiveCategory] = useState("all");
-  const [searchQuery, setSearchQuery] = useState(urlQuery);
+  const [searchQuery, setSearchQuery] = useState(initialSearch);
+  const [itemHighlight, setItemHighlight] = useState(initialHighlight);
   const [vegFilter, setVegFilter] = useState<"all" | "veg" | "nonveg">("all");
   const [showFilters, setShowFilters] = useState(false);
   const sectionRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const [itemToCustomize, setItemToCustomize] = useState<MenuItemData | null>(null);
 
-  // Sync searchQuery with URL q param on mount (if header search was used)
+  // Sync searchQuery with URL parameters, clearing filter if matching a specific item name
   useEffect(() => {
-    if (urlQuery) {
-      setSearchQuery(urlQuery);
+    let finalSearch = urlQuery;
+    let finalHighlight = itemParam;
+
+    if (urlQuery && initialMenuItems.length > 0) {
+      const normalizedQuery = urlQuery.toLowerCase().trim();
+      const exactMatch = initialMenuItems.find(
+        (item) => item.name.toLowerCase().trim() === normalizedQuery
+      );
+      if (exactMatch) {
+        finalSearch = "";
+        finalHighlight = exactMatch.name;
+      }
     }
-  }, [urlQuery]);
+
+    setSearchQuery(finalSearch);
+    setItemHighlight(finalHighlight);
+  }, [urlQuery, itemParam, initialMenuItems]);
 
   // Handle automatic focus from header search trigger
   useEffect(() => {
@@ -45,10 +74,10 @@ export default function MenuContentClient({ initialCategories, initialMenuItems 
     }
   }, [focusParam]);
 
-  // Handle scrolling to and highlighting a specific item passed via URL query parameter
+  // Handle scrolling to and highlighting a specific item
   useEffect(() => {
-    if (itemParam && initialMenuItems.length > 0) {
-      const normalizedParam = itemParam.toLowerCase().trim();
+    if (itemHighlight && initialMenuItems.length > 0) {
+      const normalizedParam = itemHighlight.toLowerCase().trim();
       const targetItem = initialMenuItems.find(
         (item) => item.name.toLowerCase().trim() === normalizedParam || 
                   item.name.toLowerCase().trim().includes(normalizedParam)
@@ -92,7 +121,7 @@ export default function MenuContentClient({ initialCategories, initialMenuItems 
         return () => clearTimeout(timer);
       }
     }
-  }, [itemParam, initialMenuItems]);
+  }, [itemHighlight, initialMenuItems]);
 
   // ─── Filter items ───
   const filteredItems = initialMenuItems.filter((item) => {
