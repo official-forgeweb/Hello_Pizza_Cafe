@@ -14,10 +14,10 @@ export async function GET(request: NextRequest) {
       recentMessages
     ] = await Promise.all([
       prisma.messageLog.count({
-        where: { createdAt: { gte: today }, status: 'sent' }
+        where: { createdAt: { gte: today }, status: { in: ['sent', 'delivered', 'read'] } }
       }),
       prisma.messageLog.count({
-        where: { createdAt: { gte: today }, status: 'delivered' }
+        where: { createdAt: { gte: today }, status: { in: ['delivered', 'read'] } }
       }),
       prisma.messageLog.count({
         where: { createdAt: { gte: today }, status: 'failed' }
