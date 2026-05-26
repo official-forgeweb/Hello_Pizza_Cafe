@@ -8,6 +8,11 @@ export const metadata: Metadata = {
   description:
     'Order mouth-watering pizzas, sides, and beverages from Hello Pizza. Fresh ingredients, fast delivery, and amazing flavors. Order now!',
   keywords: ['pizza', 'delivery', 'food', 'order online', 'hello pizza'],
+  icons: {
+    icon: '/favicon.png',
+    shortcut: '/favicon.png',
+    apple: '/favicon.png',
+  },
   openGraph: {
     images: [
       {
