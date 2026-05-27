@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { revalidatePath } from "next/cache";
 
 export async function GET(request: NextRequest) {
   try {
@@ -67,6 +68,15 @@ export async function GET(request: NextRequest) {
     }
     const filteredItems = Array.from(uniqueItemsMap.values());
 
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (isAdmin) {
+      headers["Cache-Control"] = "no-store, no-cache, must-revalidate, proxy-revalidate";
+    } else {
+      headers["Cache-Control"] = "public, s-maxage=10, stale-while-revalidate=60";
+    }
+
     return NextResponse.json({
       items: filteredItems,
       pagination: {
@@ -76,9 +86,7 @@ export async function GET(request: NextRequest) {
         totalPages: Math.ceil(filteredItems.length / limit),
       },
     }, {
-      headers: {
-        "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
-      },
+      headers
     });
   } catch (error) {
     console.error("Error fetching menu items:", error);
@@ -116,6 +124,10 @@ export async function POST(request: NextRequest) {
         category: true,
       }
     });
+
+    revalidatePath("/menu");
+    revalidatePath("/");
+    revalidatePath("/api/menu-items");
 
     return NextResponse.json(newItem, { status: 201 });
   } catch (error) {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { revalidatePath } from "next/cache";
 
 interface SyncCategory {
   id: string;
@@ -328,6 +329,10 @@ export async function POST(request: NextRequest) {
     const result = { categoriesSynced, itemsSynced, variantsSynced, addonsSynced, globalAddonsSynced };
 
     console.log(`[MenuSync] Synced ${result.itemsSynced} items, ${result.variantsSynced} variants, ${result.addonsSynced} addons, ${result.globalAddonsSynced} global addons`);
+
+    revalidatePath("/menu");
+    revalidatePath("/");
+    revalidatePath("/api/menu-items");
 
     return NextResponse.json({
       success: true,
