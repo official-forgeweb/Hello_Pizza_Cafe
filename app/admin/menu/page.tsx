@@ -101,8 +101,8 @@ export default function MenuManagementPage() {
     const fetchData = async () => {
       try {
         const [menuRes, catRes] = await Promise.all([
-          fetch("/api/menu-items?admin=true&limit=2000", { cache: "no-store" }),
-          fetch("/api/categories", { cache: "no-store" }),
+          fetch(`/api/menu-items?admin=true&limit=2000&t=${Date.now()}`, { cache: "no-store" }),
+          fetch(`/api/categories?t=${Date.now()}`, { cache: "no-store" }),
         ]);
         if (menuRes.ok) {
           const data = await menuRes.json();
@@ -188,7 +188,7 @@ export default function MenuManagementPage() {
       if (res.ok) {
         addToast(editItem.isNew ? "Item created!" : "Item updated!", "success");
         // Refetch
-        const menuRes = await fetch("/api/menu-items?admin=true&limit=2000", { cache: "no-store" });
+        const menuRes = await fetch(`/api/menu-items?admin=true&limit=2000&t=${Date.now()}`, { cache: "no-store" });
         if (menuRes.ok) {
           const data = await menuRes.json();
           if (data && Array.isArray(data.items)) {
@@ -280,8 +280,8 @@ export default function MenuManagementPage() {
               <div key={item.id}
                 className={`px-5 py-3.5 flex items-center gap-4 hover:bg-warm-50 transition-colors ${!item.isAvailable ? "opacity-60" : ""}`}>
                 <div className="w-14 h-14 rounded-xl overflow-hidden bg-warm-100 flex-shrink-0 relative">
-                  <SafeMenuImage src={item.imageUrl || getFallbackImage(item.name, item.category?.name || "")} fallbackSrc={getFallbackImage(item.name, item.category?.name || "")} alt={item.name} fill className="object-cover" />
-                  {!item.imageUrl && (
+                  <SafeMenuImage src={(item.imageUrl && item.imageUrl !== "null") ? item.imageUrl : getFallbackImage(item.name, item.category?.name || "")} fallbackSrc={getFallbackImage(item.name, item.category?.name || "")} alt={item.name} fill className="object-cover" />
+                  {(!item.imageUrl || item.imageUrl === "null") && (
                     <div className="absolute inset-0 bg-black/20 flex items-center justify-center text-[9px] text-white font-extrabold uppercase tracking-wider">Auto</div>
                   )}
                 </div>
@@ -323,8 +323,8 @@ export default function MenuManagementPage() {
             <motion.div key={item.id} className={`bg-white rounded-2xl border overflow-hidden ${!item.isAvailable ? "opacity-60" : "border-warm-200/60"}`}
               style={{ boxShadow: "var(--shadow-card)" }}>
               <div className="relative aspect-square bg-warm-100">
-                <SafeMenuImage src={item.imageUrl || getFallbackImage(item.name, item.category?.name || "")} fallbackSrc={getFallbackImage(item.name, item.category?.name || "")} alt={item.name} fill className="object-cover" />
-                {!item.imageUrl && (
+                <SafeMenuImage src={(item.imageUrl && item.imageUrl !== "null") ? item.imageUrl : getFallbackImage(item.name, item.category?.name || "")} fallbackSrc={getFallbackImage(item.name, item.category?.name || "")} alt={item.name} fill className="object-cover" />
+                {(!item.imageUrl || item.imageUrl === "null") && (
                   <div className="absolute inset-0 bg-black/20 flex items-center justify-center text-[10px] text-white font-extrabold uppercase tracking-wider">Auto Image</div>
                 )}
                 {item.isBestSeller && (
@@ -385,19 +385,16 @@ export default function MenuManagementPage() {
                         <h3 className="text-lg font-bold text-warm-900 border-b border-warm-100 pb-4">Image Settings</h3>
                         
                         {/* Image Preview Container */}
-                        <div className="flex items-center justify-center bg-warm-50 rounded-3xl border border-warm-200 p-4 min-h-[240px]">
-                          {/* AI Preview */}
+                        <div className="relative aspect-[4/3] w-full bg-warm-50 rounded-3xl border border-warm-200 overflow-hidden">
                           {aiImagePreview ? (
-                            <div className="relative w-full rounded-2xl overflow-hidden border border-purple-200 bg-purple-50">
-                              <div className="aspect-[4/3] relative">
-                                <img src={aiImagePreview} alt="AI Generated" className="w-full h-full object-cover" />
-                              </div>
-                              <div className="absolute top-3 left-3">
+                            <div className="absolute inset-0 w-full h-full">
+                              <img src={aiImagePreview} alt="AI Generated" className="w-full h-full object-cover absolute inset-0" />
+                              <div className="absolute top-3 left-3 z-10">
                                 <span className="bg-purple-600 text-white text-[10px] font-bold px-2 py-1 rounded-lg flex items-center gap-1">
                                   <Sparkles className="w-3 h-3" /> Stock Photo
                                 </span>
                               </div>
-                              <div className="p-4 flex gap-3">
+                              <div className="absolute bottom-3 left-3 right-3 z-10 flex gap-3">
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -405,27 +402,23 @@ export default function MenuManagementPage() {
                                     setAiImagePreview(null);
                                     addToast("AI image applied!", "success");
                                   }}
-                                  className="flex-1 py-2.5 bg-purple-600 text-white text-sm font-semibold rounded-xl hover:bg-purple-700 cursor-pointer transition-colors"
+                                  className="flex-1 py-2 bg-purple-600 text-white text-xs font-semibold rounded-xl hover:bg-purple-700 cursor-pointer transition-colors shadow-md"
                                 >
-                                  ✅ Apply
+                                  Apply
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setAiImagePreview(null)}
-                                  className="px-4 py-2.5 bg-warm-200 text-warm-700 text-sm font-medium rounded-xl hover:bg-warm-300 cursor-pointer transition-colors"
+                                  className="px-3 py-2 bg-white/90 backdrop-blur-sm text-warm-700 text-xs font-medium rounded-xl hover:bg-white cursor-pointer transition-colors shadow-md"
                                 >
                                   Discard
                                 </button>
                               </div>
                             </div>
-                          ) : editItem.imageUrl ? (
-                            <div className="relative w-full rounded-2xl overflow-hidden shadow-sm">
-                              <div className="aspect-[4/3] relative">
-                                <img src={editItem.imageUrl} alt="Preview" className="w-full h-full object-cover" />
-                              </div>
-                            </div>
+                          ) : editItem.imageUrl && editItem.imageUrl !== "null" && editItem.imageUrl !== "" ? (
+                            <img src={editItem.imageUrl} alt="Preview" className="w-full h-full object-cover absolute inset-0" />
                           ) : (
-                            <div className="text-center text-warm-400">
+                            <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-warm-400">
                               <ImageIcon className="w-12 h-12 mx-auto mb-2 opacity-50 text-warm-300" />
                               <p className="text-sm">No image selected</p>
                             </div>
@@ -490,7 +483,7 @@ export default function MenuManagementPage() {
                           
                           <div>
                             <label className="text-[10px] font-bold text-warm-400 uppercase tracking-wider mb-2 block">Or paste image URL</label>
-                            <input type="text" value={editItem.imageUrl || ""}
+                            <input type="text" value={(editItem.imageUrl && editItem.imageUrl !== "null") ? editItem.imageUrl : ""}
                               onChange={(e) => setEditItem((prev) => prev && { ...prev, imageUrl: e.target.value })}
                               placeholder="https://..."
                               className="w-full px-5 py-3.5 bg-warm-50 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all border border-warm-200" />

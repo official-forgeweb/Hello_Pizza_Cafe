@@ -67,14 +67,16 @@ export default function MenuItemCard({ item, onCustomize }: MenuItemCardProps) {
   );
 
   const [isMounted, setIsMounted] = useState(false);
-  const [imgSrc, setImgSrc] = useState(item.imageUrl || getFallbackImage(item.name, item.category?.name));
+  const initialImageUrl = item.imageUrl && item.imageUrl !== "null" ? item.imageUrl : "";
+  const [imgSrc, setImgSrc] = useState(initialImageUrl || getFallbackImage(item.name, item.category?.name));
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
   useEffect(() => {
-    setImgSrc(item.imageUrl || getFallbackImage(item.name, item.category?.name));
+    const currentImageUrl = item.imageUrl && item.imageUrl !== "null" ? item.imageUrl : "";
+    setImgSrc(currentImageUrl || getFallbackImage(item.name, item.category?.name));
   }, [item.imageUrl, item.name, item.category?.name]);
 
   const totalQty = isMounted ? totalQtyFromStore : 0;

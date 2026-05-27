@@ -153,13 +153,16 @@ export default function ItemCustomizationModal({ item, onClose }: ItemCustomizat
   // States
   const [selectedVariant, setSelectedVariant] = useState<typeof variants[0] | null>(variants.find(v => (v as any).isDefault) || variants[0] || null);
   const [selectedAddons, setSelectedAddons] = useState<(typeof addons[0] & { quantity: number })[]>([]);
+  const [imgSrc, setImgSrc] = useState("");
   
-  // Reset selection when item changes
+  // Reset selection and image source when item changes
   useEffect(() => {
     if (item) {
       const opts = getActualOptions();
       setSelectedVariant(opts.variants.find(v => (v as any).isDefault) || opts.variants[0] || null);
       setSelectedAddons([]);
+      const currentImageUrl = item.imageUrl && item.imageUrl !== "null" ? item.imageUrl : "";
+      setImgSrc(currentImageUrl || getFallbackImage(item.name, item.category?.name));
     }
   }, [item]);
 
@@ -262,12 +265,13 @@ export default function ItemCustomizationModal({ item, onClose }: ItemCustomizat
               <div className="flex gap-4 mb-4">
                 <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden bg-warm-100 flex-shrink-0">
                   <Image
-                    src={item.imageUrl || getFallbackImage(item.name, item.category?.name)}
+                    src={imgSrc || getFallbackImage(item.name, item.category?.name)}
                     alt={item.name}
                     fill
                     sizes="(max-width: 768px) 80px, 96px"
                     loading="lazy"
                     className="object-cover"
+                    onError={() => setImgSrc(getFallbackImage(item.name, item.category?.name))}
                   />
                 </div>
                 <div className="flex flex-col justify-center">
