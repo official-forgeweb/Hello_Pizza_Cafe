@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     const fileUri = `data:${file.type};base64,${base64Data}`;
 
     const result = await cloudinary.uploader.upload(fileUri, {
-      folder: "hello-pizza/ads",
+      folder: "hello-pizza/menu",
     });
 
     return NextResponse.json({ url: result.secure_url });

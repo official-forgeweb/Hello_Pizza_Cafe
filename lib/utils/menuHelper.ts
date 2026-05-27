@@ -336,15 +336,27 @@ const CATEGORY_KEYWORDS: [string[], string][] = [
 ];
 
 function detectCategory(itemName: string, categoryName: string): string {
-  const combined = (itemName + " " + categoryName).toLowerCase();
+  const nameLower = itemName.toLowerCase();
   
+  // First try to match keywords in the item name
   for (const [keywords, pool] of CATEGORY_KEYWORDS) {
     for (const kw of keywords) {
-      if (combined.includes(kw)) {
+      if (nameLower.includes(kw)) {
         return pool;
       }
     }
   }
+  
+  // If no match in item name, try matching in the category name
+  const catLower = categoryName.toLowerCase();
+  for (const [keywords, pool] of CATEGORY_KEYWORDS) {
+    for (const kw of keywords) {
+      if (catLower.includes(kw)) {
+        return pool;
+      }
+    }
+  }
+  
   return "default";
 }
 
