@@ -9,6 +9,18 @@ const getWhatsAppConfig = () => {
   };
 };
 
+function sanitizePhone(phone: string): string {
+  if (!phone) return "";
+  let cleaned = phone.trim().replace(/\D/g, "");
+  if (cleaned.startsWith("0")) {
+    cleaned = cleaned.substring(1);
+  }
+  if (cleaned.length === 10) {
+    cleaned = "91" + cleaned;
+  }
+  return cleaned;
+}
+
 export class WhatsAppService {
   /**
    * Send a WhatsApp template message
@@ -25,6 +37,8 @@ export class WhatsAppService {
       return { success: false, error: 'Credentials missing' };
     }
 
+    const cleanTo = sanitizePhone(to);
+
     const baseUrl = `https://graph.facebook.com/${config.apiVersion}/${config.phoneNumberId}`;
 
     try {
@@ -36,7 +50,7 @@ export class WhatsAppService {
         },
         body: JSON.stringify({
           messaging_product: 'whatsapp',
-          to: to,
+          to: cleanTo,
           type: 'template',
           template: {
             name: templateName,
@@ -72,6 +86,8 @@ export class WhatsAppService {
 
     const baseUrl = `https://graph.facebook.com/${config.apiVersion}/${config.phoneNumberId}`;
 
+    const cleanTo = sanitizePhone(to);
+
     try {
       const response = await fetch(`${baseUrl}/messages`, {
         method: 'POST',
@@ -81,7 +97,7 @@ export class WhatsAppService {
         },
         body: JSON.stringify({
           messaging_product: 'whatsapp',
-          to: to,
+          to: cleanTo,
           type: 'text',
           text: {
             body: text,

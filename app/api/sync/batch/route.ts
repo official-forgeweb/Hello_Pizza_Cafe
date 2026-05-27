@@ -69,17 +69,20 @@ export async function POST(request: NextRequest) {
 
             // Upsert customer from POS data (without incrementing stats yet)
             customerId = null;
-            if (record.customer_phone) {
+            const cleanPhone = record.customer_phone?.trim() || "";
+            const cleanName = record.customer_name?.trim() || "Walk-in Customer";
+            const isWaNotify = record.wa_notify === true || record.wa_notify === "true" || record.wa_notify === 1 || record.wa_notify === "1";
+            if (cleanPhone) {
               let customer = await prisma.customer.findFirst({
-                where: { phone: record.customer_phone }
+                where: { phone: cleanPhone }
               });
 
               if (!customer) {
                 // New customer from POS — auto opt-in for WhatsApp
                 customer = await prisma.customer.create({
                   data: {
-                    name: record.customer_name || "Walk-in Customer",
-                    phone: record.customer_phone,
+                    name: cleanName,
+                    phone: cleanPhone,
                     email: record.customer_email || null,
                     address: record.customer_address || null,
                     whatsappOptIn: true,   // POS customers always opt-in
@@ -101,7 +104,7 @@ export async function POST(request: NextRequest) {
                   data: {
                     // Update name only if it was a default placeholder
                     ...(customer.name === "Walk-in Customer" && record.customer_name
-                      ? { name: record.customer_name }
+                      ? { name: cleanName }
                       : {}),
                     whatsappOptIn: true,
                     tags: updatedTags,
@@ -142,8 +145,8 @@ export async function POST(request: NextRequest) {
                   id: orderId,
                   orderNumber,
                   customerId,
-                  customerName: record.customer_name || "Walk-in Customer",
-                  customerPhone: record.customer_phone || "",
+                  customerName: cleanName,
+                  customerPhone: cleanPhone,
                   customerEmail: record.customer_email || null,
                   orderType: orderType as any,
                   deliveryAddress: record.customer_address || null,
@@ -210,8 +213,8 @@ export async function POST(request: NextRequest) {
 
               // Send WhatsApp notification if conditions are met
               // This runs for both new and website-linked orders
-              if (!waConfirmationSent && record.customer_phone && record.wa_notify === true) {
-                console.log(`[Sync Batch] Triggering WhatsApp for NEW order ${createdOrder.id}, phone: ${record.customer_phone}`);
+              if (!waConfirmationSent && cleanPhone && isWaNotify) {
+                console.log(`[Sync Batch] Triggering WhatsApp for NEW order ${createdOrder.id}, phone: ${cleanPhone}`);
                 try {
                   const { OrderNotificationService } = await import("@/lib/services/orderNotificationService");
                   const waResult = await OrderNotificationService.sendPOSReceipt(createdOrder.id);
@@ -220,7 +223,7 @@ export async function POST(request: NextRequest) {
                   console.error("[Sync Batch] WhatsApp POS receipt failed:", err);
                 }
               } else {
-                console.log(`[Sync Batch] Skipping WhatsApp for new order ${createdOrder.id}: waConfirmationSent=${waConfirmationSent}, phone=${record.customer_phone}, wa_notify=${record.wa_notify}`);
+                console.log(`[Sync Batch] Skipping WhatsApp for new order ${createdOrder.id}: waConfirmationSent=${waConfirmationSent}, phone=${cleanPhone}, wa_notify=${record.wa_notify}`);
               }
             } else {
               // Order already exists — update status
@@ -235,8 +238,8 @@ export async function POST(request: NextRequest) {
               // Also trigger WhatsApp here if it was never sent
               // This handles the case where a previous sync created the order
               // but the WhatsApp notification failed or was skipped
-              if (!updatedOrder.waConfirmationSent && record.customer_phone && record.wa_notify === true) {
-                console.log(`[Sync Batch] Triggering WhatsApp for EXISTING order ${targetOrderId}, phone: ${record.customer_phone}`);
+              if (!updatedOrder.waConfirmationSent && cleanPhone && isWaNotify) {
+                console.log(`[Sync Batch] Triggering WhatsApp for EXISTING order ${targetOrderId}, phone: ${cleanPhone}`);
                 try {
                   const { OrderNotificationService } = await import("@/lib/services/orderNotificationService");
                   const waResult = await OrderNotificationService.sendPOSReceipt(targetOrderId);
