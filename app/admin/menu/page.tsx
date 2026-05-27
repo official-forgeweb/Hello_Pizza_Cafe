@@ -37,7 +37,11 @@ function SafeMenuImage({ src, fallbackSrc, alt, fill, className }: { src: string
   const [imgSrc, setImgSrc] = useState(src);
   
   useEffect(() => {
-    setImgSrc(src);
+    if (src && src.startsWith("http") && !src.includes("?")) {
+      setImgSrc(`${src}?t=${Date.now()}`);
+    } else {
+      setImgSrc(src);
+    }
   }, [src]);
 
   return (
@@ -416,7 +420,7 @@ export default function MenuManagementPage() {
                               </div>
                             </div>
                           ) : editItem.imageUrl && editItem.imageUrl !== "null" && editItem.imageUrl !== "" ? (
-                            <img src={editItem.imageUrl} alt="Preview" className="w-full h-full object-cover absolute inset-0" />
+                            <SafeMenuImage src={editItem.imageUrl} fallbackSrc={getFallbackImage(editItem.name || "", "")} alt="Preview" fill className="object-cover" />
                           ) : (
                             <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-warm-400">
                               <ImageIcon className="w-12 h-12 mx-auto mb-2 opacity-50 text-warm-300" />
