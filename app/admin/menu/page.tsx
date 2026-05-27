@@ -62,6 +62,7 @@ function SafeMenuImage({ src, fallbackSrc, alt, fill, className }: { src: string
 export default function MenuManagementPage() {
   const { addToast } = useAdminStore();
   const { showConfirm, showAlert } = useAdminAlert();
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [items, setItems] = useState<MenuItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -191,6 +192,7 @@ export default function MenuManagementPage() {
 
       if (res.ok) {
         addToast(editItem.isNew ? "Item created!" : "Item updated!", "success");
+        setRefreshTrigger((prev) => prev + 1);
         // Refetch
         const menuRes = await fetch(`/api/menu-items?admin=true&limit=2000&t=${Date.now()}`, { cache: "no-store" });
         if (menuRes.ok) {
@@ -284,7 +286,7 @@ export default function MenuManagementPage() {
               <div key={item.id}
                 className={`px-5 py-3.5 flex items-center gap-4 hover:bg-warm-50 transition-colors ${!item.isAvailable ? "opacity-60" : ""}`}>
                 <div className="w-14 h-14 rounded-xl overflow-hidden bg-warm-100 flex-shrink-0 relative">
-                  <SafeMenuImage src={(item.imageUrl && item.imageUrl !== "null") ? item.imageUrl : getFallbackImage(item.name, item.category?.name || "")} fallbackSrc={getFallbackImage(item.name, item.category?.name || "")} alt={item.name} fill className="object-cover" />
+                  <SafeMenuImage key={`${item.id}-${refreshTrigger}`} src={(item.imageUrl && item.imageUrl !== "null") ? item.imageUrl : getFallbackImage(item.name, item.category?.name || "")} fallbackSrc={getFallbackImage(item.name, item.category?.name || "")} alt={item.name} fill className="object-cover" />
                   {(!item.imageUrl || item.imageUrl === "null") && (
                     <div className="absolute inset-0 bg-black/20 flex items-center justify-center text-[9px] text-white font-extrabold uppercase tracking-wider">Auto</div>
                   )}
@@ -327,7 +329,7 @@ export default function MenuManagementPage() {
             <motion.div key={item.id} className={`bg-white rounded-2xl border overflow-hidden ${!item.isAvailable ? "opacity-60" : "border-warm-200/60"}`}
               style={{ boxShadow: "var(--shadow-card)" }}>
               <div className="relative aspect-square bg-warm-100">
-                <SafeMenuImage src={(item.imageUrl && item.imageUrl !== "null") ? item.imageUrl : getFallbackImage(item.name, item.category?.name || "")} fallbackSrc={getFallbackImage(item.name, item.category?.name || "")} alt={item.name} fill className="object-cover" />
+                <SafeMenuImage key={`${item.id}-${refreshTrigger}`} src={(item.imageUrl && item.imageUrl !== "null") ? item.imageUrl : getFallbackImage(item.name, item.category?.name || "")} fallbackSrc={getFallbackImage(item.name, item.category?.name || "")} alt={item.name} fill className="object-cover" />
                 {(!item.imageUrl || item.imageUrl === "null") && (
                   <div className="absolute inset-0 bg-black/20 flex items-center justify-center text-[10px] text-white font-extrabold uppercase tracking-wider">Auto Image</div>
                 )}

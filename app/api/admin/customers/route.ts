@@ -32,7 +32,8 @@ export async function GET(request: NextRequest) {
       whereClause.whatsappOptIn = false;
     }
 
-    const [customers, total] = await Promise.all([
+    // Fetch paginated customers + global aggregate stats in parallel
+    const [customers, total, optedInCount, revenueAgg, ordersAgg] = await Promise.all([
       prisma.customer.findMany({
         where: whereClause,
         orderBy: { createdAt: "desc" },
@@ -48,7 +49,19 @@ export async function GET(request: NextRequest) {
           },
         },
       }),
-      prisma.customer.count({ where: whereClause })
+      prisma.customer.count({ where: whereClause }),
+      // Global stats: count opted-in customers (matching current filters)
+      prisma.customer.count({ where: { ...whereClause, whatsappOptIn: true } }),
+      // Global stats: sum of totalSpent across all matching customers
+      prisma.customer.aggregate({
+        where: whereClause,
+        _sum: { totalSpent: true },
+      }),
+      // Global stats: average totalOrders across all matching customers
+      prisma.customer.aggregate({
+        where: whereClause,
+        _avg: { totalOrders: true },
+      }),
     ]);
 
     // Transform to include computed fields
@@ -57,7 +70,7 @@ export async function GET(request: NextRequest) {
         (o) => o.status !== "CANCELLED"
       );
       
-      // Use DB totalSpent if available, otherwise compute
+      // Use DB totalSpent if available, otherwise compute from orders
       const calculatedSpend = completedOrders.reduce(
         (sum, o) => sum + Number(o.totalAmount),
         0
@@ -88,6 +101,12 @@ export async function GET(request: NextRequest) {
         page,
         limit,
         totalPages: Math.ceil(total / limit)
+      },
+      stats: {
+        totalCustomers: total,
+        optedInCount,
+        totalRevenue: Number(revenueAgg._sum.totalSpent || 0),
+        avgOrders: Number((ordersAgg._avg.totalOrders || 0).toFixed(1)),
       }
     });
   } catch (error) {

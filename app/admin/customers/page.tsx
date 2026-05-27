@@ -28,6 +28,17 @@ interface Customer {
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<{
+    totalCustomers: number;
+    optedInCount: number;
+    totalRevenue: number;
+    avgOrders: number;
+  }>({
+    totalCustomers: 0,
+    optedInCount: 0,
+    totalRevenue: 0,
+    avgOrders: 0,
+  });
   const [searchQuery, setSearchQuery] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [groupFilter, setGroupFilter] = useState("all");
@@ -140,6 +151,9 @@ export default function CustomersPage() {
         if (data.customers) {
           setCustomers(data.customers);
           setTotalPages(data.pagination.totalPages);
+          if (data.stats) {
+            setStats(data.stats);
+          }
         } else {
           // Fallback if API hasn't been fully updated yet
           setCustomers(Array.isArray(data) ? data : []);
@@ -198,8 +212,6 @@ export default function CustomersPage() {
     });
   };
 
-  const totalSpendAll = customers.reduce((sum, c) => sum + (c.totalSpend || 0), 0);
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -241,7 +253,7 @@ export default function CustomersPage() {
           <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-purple-500/10 mb-3">
             <Users className="w-5 h-5 text-purple-500" />
           </div>
-          <p className="text-2xl font-bold text-warm-900">{loading ? "—" : customers.length}</p>
+          <p className="text-2xl font-bold text-warm-900">{loading ? "—" : stats.totalCustomers}</p>
           <p className="text-xs text-warm-500 mt-1">Total Customers</p>
         </motion.div>
 
@@ -255,7 +267,7 @@ export default function CustomersPage() {
             <MessageSquare className="w-5 h-5 text-[#25D366]" />
           </div>
           <p className="text-2xl font-bold text-warm-900">
-            {loading ? "—" : customers.filter(c => c.whatsappOptIn).length}
+            {loading ? "—" : stats.optedInCount}
           </p>
           <p className="text-xs text-warm-500 mt-1">WhatsApp Opt-ins</p>
         </motion.div>
@@ -270,9 +282,9 @@ export default function CustomersPage() {
             <DollarSign className="w-5 h-5 text-emerald-500" />
           </div>
           <p className="text-2xl font-bold text-warm-900">
-            {loading ? "—" : `₹${Math.round(totalSpendAll).toLocaleString()}`}
+            {loading ? "—" : `₹${Math.round(stats.totalRevenue).toLocaleString()}`}
           </p>
-          <p className="text-xs text-warm-500 mt-1">Total Revenue Page</p>
+          <p className="text-xs text-warm-500 mt-1">Total Revenue</p>
         </motion.div>
 
         <motion.div
@@ -285,10 +297,7 @@ export default function CustomersPage() {
             <ShoppingBag className="w-5 h-5 text-blue-500" />
           </div>
           <p className="text-2xl font-bold text-warm-900">
-            {loading ? "—" : customers.length > 0 
-              ? (customers.reduce((sum, c) => sum + (c.totalOrders || 0), 0) / customers.length).toFixed(1) 
-              : "0"
-            }
+            {loading ? "—" : stats.avgOrders}
           </p>
           <p className="text-xs text-warm-500 mt-1">Avg Orders</p>
         </motion.div>
