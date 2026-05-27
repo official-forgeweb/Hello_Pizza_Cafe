@@ -22,6 +22,7 @@ export async function POST(request: NextRequest) {
 
       if (table === "order") {
         try {
+          let customerId: string | null = null;
           if (operation === "INSERT" || operation === "INSERT_OR_REPLACE" || operation === "create") {
             const orderId = record.id;
             const orderNumber = String(record.order_number);
@@ -66,19 +67,15 @@ export async function POST(request: NextRequest) {
               }
             }
 
-            // Upsert customer from POS data
-            let customerId = null;
+            // Upsert customer from POS data (without incrementing stats yet)
+            customerId = null;
             if (record.customer_phone) {
               let customer = await prisma.customer.findFirst({
                 where: { phone: record.customer_phone }
               });
 
-              const totalAmount = Number(record.total_amount || 0);
-              const orderDate = new Date(record.created_at || timestamp || new Date());
-
               if (!customer) {
-                // New customer from POS — auto opt-in for WhatsApp (they gave their number in person)
-                // and tag as "pos-customer" for marketing segmentation
+                // New customer from POS — auto opt-in for WhatsApp
                 customer = await prisma.customer.create({
                   data: {
                     name: record.customer_name || "Walk-in Customer",
@@ -88,19 +85,12 @@ export async function POST(request: NextRequest) {
                     whatsappOptIn: true,   // POS customers always opt-in
                     group: "new",
                     tags: ["pos-customer"],
-                    totalOrders: 1,
-                    totalSpent: totalAmount,
-                    lastOrderDate: orderDate,
+                    totalOrders: 0,
+                    totalSpent: 0,
                   }
                 });
               } else {
-                // Existing customer — update stats and ensure pos-customer tag exists
-                const newOrderCount = customer.totalOrders + 1;
-                const newGroup =
-                  newOrderCount >= 5 ? "vip" :
-                  newOrderCount >= 2 ? "regular" :
-                  customer.group;
-
+                // Existing customer — update info and tags, statistics will be updated dynamically later
                 const existingTags: string[] = customer.tags || [];
                 const updatedTags = existingTags.includes("pos-customer")
                   ? existingTags
@@ -113,13 +103,8 @@ export async function POST(request: NextRequest) {
                     ...(customer.name === "Walk-in Customer" && record.customer_name
                       ? { name: record.customer_name }
                       : {}),
-                    // Ensure they are opted-in now that we have them in POS too
                     whatsappOptIn: true,
-                    group: newGroup,
                     tags: updatedTags,
-                    totalOrders: { increment: 1 },
-                    totalSpent: { increment: totalAmount },
-                    lastOrderDate: orderDate,
                   }
                 });
               }
@@ -274,6 +259,7 @@ export async function POST(request: NextRequest) {
             });
 
             if (exists) {
+              customerId = exists.customerId;
               const updatedOrder = await prisma.order.update({
                 where: { id: orderId },
                 data: {
@@ -302,6 +288,7 @@ export async function POST(request: NextRequest) {
               where: { id: orderId }
             });
             if (exists) {
+              customerId = exists.customerId;
               await prisma.order.delete({
                 where: { id: orderId }
               });
@@ -309,6 +296,11 @@ export async function POST(request: NextRequest) {
             results.push({ localId, status: "success" });
           } else {
             results.push({ localId, status: "success" });
+          }
+
+          if (customerId) {
+            const { CustomerService } = await import("@/lib/services/customerService");
+            await CustomerService.recalculateCustomerStats(customerId);
           }
         } catch (err: any) {
           console.error(`[Sync Batch] Error processing item ${localId}:`, err);

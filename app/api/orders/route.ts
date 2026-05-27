@@ -224,9 +224,8 @@ export async function POST(request: NextRequest) {
           phone: finalPhone,
           email: customerEmail,
           whatsappOptIn: finalWhatsappOptIn,
-          totalOrders: 1,
-          totalSpent: totalAmount,
-          lastOrderDate: new Date(),
+          totalOrders: 0,
+          totalSpent: 0,
         },
       });
     } else {
@@ -234,9 +233,6 @@ export async function POST(request: NextRequest) {
         where: { id: customer.id },
         data: {
           whatsappOptIn: finalWhatsappOptIn ? true : customer.whatsappOptIn, // Don't opt out if already opted in, only opt in
-          totalOrders: { increment: 1 },
-          totalSpent: { increment: totalAmount },
-          lastOrderDate: new Date(),
         }
       });
     }
@@ -273,6 +269,10 @@ export async function POST(request: NextRequest) {
         },
       },
     });
+
+    // Recalculate customer stats dynamically from order history
+    const { CustomerService } = await import("@/lib/services/customerService");
+    await CustomerService.recalculateCustomerStats(customer.id);
 
     // Increment totalOrders on menu items
     for (const item of items) {
