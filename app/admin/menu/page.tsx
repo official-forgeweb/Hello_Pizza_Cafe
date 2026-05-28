@@ -321,9 +321,7 @@ export default function MenuManagementPage() {
                 className={`px-5 py-3.5 flex items-center gap-4 hover:bg-warm-50 transition-colors ${!item.isAvailable ? "opacity-60" : ""}`}>
                 <div className="w-14 h-14 rounded-xl overflow-hidden bg-warm-100 flex-shrink-0 relative">
                   <SafeMenuImage key={`${item.id}-${refreshTrigger}`} src={(item.imageUrl && item.imageUrl !== "null") ? item.imageUrl : getFallbackImage(item.name, item.category?.name || "")} fallbackSrc={getFallbackImage(item.name, item.category?.name || "")} alt={item.name} fill className="object-cover" />
-                  {(!item.imageUrl || item.imageUrl === "null") && (
-                    <div className="absolute inset-0 bg-black/20 flex items-center justify-center text-[9px] text-white font-extrabold uppercase tracking-wider">Auto</div>
-                  )}
+
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
@@ -364,9 +362,7 @@ export default function MenuManagementPage() {
               style={{ boxShadow: "var(--shadow-card)" }}>
               <div className="relative aspect-square bg-warm-100">
                 <SafeMenuImage key={`${item.id}-${refreshTrigger}`} src={(item.imageUrl && item.imageUrl !== "null") ? item.imageUrl : getFallbackImage(item.name, item.category?.name || "")} fallbackSrc={getFallbackImage(item.name, item.category?.name || "")} alt={item.name} fill className="object-cover" />
-                {(!item.imageUrl || item.imageUrl === "null") && (
-                  <div className="absolute inset-0 bg-black/20 flex items-center justify-center text-[10px] text-white font-extrabold uppercase tracking-wider">Auto Image</div>
-                )}
+
                 {item.isBestSeller && (
                   <div className="absolute top-2 left-2">
                     <span className="bg-accent-orange text-white text-[9px] font-bold px-2 py-0.5 rounded-lg">★ BEST</span>
