@@ -213,7 +213,7 @@ export async function POST(request: NextRequest) {
 
               // Send WhatsApp notification if conditions are met
               // This runs for both new and website-linked orders
-              if (!waConfirmationSent && cleanPhone && isWaNotify) {
+              if (!waConfirmationSent && cleanPhone && cleanPhone !== "0000000000") {
                 console.log(`[Sync Batch] Triggering WhatsApp for NEW order ${createdOrder.id}, phone: ${cleanPhone}`);
                 try {
                   const { OrderNotificationService } = await import("@/lib/services/orderNotificationService");
@@ -223,7 +223,7 @@ export async function POST(request: NextRequest) {
                   console.error("[Sync Batch] WhatsApp POS receipt failed:", err);
                 }
               } else {
-                console.log(`[Sync Batch] Skipping WhatsApp for new order ${createdOrder.id}: waConfirmationSent=${waConfirmationSent}, phone=${cleanPhone}, wa_notify=${record.wa_notify}`);
+                console.log(`[Sync Batch] Skipping WhatsApp for new order ${createdOrder.id}: waConfirmationSent=${waConfirmationSent}, phone=${cleanPhone}`);
               }
             } else {
               // Order already exists — update status
@@ -238,7 +238,7 @@ export async function POST(request: NextRequest) {
               // Also trigger WhatsApp here if it was never sent
               // This handles the case where a previous sync created the order
               // but the WhatsApp notification failed or was skipped
-              if (!updatedOrder.waConfirmationSent && cleanPhone && isWaNotify) {
+              if (!updatedOrder.waConfirmationSent && cleanPhone && cleanPhone !== "0000000000") {
                 console.log(`[Sync Batch] Triggering WhatsApp for EXISTING order ${targetOrderId}, phone: ${cleanPhone}`);
                 try {
                   const { OrderNotificationService } = await import("@/lib/services/orderNotificationService");
