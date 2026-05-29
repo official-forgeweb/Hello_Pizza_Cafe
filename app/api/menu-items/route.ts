@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
 
     const uniqueItemsMap = new Map<string, any>();
     for (const item of items) {
-      const key = item.name.toLowerCase().trim();
+      const key = `${item.name.toLowerCase().trim()}-${item.categoryId}`;
       const price = Number(item.basePrice || 0);
       const existing = uniqueItemsMap.get(key);
       if (!existing) {

@@ -35,10 +35,10 @@ export default async function MenuPage() {
     isVeg: i.itemType === "VEG" || i.isVeg === true
   }));
 
-  // De-duplicate items by name (case-insensitive) - keep the one with the greater price
+  // De-duplicate items by name (case-insensitive) WITHIN the same category
   const uniqueItemsMap = new Map<string, any>();
   for (const item of transformedItems) {
-    const key = item.name.toLowerCase().trim();
+    const key = `${item.name.toLowerCase().trim()}-${item.categoryId}`;
     const existing = uniqueItemsMap.get(key);
     if (!existing) {
       uniqueItemsMap.set(key, item);
