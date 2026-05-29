@@ -75,6 +75,16 @@ export async function POST(
       },
     });
 
+    // Send WhatsApp order confirmation asynchronously (non-blocking)
+    try {
+      const { OrderNotificationService } = await import("@/lib/services/orderNotificationService");
+      OrderNotificationService.sendOrderConfirmation(updatedOrder.id).catch((err) => {
+        console.error("WhatsApp order confirmation failed:", err);
+      });
+    } catch {
+      // WhatsApp module may fail, don't block the response
+    }
+
     // Send status email asynchronously (non-blocking)
     try {
       const { sendOrderStatusEmail } = await import("@/lib/email");

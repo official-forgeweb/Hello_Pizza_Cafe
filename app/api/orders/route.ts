@@ -307,9 +307,17 @@ export async function POST(request: NextRequest) {
       console.error("Admin order notification failed:", err);
     });
 
-    // Note: Immediate WhatsApp Order Confirmation is bypassed here.
-    // It will be sent via the sync batch route once the order is loaded and confirmed/printed in the POS software.
-
+    // Send WhatsApp order confirmation asynchronously
+    if (finalPhone && finalPhone !== "0000000000") {
+      try {
+        const { OrderNotificationService } = await import("@/lib/services/orderNotificationService");
+        OrderNotificationService.sendOrderConfirmation(order.id).catch(err => {
+          console.error("WhatsApp order confirmation failed:", err);
+        });
+      } catch {
+        // WhatsApp module may fail, don't block the response
+      }
+    }
     return NextResponse.json(order, { status: 201 });
   } catch (error) {
     console.error("Error creating order:", error);
