@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import prisma from "@/lib/prisma";
 import MenuContentClient from "@/components/menu/MenuContentClient";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 10; // Enable ISR: cache page and revalidate every 10s in background
 
 export default async function MenuPage() {
   // Fetch data on the server
