@@ -73,6 +73,7 @@ export default function MenuManagementPage() {
   const [generatingImage, setGeneratingImage] = useState(false);
   const [aiImagePreview, setAiImagePreview] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -104,6 +105,7 @@ export default function MenuManagementPage() {
 
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true);
       try {
         const [menuRes, catRes] = await Promise.all([
           fetch(`/api/menu-items?admin=true&limit=2000&t=${Date.now()}`, { cache: "no-store" }),
@@ -124,6 +126,8 @@ export default function MenuManagementPage() {
         }
       } catch (error) {
         console.error("Failed to load admin menu items", error);
+      } finally {
+        setLoading(false);
       }
     };
     fetchData();
@@ -228,7 +232,7 @@ export default function MenuManagementPage() {
         <div>
           <h1 className="text-2xl font-bold text-warm-900">Menu Management</h1>
           <p className="text-warm-500 text-sm mt-1">
-            {items.length} items • {items.filter((i) => i.isAvailable).length} available
+            {loading ? "Loading menu statistics..." : `${items.length} items • ${items.filter((i) => i.isAvailable).length} available`}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -296,7 +300,13 @@ export default function MenuManagementPage() {
       )}
 
       {/* Items */}
-      {filtered.length === 0 ? (
+      {loading ? (
+        <div className="bg-white rounded-2xl border border-warm-200/60 p-16 text-center" style={{ boxShadow: "var(--shadow-card)" }}>
+          <div className="w-10 h-10 border-3 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-warm-600 font-semibold text-sm">Loading menu items...</p>
+          <p className="text-warm-400 text-xs mt-1">Please wait while we fetch the kitchen records.</p>
+        </div>
+      ) : filtered.length === 0 ? (
         <div className="bg-white rounded-2xl border border-warm-200/60 p-12 text-center" style={{ boxShadow: "var(--shadow-card)" }}>
           <Search className="w-10 h-10 text-warm-300 mx-auto mb-3" />
           <p className="text-warm-500 font-medium">No menu items found</p>
