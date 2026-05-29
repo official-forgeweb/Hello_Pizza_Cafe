@@ -1,11 +1,12 @@
 import { Suspense } from "react";
 import prisma from "@/lib/prisma";
 import MenuContentClient from "@/components/menu/MenuContentClient";
+import MenuLoading from "./loading";
 
 export const revalidate = 10; // Enable ISR: cache page and revalidate every 10s in background
 
-export default async function MenuPage() {
-  // Fetch data on the server
+// Child server component that handles asynchronous data loading
+async function MenuPageContent() {
   const [categories, items] = await Promise.all([
     prisma.category.findMany({
       orderBy: { displayOrder: "asc" },
@@ -28,14 +29,14 @@ export default async function MenuPage() {
     })
   ]);
 
-  // Transform items as done in the client previously
+  // Transform items
   const transformedItems = items.map((i: any) => ({
     ...i,
     price: Number(i.basePrice || i.price),
     isVeg: i.itemType === "VEG" || i.isVeg === true
   }));
 
-  // De-duplicate items by name (case-insensitive) WITHIN the same category
+  // De-duplicate items by name WITHIN the same category
   const uniqueItemsMap = new Map<string, any>();
   for (const item of transformedItems) {
     const key = `${item.name.toLowerCase().trim()}-${item.categoryId}`;
@@ -49,21 +50,21 @@ export default async function MenuPage() {
     }
   }
   const filteredTransformedItems = Array.from(uniqueItemsMap.values());
-
   const allCategories = [{ id: "all", name: "All" }, ...categories];
 
   return (
-    <Suspense 
-      fallback={
-        <div className="min-h-screen bg-warm-50 flex items-center justify-center">
-          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-        </div>
-      }
-    >
-      <MenuContentClient 
-        initialCategories={allCategories} 
-        initialMenuItems={filteredTransformedItems} 
-      />
+    <MenuContentClient 
+      initialCategories={allCategories} 
+      initialMenuItems={filteredTransformedItems} 
+    />
+  );
+}
+
+// Synchronous wrapper that renders instantly and delegates loading states to Suspense loading.tsx
+export default function MenuPage() {
+  return (
+    <Suspense fallback={<MenuLoading />}>
+      <MenuPageContent />
     </Suspense>
   );
 }
