@@ -235,6 +235,14 @@ export default function TemplatesPage() {
             <Plus className="w-4 h-4" />
             Create Template
           </motion.button>
+          <motion.button
+            onClick={() => router.push("/admin/whatsapp-logs")}
+            className="flex items-center gap-2 px-4 py-2.5 bg-warm-100 hover:bg-warm-200 border border-warm-200 rounded-xl text-sm font-bold text-warm-800 transition-colors cursor-pointer"
+            whileTap={{ scale: 0.95 }}
+          >
+            <AlertCircle className="w-4 h-4 text-primary animate-pulse" />
+            Logs & Diagnostics
+          </motion.button>
           <a 
             href="https://business.facebook.com/wa/manage/message-templates/" 
             target="_blank" 
