@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Send, Plus, Users, LayoutTemplate, Calendar, 
@@ -55,11 +55,51 @@ export default function CampaignsPage() {
     }
   };
 
+  const isProcessingRef = useRef(false);
+
   useEffect(() => {
     fetchCampaigns();
     const interval = setInterval(fetchCampaigns, 10000); // Poll every 10s for updates
     return () => clearInterval(interval);
   }, []);
+
+  // Auto-drive active sending campaigns in serverless mode (safely chunk by chunk)
+  useEffect(() => {
+    const sendingCampaign = campaigns.find(c => c.status === "sending");
+    if (!sendingCampaign) return;
+
+    let active = true;
+    let timerId: NodeJS.Timeout;
+
+    const processNextBatch = async () => {
+      if (isProcessingRef.current || !active) return;
+      isProcessingRef.current = true;
+      try {
+        const res = await fetch(`/api/admin/campaigns/${sendingCampaign.id}/send-batch`, {
+          method: "POST",
+        });
+        if (res.ok && active) {
+          await fetchCampaigns();
+        }
+      } catch (err) {
+        console.error("Failed to process campaign batch:", err);
+      } finally {
+        isProcessingRef.current = false;
+        if (active) {
+          // Schedule next batch with a small delay
+          timerId = setTimeout(processNextBatch, 1500);
+        }
+      }
+    };
+
+    // Trigger the first batch
+    timerId = setTimeout(processNextBatch, 1000);
+
+    return () => {
+      active = false;
+      clearTimeout(timerId);
+    };
+  }, [campaigns]);
 
   const handleStartCampaign = async (id: string) => {
     const confirmed = await showConfirm("Are you sure you want to send this campaign now? Messages will be sent to all recipients.", "Send Campaign", { confirmLabel: "Send Now", type: "warning" });
@@ -128,6 +168,22 @@ export default function CampaignsPage() {
           Create Campaign
         </motion.button>
       </div>
+
+      {/* Campaign Active Alert warning banner */}
+      {campaigns.some(c => c.status === "sending") && (
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          className="bg-amber-50/90 border border-amber-250 p-4 rounded-2xl flex items-start gap-3 text-amber-900 shadow-sm"
+        >
+          <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5 animate-pulse" />
+          <div className="text-xs">
+            <span className="font-bold block text-sm mb-0.5">Campaign Sending Active</span>
+            Please **keep this browser tab active** and do not close it. The system is sending bulk WhatsApp messages in secure, serverless-safe batches to protect delivery rates. Real-time progress is shown below.
+          </div>
+        </motion.div>
+      )}
 
       {/* Grid */}
       {loading ? (

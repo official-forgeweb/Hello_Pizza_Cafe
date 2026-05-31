@@ -8,8 +8,8 @@ export async function POST(
   try {
     const { id } = await params;
     
-    // Execute campaign
-    const result = await CampaignService.executeCampaign(id);
+    // Process next batch (15 recipients at a time)
+    const result = await CampaignService.sendCampaignBatch(id, 15);
     
     if (!result.success) {
       return NextResponse.json(
@@ -18,16 +18,11 @@ export async function POST(
       );
     }
 
-    return NextResponse.json({ 
-      success: true, 
-      message: `Campaign started for ${result.recipientsCount} recipients.`,
-      needsClientDriving: result.needsClientDriving,
-      recipientsCount: result.recipientsCount
-    });
+    return NextResponse.json(result);
   } catch (error: any) {
-    console.error("Error executing campaign:", error);
+    console.error("Error sending campaign batch:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to execute campaign" },
+      { error: error.message || "Failed to process campaign batch" },
       { status: 500 }
     );
   }
