@@ -294,30 +294,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Send confirmation emails asynchronously
-    const { sendOrderConfirmationEmail, sendAdminOrderNotification } = await import("@/lib/email");
+    // Send admin notification email asynchronously
+    const { sendAdminOrderNotification } = await import("@/lib/email");
     
-    // Customer email
-    sendOrderConfirmationEmail(order).catch(err => {
-      console.error("Order confirmation email failed:", err);
-    });
-
     // Admin notification
     sendAdminOrderNotification(order).catch(err => {
       console.error("Admin order notification failed:", err);
     });
-
-    // Send WhatsApp order confirmation asynchronously
-    if (finalPhone && finalPhone !== "0000000000") {
-      try {
-        const { OrderNotificationService } = await import("@/lib/services/orderNotificationService");
-        OrderNotificationService.sendOrderConfirmation(order.id).catch(err => {
-          console.error("WhatsApp order confirmation failed:", err);
-        });
-      } catch {
-        // WhatsApp module may fail, don't block the response
-      }
-    }
     return NextResponse.json(order, { status: 201 });
   } catch (error) {
     console.error("Error creating order:", error);

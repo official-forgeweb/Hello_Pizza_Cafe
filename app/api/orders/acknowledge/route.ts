@@ -24,8 +24,59 @@ export async function POST(request: NextRequest) {
         syncedAt: new Date(),
         status: newStatus as any,
         cancellationReason: reason || null,
+      },
+      include: {
+        items: true,
+        customer: true,
       }
     });
+
+    // Trigger notifications asynchronously so we don't block the POS sync response
+    if (newStatus === "CONFIRMED") {
+      // 1. WhatsApp confirmation
+      if (order.customerPhone && order.customerPhone !== "0000000000") {
+        import("@/lib/services/orderNotificationService").then(({ OrderNotificationService }) => {
+          OrderNotificationService.sendOrderConfirmation(order.id).catch(err => {
+            console.error("WhatsApp order confirmation failed:", err);
+          });
+        }).catch(err => {
+          console.error("Failed to load OrderNotificationService:", err);
+        });
+      }
+
+      // 2. Email confirmation
+      if (order.customerEmail) {
+        import("@/lib/email").then(({ sendOrderConfirmationEmail }) => {
+          sendOrderConfirmationEmail(order).catch(err => {
+            console.error("Order confirmation email failed:", err);
+          });
+        }).catch(err => {
+          console.error("Failed to load email service:", err);
+        });
+      }
+    } else if (newStatus === "CANCELLED") {
+      // 1. WhatsApp cancellation
+      if (order.customerPhone && order.customerPhone !== "0000000000") {
+        import("@/lib/services/orderNotificationService").then(({ OrderNotificationService }) => {
+          OrderNotificationService.sendOrderCancelled(order.id, reason || "Restaurant was unable to accept your order").catch(err => {
+            console.error("WhatsApp order cancellation failed:", err);
+          });
+        }).catch(err => {
+          console.error("Failed to load OrderNotificationService:", err);
+        });
+      }
+
+      // 2. Email cancellation
+      if (order.customerEmail) {
+        import("@/lib/email").then(({ sendOrderStatusEmail }) => {
+          sendOrderStatusEmail(order).catch(err => {
+            console.error("Order cancellation email failed:", err);
+          });
+        }).catch(err => {
+          console.error("Failed to load email service:", err);
+        });
+      }
+    }
 
     return NextResponse.json({
       success: true,

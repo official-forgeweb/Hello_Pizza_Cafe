@@ -29,12 +29,34 @@ async function MenuPageContent() {
     })
   ]);
 
-  // Transform items
-  const transformedItems = items.map((i: any) => ({
-    ...i,
-    price: Number(i.basePrice || i.price),
-    isVeg: i.itemType === "VEG" || i.isVeg === true
-  }));
+  // Transform items to resolve decimal serialization issue and guarantee correct numeric calculations
+  const transformedItems = items.map((i: any) => {
+    const basePriceNum = Number(i.basePrice || i.price || 0);
+    
+    // Map variants price decimals to numbers
+    const variants = i.variants?.map((v: any) => ({
+      ...v,
+      price: Number(v.price || 0)
+    })) || [];
+    
+    // Map addOns price decimals to numbers
+    const addOns = i.addOns?.map((a: any) => ({
+      ...a,
+      addOn: a.addOn ? {
+        ...a.addOn,
+        price: Number(a.addOn.price || 0)
+      } : null
+    })) || [];
+
+    return {
+      ...i,
+      basePrice: basePriceNum,
+      price: basePriceNum,
+      isVeg: i.itemType === "VEG" || i.isVeg === true,
+      variants,
+      addOns
+    };
+  });
 
   // De-duplicate items by name WITHIN the same category
   const uniqueItemsMap = new Map<string, any>();
@@ -50,12 +72,16 @@ async function MenuPageContent() {
     }
   }
   const filteredTransformedItems = Array.from(uniqueItemsMap.values());
-  const allCategories = [{ id: "all", name: "All" }, ...categories];
+  
+  // Clean all custom non-serializable objects (like Prisma Decimal and Dates) safely
+  const serializedItems = JSON.parse(JSON.stringify(filteredTransformedItems));
+  const serializedCategories = JSON.parse(JSON.stringify(categories));
+  const allCategories = [{ id: "all", name: "All" }, ...serializedCategories];
 
   return (
     <MenuContentClient 
       initialCategories={allCategories} 
-      initialMenuItems={filteredTransformedItems} 
+      initialMenuItems={serializedItems} 
     />
   );
 }

@@ -25,6 +25,18 @@ export default async function OffersPage() {
     }),
   ]);
 
+  // Transform and serialize coupons to eliminate Decimal objects
+  const transformedCoupons = coupons.map((c: any) => ({
+    ...c,
+    discountValue: Number(c.discountValue || 0),
+    minimumOrder: Number(c.minimumOrder || 0),
+    maxDiscount: c.maxDiscount ? Number(c.maxDiscount) : null,
+  }));
+
+  const serializedCoupons = JSON.parse(JSON.stringify(transformedCoupons));
+  const serializedSlides = JSON.parse(JSON.stringify(heroSlides));
+  const serializedAds = JSON.parse(JSON.stringify(splashAds));
+
   return (
     <div className="min-h-screen bg-warm-50 pb-20">
       <div className="bg-gradient-to-r from-red-600 to-orange-600 text-white pt-12 pb-12 px-4">
@@ -40,9 +52,9 @@ export default async function OffersPage() {
 
       <div className="max-w-5xl mx-auto px-4 py-8">
         <OffersList 
-          heroSlides={heroSlides} 
-          splashAds={splashAds} 
-          coupons={coupons} 
+          heroSlides={serializedSlides} 
+          splashAds={serializedAds} 
+          coupons={serializedCoupons} 
         />
       </div>
     </div>

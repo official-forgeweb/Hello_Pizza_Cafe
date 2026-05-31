@@ -126,12 +126,19 @@ export async function sendOrderStatusEmail(order: any) {
         </div>
         <div style="background: white; border-radius: 16px; padding: 32px; box-shadow: 0 4px 20px -2px rgba(0,0,0,0.05);">
           <div style="text-align: center;">
-            <div style="display: inline-block; padding: 8px 16px; background: #fef2f2; color: #e31837; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; border-radius: 20px; margin-bottom: 16px;">
+            <div style="display: inline-block; padding: 8px 16px; ${order.status === 'CANCELLED' ? 'background: #fef2f2; color: #dc2626;' : 'background: #fef2f2; color: #e31837;'} font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; border-radius: 20px; margin-bottom: 16px;">
               Status Update
             </div>
-            <h2 style="font-size: 20px; font-weight: 700; color: #1c1917; margin: 0 0 16px;">Your order is <span style="color: #e31837;">${statusLabel}</span></h2>
+            <h2 style="font-size: 20px; font-weight: 700; color: #1c1917; margin: 0 0 16px;">Your order is <span style="${order.status === 'CANCELLED' ? 'color: #dc2626;' : 'color: #e31837;'}">${statusLabel}</span></h2>
             <p style="font-size: 14px; color: #78716c; margin: 0 0 24px;">Hi ${order.customerName.split(' ')[0]}, your order <strong>${order.orderNumber}</strong> has been updated to <strong>${statusLabel}</strong>.</p>
             
+            ${order.status === "CANCELLED" && order.cancellationReason ? `
+            <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 12px; padding: 16px; text-align: left; margin-bottom: 20px;">
+              <p style="font-size: 11px; color: #dc2626; margin: 0 0 4px; text-transform: uppercase; font-weight: 700; letter-spacing: 1px;">Reason for Cancellation</p>
+              <p style="font-size: 14px; font-weight: 600; color: #991b1b; margin: 0;">${order.cancellationReason}</p>
+            </div>
+            ` : ''}
+
             <div style="background: #f5f5f4; border-radius: 12px; padding: 16px; text-align: left;">
               <p style="font-size: 12px; color: #78716c; margin: 0 0 4px; text-transform: uppercase; font-weight: 700; letter-spacing: 1px;">Delivery Address</p>
               <p style="font-size: 14px; font-weight: 600; color: #1c1917; margin: 0;">${order.deliveryAddress || 'Self Pickup'}</p>
