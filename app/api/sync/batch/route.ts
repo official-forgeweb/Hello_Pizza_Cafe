@@ -227,27 +227,13 @@ export async function POST(request: NextRequest) {
               }
             } else {
               // Order already exists — update status
-              const updatedOrder = await prisma.order.update({
+              await prisma.order.update({
                 where: { id: targetOrderId },
                 data: {
                   status: status as any,
                   updatedAt: new Date(),
                 }
               });
-
-              // Also trigger WhatsApp here if it was never sent
-              // This handles the case where a previous sync created the order
-              // but the WhatsApp notification failed or was skipped
-              if (!updatedOrder.waConfirmationSent && cleanPhone && cleanPhone !== "0000000000") {
-                console.log(`[Sync Batch] Triggering WhatsApp for EXISTING order ${targetOrderId}, phone: ${cleanPhone}`);
-                try {
-                  const { OrderNotificationService } = await import("@/lib/services/orderNotificationService");
-                  const waResult = await OrderNotificationService.sendPOSReceipt(targetOrderId);
-                  console.log(`[Sync Batch] WhatsApp result for existing ${targetOrderId}:`, JSON.stringify(waResult));
-                } catch (err) {
-                  console.error("[Sync Batch] WhatsApp POS receipt for existing order failed:", err);
-                }
-              }
             }
 
             results.push({ localId, status: "success" });

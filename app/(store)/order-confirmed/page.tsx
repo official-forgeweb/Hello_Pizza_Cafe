@@ -27,6 +27,7 @@ function OrderConfirmedContent() {
     }
 
     let intervalId: NodeJS.Timeout;
+    let consecutiveFailures = 0;
 
     const fetchStatus = async () => {
       try {
@@ -34,6 +35,7 @@ function OrderConfirmedContent() {
         const data = await res.json();
         
         if (data.success && data.order) {
+          consecutiveFailures = 0; // Reset consecutive failures on successful retrieval
           setOrderData(data.order);
           const currentStatus = data.order.status;
           
@@ -51,11 +53,16 @@ function OrderConfirmedContent() {
             }
           }
         } else {
-          setStatus("ERROR");
-          clearInterval(intervalId);
+          consecutiveFailures++;
+          // Only show ERROR if we get 4 consecutive failed attempts (approx 16 seconds of retries)
+          if (consecutiveFailures >= 4) {
+            setStatus("ERROR");
+            clearInterval(intervalId);
+          }
         }
       } catch (err) {
         console.error("Error polling order status:", err);
+        // Do not clear the interval on generic/transient network errors
       }
     };
 
