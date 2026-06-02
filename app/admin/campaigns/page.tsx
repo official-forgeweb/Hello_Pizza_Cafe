@@ -1,12 +1,13 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Send, Plus, Users, LayoutTemplate, Calendar, 
-  Play, CheckCircle2, Clock, Check, X, RefreshCw,
-  XCircle, AlertTriangle, ChevronRight, Info, Eye, Image as ImageIcon,
-  Trash2
+  Play, CheckCircle2, Clock, X, RefreshCw,
+  XCircle, AlertTriangle, Info, Eye,
+  Trash2, Search
 } from "lucide-react";
 import { useAdminAlert } from "@/components/admin/AdminAlertProvider";
 
@@ -48,7 +49,7 @@ export default function CampaignsPage() {
       if (res.ok) {
         setCampaigns(await res.json());
       }
-    } catch (error) {
+    } catch {
       console.error("Failed to fetch campaigns");
     } finally {
       setLoading(false);
@@ -337,6 +338,7 @@ function CampaignWizard({ onClose, onComplete }: { onClose: () => void, onComple
   
   const [templates, setTemplates] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any>({ total: 0 });
+  const [uniqueTags, setUniqueTags] = useState<string[]>([]);
   
   // Form State
   const [name, setName] = useState("");
@@ -355,45 +357,15 @@ function CampaignWizard({ onClose, onComplete }: { onClose: () => void, onComple
     { title: "Margherita", url: "https://upload.wikimedia.org/wikipedia/commons/a/a3/Eq_it-na_pizza-margherita_sep2005_sml.jpg" },
     { title: "Veggie Olive", url: "https://upload.wikimedia.org/wikipedia/commons/d/d2/Pizza_with_peppers_and_olives.jpg" }
   ];
-
-  useEffect(() => {
-    if (templateName) {
-      const selected = templates.find(t => t.templateName === templateName);
-      if (selected?.headerImageUrl) {
-        setHeaderImage(selected.headerImageUrl);
-      } else {
-        const headerComp = selected?.components?.find((c: any) => c.type === 'HEADER' && c.format === 'IMAGE');
-        if (headerComp && headerComp.example?.header_handle?.[0]) {
-          const handle = headerComp.example.header_handle[0];
-          // If it looks like temporary Meta URL, pre-fill with our Pizza Table preset
-          if (handle.includes("fbcdn.net") || handle.includes("whatsapp.net")) {
-            setHeaderImage(PHOTO_PRESETS[0].url);
-          } else {
-            setHeaderImage(handle);
-          }
-        } else {
-          setHeaderImage(PHOTO_PRESETS[0].url);
-        }
-      }
-
-      if (selected && selected.variables && selected.variables.length > 0) {
-        setBodyParameters(selected.variables.map((_: any, i: number) => i === 0 ? "{name}" : ""));
-      } else {
-        setBodyParameters([]);
-      }
-    } else {
-      setHeaderImage("");
-      setBodyParameters([]);
-    }
-  }, [templateName, templates]);
   
   // Fetch initial data
   useEffect(() => {
     async function init() {
       try {
-        const [tplRes, cstRes] = await Promise.all([
+        const [tplRes, cstRes, tagsRes] = await Promise.all([
           fetch("/api/admin/templates"),
-          fetch("/api/admin/customers?limit=1&optIn=true")
+          fetch("/api/admin/customers?limit=1&optIn=true"),
+          fetch("/api/admin/customers/tags")
         ]);
         
         if (tplRes.ok) {
@@ -404,7 +376,12 @@ function CampaignWizard({ onClose, onComplete }: { onClose: () => void, onComple
           const csts = await cstRes.json();
           setCustomers({ total: csts.pagination?.total || 0 });
         }
-      } catch (e) {}
+        if (tagsRes.ok) {
+          setUniqueTags(await tagsRes.json());
+        }
+      } catch {
+        // fail silently
+      }
     }
     init();
   }, []);
@@ -431,7 +408,7 @@ function CampaignWizard({ onClose, onComplete }: { onClose: () => void, onComple
       } else {
         showAlert("Failed to create campaign", "error");
       }
-    } catch (e) {
+    } catch {
       showAlert("An error occurred while creating the campaign", "error");
     }
     setLoading(false);
@@ -479,7 +456,37 @@ function CampaignWizard({ onClose, onComplete }: { onClose: () => void, onComple
             <label className="block text-xs font-bold text-warm-700 mb-1.5 uppercase tracking-wider">Select Approved Template</label>
             <select
               value={templateName}
-              onChange={e => setTemplateName(e.target.value)}
+              onChange={e => {
+                const nameVal = e.target.value;
+                setTemplateName(nameVal);
+                if (nameVal) {
+                  const selected = templates.find(t => t.templateName === nameVal);
+                  if (selected?.headerImageUrl) {
+                    setHeaderImage(selected.headerImageUrl);
+                  } else {
+                    const headerComp = selected?.components?.find((c: any) => c.type === 'HEADER' && c.format === 'IMAGE');
+                    if (headerComp && headerComp.example?.header_handle?.[0]) {
+                      const handle = headerComp.example.header_handle[0];
+                      if (handle.includes("fbcdn.net") || handle.includes("whatsapp.net")) {
+                        setHeaderImage(PHOTO_PRESETS[0].url);
+                      } else {
+                        setHeaderImage(handle);
+                      }
+                    } else {
+                      setHeaderImage(PHOTO_PRESETS[0].url);
+                    }
+                  }
+
+                  if (selected && selected.variables && selected.variables.length > 0) {
+                    setBodyParameters(selected.variables.map((_: any, i: number) => i === 0 ? "{name}" : ""));
+                  } else {
+                    setBodyParameters([]);
+                  }
+                } else {
+                  setHeaderImage("");
+                  setBodyParameters([]);
+                }
+              }}
               className="w-full px-4 py-2.5 bg-warm-50 border-0 rounded-xl focus:ring-2 focus:ring-primary/20 outline-none"
             >
               <option value="">Choose an approved template...</option>
@@ -496,7 +503,7 @@ function CampaignWizard({ onClose, onComplete }: { onClose: () => void, onComple
               <div className="flex items-start gap-2 text-xs text-amber-850">
                 <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                 <div>
-                  <span className="font-bold">Permanent Image Required:</span> Meta's default template example URLs expire quickly. You must use a permanent, public image URL (like from Cloudinary or Unsplash) so that your marketing campaign sends successfully!
+                  <span className="font-bold">Permanent Image Required:</span> Meta&apos;s default template example URLs expire quickly. You must use a permanent, public image URL (like from Cloudinary or Unsplash) so that your marketing campaign sends successfully!
                 </div>
               </div>
 
@@ -538,7 +545,7 @@ function CampaignWizard({ onClose, onComplete }: { onClose: () => void, onComple
           {selectedTemplate?.variables?.length > 0 && (
             <div className="bg-warm-100 p-4 rounded-xl space-y-3">
               <label className="block text-xs font-bold text-warm-700 uppercase tracking-wider">Template Variables</label>
-              <p className="text-[10px] text-warm-500 mb-2">Use <code className="bg-white px-1 py-0.5 rounded text-primary border border-warm-200">{"{name}"}</code> to automatically insert the customer's name.</p>
+              <p className="text-[10px] text-warm-500 mb-2">Use <code className="bg-white px-1 py-0.5 rounded text-primary border border-warm-200">{"{name}"}</code> to automatically insert the customer&apos;s name.</p>
               
               {selectedTemplate.variables.map((v: string, idx: number) => (
                 <div key={idx}>
@@ -583,14 +590,21 @@ function CampaignWizard({ onClose, onComplete }: { onClose: () => void, onComple
                 <p className="text-xs text-warm-500">Target a specific customer segment</p>
               </div>
               <div 
-                onClick={() => { setTargetType('tag'); setTargetGroup('pos-customer'); }}
-                className={`p-4 rounded-xl border-2 cursor-pointer transition-colors ${targetType === 'tag' && targetGroup === 'pos-customer' ? 'border-primary bg-primary/5' : 'border-warm-200 bg-white hover:border-warm-300'}`}
+                onClick={() => { 
+                  setTargetType('tag'); 
+                  if (uniqueTags.length > 0 && !uniqueTags.includes(targetGroup)) {
+                    setTargetGroup(uniqueTags[0]);
+                  } else if (uniqueTags.length === 0) {
+                    setTargetGroup('pos-customer');
+                  }
+                }}
+                className={`p-4 rounded-xl border-2 cursor-pointer transition-colors ${targetType === 'tag' ? 'border-primary bg-primary/5' : 'border-warm-200 bg-white hover:border-warm-300'}`}
               >
                 <div className="flex items-center justify-between mb-1">
-                  <p className="font-bold text-warm-900 text-sm">🖥️ POS Customers</p>
-                  {targetType === 'tag' && targetGroup === 'pos-customer' && <CheckCircle2 className="w-4 h-4 text-primary" />}
+                  <p className="font-bold text-warm-900 text-sm">🏷️ Target by Tag</p>
+                  {targetType === 'tag' && <CheckCircle2 className="w-4 h-4 text-primary" />}
                 </div>
-                <p className="text-xs text-warm-500">Offline / walk-in customers from the POS software</p>
+                <p className="text-xs text-warm-500">Target customers containing a specific tag/batch</p>
               </div>
             </div>
           </div>
@@ -601,12 +615,33 @@ function CampaignWizard({ onClose, onComplete }: { onClose: () => void, onComple
               <select
                 value={targetGroup}
                 onChange={e => setTargetGroup(e.target.value)}
-                className="w-full px-4 py-2.5 bg-warm-50 border-0 rounded-xl focus:ring-2 focus:ring-primary/20 outline-none"
+                className="w-full px-4 py-2.5 bg-warm-50 border-0 rounded-xl focus:ring-2 focus:ring-primary/20 outline-none font-medium"
               >
                 <option value="regular">Regular Customers</option>
                 <option value="new">New Customers</option>
                 <option value="vip">VIP Customers</option>
               </select>
+            </motion.div>
+          )}
+
+          {targetType === 'tag' && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
+              <label className="block text-xs font-bold text-warm-700 mb-1.5 uppercase tracking-wider">Select Tag / Batch</label>
+              {uniqueTags.length > 0 ? (
+                <select
+                  value={targetGroup || ""}
+                  onChange={e => setTargetGroup(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-warm-50 border-0 rounded-xl focus:ring-2 focus:ring-primary/20 outline-none font-medium"
+                >
+                  {uniqueTags.map(tag => (
+                    <option key={tag} value={tag}>{tag}</option>
+                  ))}
+                </select>
+              ) : (
+                <div className="p-3 bg-warm-50 rounded-xl text-xs text-warm-550 border border-warm-200">
+                  No tags found in database. Make sure you tag/batch customers first!
+                </div>
+              )}
             </motion.div>
           )}
 
@@ -637,6 +672,8 @@ function CampaignLogsModal({ campaignId, onClose }: { campaignId: string; onClos
   const [logs, setLogs] = useState<MessageLog[]>([]);
   const [campaignName, setCampaignName] = useState("");
   const [loading, setLoading] = useState(true);
+  const [searchInput, setSearchInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const getFriendlyErrorMessage = (error: string) => {
     if (error.includes("maintain healthy ecosystem engagement")) {
@@ -648,10 +685,20 @@ function CampaignLogsModal({ campaignId, onClose }: { campaignId: string; onClos
     return error;
   };
 
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchQuery(searchInput.trim());
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
   useEffect(() => {
     async function fetchLogs() {
+      setLoading(true);
       try {
-        const res = await fetch(`/api/admin/campaigns/${campaignId}`);
+        const url = `/api/admin/campaigns/${campaignId}${searchQuery ? `?q=${encodeURIComponent(searchQuery)}` : ""}`;
+        const res = await fetch(url);
         if (res.ok) {
           const data = await res.json();
           setCampaignName(data.name);
@@ -664,7 +711,7 @@ function CampaignLogsModal({ campaignId, onClose }: { campaignId: string; onClos
       }
     }
     fetchLogs();
-  }, [campaignId]);
+  }, [campaignId, searchQuery]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -695,6 +742,20 @@ function CampaignLogsModal({ campaignId, onClose }: { campaignId: string; onClos
           </button>
         </div>
 
+        {/* Search Bar */}
+        <div className="px-6 py-3 border-b border-warm-100 bg-white">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-warm-400" />
+            <input
+              type="text"
+              placeholder="Search by mobile number..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 bg-warm-50 border-0 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-warm-400 font-sans"
+            />
+          </div>
+        </div>
+
         {/* Logs list / Table */}
         <div className="flex-1 overflow-y-auto p-6">
           {loading ? (
@@ -705,8 +766,14 @@ function CampaignLogsModal({ campaignId, onClose }: { campaignId: string; onClos
           ) : logs.length === 0 ? (
             <div className="h-full flex flex-col justify-center items-center text-center">
               <Info className="w-10 h-10 text-warm-300 mb-2" />
-              <p className="text-sm font-bold text-warm-800">No logs recorded yet</p>
-              <p className="text-xs text-warm-500 max-w-xs mt-1">This campaign hasn't sent any messages or the logs have expired.</p>
+              <p className="text-sm font-bold text-warm-800">
+                {searchQuery ? "No matching logs found" : "No logs recorded yet"}
+              </p>
+              <p className="text-xs text-warm-500 max-w-xs mt-1">
+                {searchQuery 
+                  ? `No message logs matched "${searchQuery}". Please check the phone number.` 
+                  : "This campaign hasn't sent any messages or the logs have expired."}
+              </p>
             </div>
           ) : (
             <div className="space-y-3.5">

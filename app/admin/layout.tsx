@@ -53,6 +53,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const { admin, loading, checkSession, logout } = useAdminStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [hoveredHref, setHoveredHref] = useState<string | null>(null);
 
   // Check auth on mount and path change
   useEffect(() => {
@@ -123,32 +124,53 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto">
+        <nav 
+          onMouseLeave={() => setHoveredHref(null)}
+          className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto"
+        >
           <div className="mb-4 px-3 text-xs font-bold tracking-wider text-warm-400 uppercase">
             {!collapsed && "Management"}
           </div>
           {NAV_ITEMS.map((item) => {
             const isActive = pathname === item.href;
             return (
-              <Link key={item.href} href={item.href}>
+              <Link 
+                key={item.href} 
+                href={item.href}
+                onMouseEnter={() => setHoveredHref(item.href)}
+              >
                 <div
-                  className={`relative flex items-center gap-3 px-3 py-3 rounded-2xl text-sm font-semibold transition-all group ${
+                  className={`relative flex items-center gap-3 px-3 py-3 rounded-2xl text-sm font-semibold transition-colors duration-300 group ${
                     isActive
                       ? "text-white"
-                      : "text-warm-600 hover:bg-warm-100 hover:text-warm-900"
+                      : "text-warm-600 hover:text-warm-900"
                   }`}
                   title={collapsed ? item.label : undefined}
                 >
+                  {/* Hover Backdrop Pill */}
+                  {hoveredHref === item.href && !isActive && (
+                    <motion.div
+                      layoutId="adminNavHover"
+                      className="absolute inset-0 bg-warm-100 rounded-2xl -z-0"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                    />
+                  )}
+
+                  {/* Active Indicator Pill */}
                   {isActive && (
                     <motion.div
                       layoutId="adminNavActive"
-                      className="absolute inset-0 bg-primary shadow-md shadow-primary/20 rounded-2xl"
-                      transition={{ type: "spring", bounce: 0.15 }}
+                      className="absolute inset-0 bg-primary shadow-md shadow-primary/20 rounded-2xl -z-0"
+                      transition={{ type: "spring", stiffness: 380, damping: 30 }}
                     />
                   )}
-                  <item.icon className={`w-5 h-5 flex-shrink-0 relative z-10 transition-transform group-hover:scale-110 ${isActive ? 'text-white' : 'text-warm-400 group-hover:text-primary'}`} />
+                  
+                  <item.icon className={`w-5 h-5 flex-shrink-0 relative z-10 transition-all duration-300 group-hover:scale-110 ${isActive ? 'text-white' : 'text-warm-400 group-hover:text-primary'}`} />
                   {!collapsed && (
-                    <span className="relative z-10 tracking-wide">{item.label}</span>
+                    <span className="relative z-10 tracking-wide transition-colors duration-300">{item.label}</span>
                   )}
                 </div>
               </Link>

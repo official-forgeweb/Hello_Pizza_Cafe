@@ -8,10 +8,19 @@ export async function GET(
   try {
     const { id } = await params;
 
+    const { searchParams } = new URL(request.url);
+    const q = searchParams.get("q") || "";
+
     const campaign = await prisma.campaign.findUnique({
       where: { id },
       include: {
         messageLogs: {
+          where: q.trim() ? {
+            phone: {
+              contains: q.trim(),
+              mode: "insensitive"
+            }
+          } : undefined,
           select: {
             id: true,
             phone: true,
@@ -34,10 +43,11 @@ export async function GET(
     }
 
     return NextResponse.json(campaign);
-  } catch (error: any) {
-    console.error("Error fetching campaign:", error);
+  } catch (error) {
+    const err = error as Error;
+    console.error("Error fetching campaign:", err);
     return NextResponse.json(
-      { error: error.message || "Failed to fetch campaign details" },
+      { error: err.message || "Failed to fetch campaign details" },
       { status: 500 }
     );
   }
@@ -61,10 +71,11 @@ export async function DELETE(
     });
 
     return NextResponse.json({ success: true, message: "Campaign deleted successfully" });
-  } catch (error: any) {
-    console.error("Error deleting campaign:", error);
+  } catch (error) {
+    const err = error as Error;
+    console.error("Error deleting campaign:", err);
     return NextResponse.json(
-      { error: error.message || "Failed to delete campaign" },
+      { error: err.message || "Failed to delete campaign" },
       { status: 500 }
     );
   }
