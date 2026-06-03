@@ -1,12 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { getCachedDeliveryConfig, getCachedDeliveryZones } from "@/lib/settings";
 import {
   calculateDistanceKm,
   calculateDeliveryFee,
-  getDefaultDeliveryConfig,
-  getDefaultDeliveryZones,
-  DeliveryConfig,
-  DeliveryZone,
 } from "@/lib/delivery";
 
 export async function POST(request: NextRequest) {
@@ -118,18 +116,10 @@ export async function POST(request: NextRequest) {
 
     let deliveryFee = 0;
     if (orderType === "DELIVERY") {
-      const [configRow, zonesRow] = await Promise.all([
-        prisma.restaurantSetting.findUnique({ where: { key: "delivery_config" } }),
-        prisma.restaurantSetting.findUnique({ where: { key: "delivery_zones" } }),
+      const [config, zones] = await Promise.all([
+        getCachedDeliveryConfig(),
+        getCachedDeliveryZones(),
       ]);
-
-      const config: DeliveryConfig = configRow
-        ? (configRow.value as unknown as DeliveryConfig)
-        : getDefaultDeliveryConfig();
-
-      const zones: DeliveryZone[] = zonesRow
-        ? (zonesRow.value as unknown as DeliveryZone[])
-        : getDefaultDeliveryZones();
 
       if (typeof deliveryLat === "number" && typeof deliveryLng === "number") {
         const distanceKm = calculateDistanceKm(
@@ -311,7 +301,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const orders = await prisma.order.findMany({
       orderBy: { placedAt: "desc" },

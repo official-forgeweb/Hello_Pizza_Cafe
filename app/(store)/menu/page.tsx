@@ -1,9 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Suspense } from "react";
 import prisma from "@/lib/prisma";
 import MenuContentClient from "@/components/menu/MenuContentClient";
 import MenuLoading from "./loading";
 
-export const revalidate = 10; // Enable ISR: cache page and revalidate every 10s in background
+export const revalidate = 3600; // Enable ISR: cache page and revalidate every hour in background
 
 // Child server component that handles asynchronous data loading
 async function MenuPageContent() {
@@ -15,13 +16,10 @@ async function MenuPageContent() {
       where: { isAvailable: true },
       include: {
         category: { select: { id: true, name: true, slug: true } },
-        variants: {
-          where: { isAvailable: true },
-          orderBy: { displayOrder: "asc" },
-        },
-        addOns: {
-          include: {
-            addOn: true,
+        _count: {
+          select: {
+            variants: true,
+            addOns: true,
           },
         },
       },
@@ -33,28 +31,18 @@ async function MenuPageContent() {
   const transformedItems = items.map((i: any) => {
     const basePriceNum = Number(i.basePrice || i.price || 0);
     
-    // Map variants price decimals to numbers
-    const variants = i.variants?.map((v: any) => ({
-      ...v,
-      price: Number(v.price || 0)
-    })) || [];
-    
-    // Map addOns price decimals to numbers
-    const addOns = i.addOns?.map((a: any) => ({
-      ...a,
-      addOn: a.addOn ? {
-        ...a.addOn,
-        price: Number(a.addOn.price || 0)
-      } : null
-    })) || [];
+    const hasVariants = i._count
+      ? (i._count.variants > 0 || i._count.addOns > 0)
+      : false;
 
     return {
       ...i,
       basePrice: basePriceNum,
       price: basePriceNum,
       isVeg: i.itemType === "VEG" || i.isVeg === true,
-      variants,
-      addOns
+      hasVariants,
+      variants: [],
+      addOns: []
     };
   });
 

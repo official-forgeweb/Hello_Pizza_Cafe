@@ -6,7 +6,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, Phone, Mail, UserCheck, ShoppingBag,
   DollarSign, RefreshCw, Calendar, Users, Filter, Upload,
-  X, Check, AlertCircle, MessageSquare, Trash2, AlertTriangle
+  X, Check, AlertCircle, MessageSquare, Trash2, AlertTriangle,
+  Eye, ArrowLeft
 } from "lucide-react";
 
 interface Customer {
@@ -85,6 +86,17 @@ export default function CustomersPage() {
   // Bulk Opt-In and Toast Notification state
   const [bulkUpdating, setBulkUpdating] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+
+  // Manage Batches Modal state
+  const [showManageBatchModal, setShowManageBatchModal] = useState(false);
+  const [batches, setBatches] = useState<{ name: string; count: number }[]>([]);
+  const [loadingBatches, setLoadingBatches] = useState(false);
+  const [selectedBatch, setSelectedBatch] = useState<string | null>(null);
+  const [batchMembers, setBatchMembers] = useState<Customer[]>([]);
+  const [loadingMembers, setLoadingMembers] = useState(false);
+  const [memberQuery, setMemberQuery] = useState("");
+  const [deletingBatch, setDeletingBatch] = useState<string | null>(null);
+  const [confirmDeleteBatch, setConfirmDeleteBatch] = useState<string | null>(null);
 
   useEffect(() => {
     if (toast) {
@@ -285,6 +297,72 @@ export default function CustomersPage() {
       });
     } finally {
       setIsBatching(false);
+    }
+  };
+
+  const fetchBatches = async () => {
+    setLoadingBatches(true);
+    try {
+      const res = await fetch("/api/admin/customers/batches");
+      if (res.ok) {
+        setBatches(await res.json());
+      }
+    } catch (error) {
+      console.error("Failed to fetch batches:", error);
+    } finally {
+      setLoadingBatches(false);
+    }
+  };
+
+  const fetchBatchMembers = async (tagName: string) => {
+    setLoadingMembers(true);
+    try {
+      const res = await fetch(`/api/admin/customers?tag=${encodeURIComponent(tagName)}&limit=500`);
+      if (res.ok) {
+        const data = await res.json();
+        setBatchMembers(data.customers || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch batch members:", error);
+    } finally {
+      setLoadingMembers(false);
+    }
+  };
+
+  const handleDeleteBatch = async (tagName: string) => {
+    setDeletingBatch(tagName);
+    try {
+      const res = await fetch(`/api/admin/customers/batches?tag=${encodeURIComponent(tagName)}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setToast({
+          message: data.message || `Successfully deleted batch ${tagName}`,
+          type: "success"
+        });
+        if (selectedBatch === tagName) {
+          setSelectedBatch(null);
+          setBatchMembers([]);
+        }
+        fetchBatches();
+        fetchTags();
+        fetchCustomers(true);
+      } else {
+        const data = await res.json();
+        setToast({
+          message: data.error || "Failed to delete batch",
+          type: "error"
+        });
+      }
+    } catch (error: any) {
+      setToast({
+        message: error.message || "An error occurred",
+        type: "error"
+      });
+    } finally {
+      setDeletingBatch(null);
+      setConfirmDeleteBatch(null);
     }
   };
 
@@ -751,6 +829,16 @@ export default function CustomersPage() {
         </div>
         <div className="flex items-center gap-2">
           <button
+            onClick={() => {
+              setShowManageBatchModal(true);
+              fetchBatches();
+            }}
+            className="flex items-center gap-1.5 px-4 py-2 bg-white border border-warm-200 text-warm-700 rounded-xl text-xs font-bold hover:bg-warm-50 transition-colors cursor-pointer"
+          >
+            <Users className="w-3.5 h-3.5 text-warm-500" />
+            Manage Batches
+          </button>
+          <button
             onClick={() => setShowBatchModal(true)}
             className="flex items-center gap-1.5 px-4 py-2 bg-primary text-white rounded-xl text-xs font-bold hover:bg-[#cc1530] transition-colors cursor-pointer border-0"
           >
@@ -1052,6 +1140,241 @@ export default function CustomersPage() {
                     )}
                     {isBatching ? "Batching..." : "Generate"}
                   </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Manage Batches Modal */}
+      <AnimatePresence>
+        {showManageBatchModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm"
+              onClick={() => {
+                if (!deletingBatch) {
+                  setShowManageBatchModal(false);
+                  setSelectedBatch(null);
+                  setBatchMembers([]);
+                  setMemberQuery("");
+                }
+              }}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-3xl p-6 w-full max-w-4xl h-[80vh] flex flex-col relative z-10 shadow-2xl"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between pb-4 border-b border-warm-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
+                    <Users className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-warm-900">Manage Batches</h2>
+                    <p className="text-xs text-warm-500">View and manage marketing batch segments</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowManageBatchModal(false);
+                    setSelectedBatch(null);
+                    setBatchMembers([]);
+                    setMemberQuery("");
+                  }}
+                  className="p-2 rounded-xl hover:bg-warm-100 transition-colors border-0 bg-transparent cursor-pointer"
+                  disabled={!!deletingBatch}
+                >
+                  <X className="w-5 h-5 text-warm-500" />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-12 gap-6 pt-4">
+                {/* Left Pane - Batches List */}
+                <div className={`col-span-1 md:col-span-5 flex flex-col min-h-0 ${selectedBatch ? 'hidden md:flex' : 'flex'}`}>
+                  <h3 className="text-xs font-bold text-warm-700 uppercase tracking-wider mb-3">All Created Batches</h3>
+                  
+                  {loadingBatches ? (
+                    <div className="flex-1 flex flex-col items-center justify-center py-12">
+                      <RefreshCw className="w-6 h-6 text-primary animate-spin mb-2" />
+                      <span className="text-xs text-warm-500 font-medium">Loading batches...</span>
+                    </div>
+                  ) : batches.length === 0 ? (
+                    <div className="flex-1 flex flex-col items-center justify-center py-12 border-2 border-dashed border-warm-200 rounded-2xl p-4 text-center">
+                      <Users className="w-8 h-8 text-warm-300 mb-2" />
+                      <p className="text-sm font-bold text-warm-700">No batches found</p>
+                      <p className="text-xs text-warm-400 mt-1">Create one using the batch buttons on filtered lists.</p>
+                    </div>
+                  ) : (
+                    <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                      {batches.map((batch) => (
+                        <div
+                          key={batch.name}
+                          onClick={() => {
+                            setSelectedBatch(batch.name);
+                            setMemberQuery("");
+                            fetchBatchMembers(batch.name);
+                          }}
+                          className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between group ${
+                            selectedBatch === batch.name
+                              ? 'bg-primary/5 border-primary/20 shadow-sm'
+                              : 'bg-warm-50 hover:bg-warm-100/70 border-transparent'
+                          }`}
+                        >
+                          <div className="flex-1 min-w-0 pr-3">
+                            <p className="text-xs font-mono font-bold text-warm-900 truncate">{batch.name}</p>
+                            <p className="text-[10px] text-warm-500 mt-0.5 font-medium">{batch.count} customer{batch.count !== 1 ? 's' : ''}</p>
+                          </div>
+                          
+                          <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              onClick={() => {
+                                setSelectedBatch(batch.name);
+                                setMemberQuery("");
+                                fetchBatchMembers(batch.name);
+                              }}
+                              title="View members"
+                              className="p-1.5 rounded-lg text-warm-400 hover:text-primary hover:bg-white transition-colors border-0 bg-transparent cursor-pointer"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                            
+                            {confirmDeleteBatch === batch.name ? (
+                              <div className="flex items-center gap-1 bg-white border border-red-200 rounded-lg p-0.5">
+                                <button
+                                  onClick={() => handleDeleteBatch(batch.name)}
+                                  disabled={deletingBatch === batch.name}
+                                  className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-[10px] font-bold transition-colors cursor-pointer border-0 flex items-center gap-1"
+                                >
+                                  {deletingBatch === batch.name ? (
+                                    <RefreshCw className="w-2.5 h-2.5 animate-spin" />
+                                  ) : (
+                                    'Confirm'
+                                  )}
+                                </button>
+                                <button
+                                  onClick={() => setConfirmDeleteBatch(null)}
+                                  disabled={deletingBatch === batch.name}
+                                  className="px-1.5 py-1 bg-warm-100 hover:bg-warm-200 text-warm-700 rounded text-[10px] font-bold transition-colors cursor-pointer border-0"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => setConfirmDeleteBatch(batch.name)}
+                                title="Delete batch tag"
+                                className="p-1.5 rounded-lg text-warm-400 hover:text-red-500 hover:bg-white transition-colors border-0 bg-transparent cursor-pointer"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Right Pane - Selected Batch Members Detail */}
+                <div className={`col-span-1 md:col-span-7 flex flex-col min-h-0 border-t md:border-t-0 md:border-l border-warm-100 pt-4 md:pt-0 pl-0 md:pl-6 ${!selectedBatch ? 'hidden md:flex' : 'flex'}`}>
+                  {selectedBatch ? (
+                    <div className="flex flex-col flex-1 min-h-0">
+                      {/* Back button for mobile view */}
+                      <button
+                        onClick={() => setSelectedBatch(null)}
+                        className="md:hidden flex items-center gap-1.5 text-xs font-bold text-warm-500 hover:text-warm-850 mb-3 border-0 bg-transparent cursor-pointer"
+                      >
+                        <ArrowLeft className="w-4 h-4" />
+                        Back to Batches
+                      </button>
+
+                      {/* Header info */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                        <div>
+                          <p className="text-[10px] font-bold text-warm-400 uppercase tracking-wider">Viewing Members of</p>
+                          <h4 className="text-sm font-mono font-bold text-warm-900 truncate">{selectedBatch}</h4>
+                        </div>
+                        <div className="relative w-full sm:w-48">
+                          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-warm-400" />
+                          <input
+                            type="text"
+                            placeholder="Find inside batch..."
+                            value={memberQuery}
+                            onChange={(e) => setMemberQuery(e.target.value)}
+                            className="w-full pl-8 pr-3 py-1.5 bg-warm-50 border-0 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-warm-400"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Members List */}
+                      {loadingMembers ? (
+                        <div className="flex-1 flex flex-col items-center justify-center py-12">
+                          <RefreshCw className="w-6 h-6 text-primary animate-spin mb-2" />
+                          <span className="text-xs text-warm-500 font-medium">Fetching batch members...</span>
+                        </div>
+                      ) : (
+                        (() => {
+                          const filtered = batchMembers.filter(
+                            (m) =>
+                              (m.name || "").toLowerCase().includes(memberQuery.toLowerCase()) ||
+                              (m.phone || "").includes(memberQuery)
+                          );
+                          return (
+                            <div className="flex-1 overflow-y-auto min-h-0 border border-warm-100 rounded-2xl bg-warm-50/20 custom-scrollbar">
+                              {filtered.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+                                  <Search className="w-6 h-6 text-warm-300 mb-2" />
+                                  <p className="text-xs font-bold text-warm-700">No members match your search</p>
+                                  <p className="text-[10px] text-warm-400 mt-0.5">Try searching another name or number.</p>
+                                </div>
+                              ) : (
+                                <table className="w-full text-left border-collapse text-xs">
+                                  <thead>
+                                    <tr className="bg-warm-50 text-warm-500 font-bold border-b border-warm-100">
+                                      <th className="p-3">Customer</th>
+                                      <th className="p-3">Phone</th>
+                                      <th className="p-3 text-right">Spend</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-warm-100">
+                                    {filtered.map((member) => (
+                                      <tr key={member.id} className="hover:bg-warm-50/50 transition-colors">
+                                        <td className="p-3">
+                                          <div className="font-bold text-warm-900">{member.name}</div>
+                                          {member.group === 'vip' && (
+                                            <span className="inline-block mt-0.5 bg-amber-100 text-amber-700 text-[9px] px-1.5 py-0.5 rounded font-bold uppercase">VIP</span>
+                                          )}
+                                        </td>
+                                        <td className="p-3 font-mono text-warm-600">{member.phone}</td>
+                                        <td className="p-3 text-right font-semibold text-emerald-600">₹{Math.round(member.totalSpend || 0).toLocaleString()}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              )}
+                            </div>
+                          );
+                        })()
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex-1 flex flex-col items-center justify-center text-center py-12">
+                      <Users className="w-12 h-12 text-warm-200 mb-3" />
+                      <h4 className="text-sm font-bold text-warm-700">Inspect Batch Members</h4>
+                      <p className="text-xs text-warm-400 mt-1 max-w-xs">
+                        Select any batch from the left list to see the full list of enrolled customers and their details.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.div>

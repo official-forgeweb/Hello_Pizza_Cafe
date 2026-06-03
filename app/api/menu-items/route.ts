@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
@@ -32,21 +33,34 @@ export async function GET(request: NextRequest) {
       ];
     }
 
+    const isFull = searchParams.get("full") === "true";
+    const includeClause: any = {
+      category: { select: { id: true, name: true, slug: true } },
+    };
+
+    if (isFull || isAdmin) {
+      includeClause.variants = {
+        where: { isAvailable: true },
+        orderBy: { displayOrder: "asc" },
+      };
+      includeClause.addOns = {
+        include: {
+          addOn: true,
+        },
+      };
+    } else {
+      includeClause._count = {
+        select: {
+          variants: true,
+          addOns: true,
+        },
+      };
+    }
+
     const [items, total] = await Promise.all([
       prisma.menuItem.findMany({
         where,
-        include: {
-          category: { select: { id: true, name: true, slug: true } },
-          variants: {
-            where: { isAvailable: true },
-            orderBy: { displayOrder: "asc" },
-          },
-          addOns: {
-            include: {
-              addOn: true,
-            },
-          },
-        },
+        include: includeClause,
         orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
         skip: (page - 1) * limit,
         take: limit,
@@ -70,6 +84,20 @@ export async function GET(request: NextRequest) {
     }
     const filteredItems = Array.from(uniqueItemsMap.values());
 
+    // Map items to include hasVariants flag and resolve Decimal issues safely
+    const mappedItems = filteredItems.map((item: any) => {
+      const hasVariants = item._count
+        ? (item._count.variants > 0 || item._count.addOns > 0)
+        : (item.variants && item.variants.length > 0) || (item.addOns && item.addOns.length > 0);
+
+      return {
+        ...item,
+        hasVariants,
+        variants: item.variants || [],
+        addOns: item.addOns || [],
+      };
+    });
+
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
     };
@@ -80,12 +108,12 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
-      items: filteredItems,
+      items: mappedItems,
       pagination: {
         page,
         limit,
-        total: filteredItems.length,
-        totalPages: Math.ceil(filteredItems.length / limit),
+        total: mappedItems.length,
+        totalPages: Math.ceil(mappedItems.length / limit),
       },
     }, {
       headers

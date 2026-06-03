@@ -1,8 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/set-state-in-effect */
 "use client";
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Check, ShoppingBag, Plus, Minus } from "lucide-react";
+import { X, Check, ShoppingBag, Plus, Minus, RefreshCw } from "lucide-react";
 import Image from "next/image";
 import { useCartStore, type CartItem } from "@/store/cart";
 import { MenuItemData } from "./MenuItemCard";
@@ -113,18 +114,25 @@ const CONFIG = {
 
 export default function ItemCustomizationModal({ item, onClose }: ItemCustomizationModalProps) {
   const { addItem } = useCartStore();
-  
-  const getActualOptions = () => {
-    if (!item) return { variants: [], addons: [] };
 
-    const dbVariants = item.variants?.map(v => ({
+  const [activeItem, setActiveItem] = useState<MenuItemData | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const [selectedVariant, setSelectedVariant] = useState<any | null>(null);
+  const [selectedAddons, setSelectedAddons] = useState<any[]>([]);
+  const [imgSrc, setImgSrc] = useState("");
+
+  const getActualOptions = (targetItem: MenuItemData | null) => {
+    if (!targetItem) return { variants: [], addons: [] };
+
+    const dbVariants = targetItem.variants?.map(v => ({
       id: v.id,
       name: v.name,
-      price: Number(v.priceModifier) || 0,
+      price: Number(v.priceModifier || (v as any).price || 0),
       isDefault: v.isDefault
     })) || [];
 
-    const dbAddons = item.addOns?.map(a => ({
+    const dbAddons = targetItem.addOns?.map(a => ({
       id: a.addOn.id,
       name: a.addOn.name,
       price: Number(a.addOn.price) || 0,
@@ -137,7 +145,7 @@ export default function ItemCustomizationModal({ item, onClose }: ItemCustomizat
       return { variants: dbVariants, addons: dbAddons };
     }
 
-    const mockConfig = CONFIG[item.categoryId as keyof typeof CONFIG] || CONFIG["default"];
+    const mockConfig = CONFIG[targetItem.categoryId as keyof typeof CONFIG] || CONFIG["default"];
     return {
       variants: mockConfig.variants,
       addons: mockConfig.addons.map(a => ({
@@ -148,25 +156,91 @@ export default function ItemCustomizationModal({ item, onClose }: ItemCustomizat
     };
   };
 
-  const { variants, addons } = getActualOptions();
-  
-  // States
-  const [selectedVariant, setSelectedVariant] = useState<typeof variants[0] | null>(variants.find(v => (v as any).isDefault) || variants[0] || null);
-  const [selectedAddons, setSelectedAddons] = useState<(typeof addons[0] & { quantity: number })[]>([]);
-  const [imgSrc, setImgSrc] = useState("");
-  
-  // Reset selection and image source when item changes
+  // Fetch full item details when item changes
   useEffect(() => {
-    if (item) {
-      const opts = getActualOptions();
-      setSelectedVariant(opts.variants.find(v => (v as any).isDefault) || opts.variants[0] || null);
-      setSelectedAddons([]);
-      const currentImageUrl = item.imageUrl && item.imageUrl !== "null" ? item.imageUrl : "";
-      setImgSrc(currentImageUrl || getFallbackImage(item.name, item.category?.name));
+    if (!item) {
+      setActiveItem(null);
+      setLoading(false);
+      return;
+    }
+
+    const hasVariantsInProp = item.variants && item.variants.length > 0;
+    const hasAddOnsInProp = item.addOns && item.addOns.length > 0;
+    
+    // Check if customizable but details are missing
+    const isCustomizable = item.hasVariants || hasVariantsInProp || hasAddOnsInProp;
+
+    if (isCustomizable && !hasVariantsInProp && !hasAddOnsInProp) {
+      setLoading(true);
+      fetch(`/api/menu-items/${item.id}`)
+        .then((res) => {
+          if (!res.ok) throw new Error("Failed to fetch menu item details");
+          return res.json();
+        })
+        .then((data) => {
+          const transformed: MenuItemData = {
+            ...data,
+            price: Number(data.basePrice || data.price),
+            isVeg: data.itemType === "VEG" || data.isVeg === true,
+          };
+          setActiveItem(transformed);
+        })
+        .catch((err) => {
+          console.error("Error fetching customizable item details:", err);
+          setActiveItem(item); // Fallback to prop
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    } else {
+      setActiveItem(item);
+      setLoading(false);
     }
   }, [item]);
 
+  // Sync options when activeItem settles
+  useEffect(() => {
+    if (activeItem) {
+      const opts = getActualOptions(activeItem);
+      setSelectedVariant(opts.variants.find(v => (v as any).isDefault) || opts.variants[0] || null);
+      setSelectedAddons([]);
+      const currentImageUrl = activeItem.imageUrl && activeItem.imageUrl !== "null" ? activeItem.imageUrl : "";
+      setImgSrc(currentImageUrl || getFallbackImage(activeItem.name, activeItem.category?.name));
+    } else {
+      setSelectedVariant(null);
+      setSelectedAddons([]);
+      setImgSrc("");
+    }
+  }, [activeItem]);
+
   if (!item) return null;
+
+  if (loading || !activeItem) {
+    return (
+      <AnimatePresence>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={onClose}
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]"
+        />
+        <motion.div
+          initial={{ y: "100%" }}
+          animate={{ y: 0 }}
+          exit={{ y: "100%" }}
+          transition={{ type: "spring", damping: 25, stiffness: 200 }}
+          className="fixed bottom-0 left-0 right-0 h-[40vh] bg-white rounded-t-3xl z-[101] flex flex-col items-center justify-center md:max-w-2xl md:mx-auto shadow-2xl p-6"
+        >
+          <RefreshCw className="w-10 h-10 text-primary animate-spin mb-4" />
+          <p className="font-bold text-warm-900 text-sm">Configuring Customizations...</p>
+          <p className="text-xs text-warm-500 mt-1">Fetching size options and add-ons</p>
+        </motion.div>
+      </AnimatePresence>
+    );
+  }
+
+  const { variants, addons } = getActualOptions(activeItem);
 
   const incrementAddon = (addon: typeof addons[0]) => {
     setSelectedAddons((prev) => {
@@ -194,13 +268,13 @@ export default function ItemCustomizationModal({ item, onClose }: ItemCustomizat
 
   const handleAddToCart = () => {
     const newItem: CartItem = {
-      id: `${item.id}-${selectedVariant?.id || 'base'}-${Date.now()}`,
-      menuItemId: item.id,
-      name: item.name,
-      price: item.price,
+      id: `${activeItem.id}-${selectedVariant?.id || 'base'}-${Date.now()}`,
+      menuItemId: activeItem.id,
+      name: activeItem.name,
+      price: activeItem.price,
       quantity: 1,
-      imageUrl: item.imageUrl,
-      categoryId: item.categoryId,
+      imageUrl: activeItem.imageUrl,
+      categoryId: activeItem.categoryId,
       variant: selectedVariant ? {
         id: selectedVariant.id,
         name: selectedVariant.name,
@@ -212,7 +286,7 @@ export default function ItemCustomizationModal({ item, onClose }: ItemCustomizat
         price: a.price,
         quantity: a.quantity,
       })),
-      totalPrice: (selectedVariant ? selectedVariant.price : item.price) + selectedAddons.reduce((acc, a) => acc + (a.price * a.quantity), 0),
+      totalPrice: (selectedVariant ? selectedVariant.price : activeItem.price) + selectedAddons.reduce((acc, a) => acc + (a.price * a.quantity), 0),
     };
     
     addItem(newItem);
@@ -220,14 +294,14 @@ export default function ItemCustomizationModal({ item, onClose }: ItemCustomizat
   };
 
   const calculateTotal = () => {
-    const basePrice = selectedVariant ? selectedVariant.price : item.price;
+    const basePrice = selectedVariant ? selectedVariant.price : activeItem.price;
     const aPrice = selectedAddons.reduce((acc, a) => acc + (a.price * a.quantity), 0);
     return basePrice + aPrice;
   };
 
   return (
     <AnimatePresence>
-      {item && (
+      {activeItem && (
         <>
           {/* Backdrop */}
           <motion.div
@@ -254,7 +328,7 @@ export default function ItemCustomizationModal({ item, onClose }: ItemCustomizat
             <div className="absolute top-5 right-5 z-[100]">
               <button
                 onClick={onClose}
-                className="w-9 h-9 flex items-center justify-center bg-warm-100 text-warm-600 rounded-full hover:bg-warm-200 transition-colors shadow-sm"
+                className="w-9 h-9 flex items-center justify-center bg-warm-100 text-warm-600 rounded-full hover:bg-warm-200 transition-colors shadow-sm cursor-pointer border-0"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -265,24 +339,24 @@ export default function ItemCustomizationModal({ item, onClose }: ItemCustomizat
               <div className="flex gap-4 mb-4">
                 <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden bg-warm-100 flex-shrink-0">
                   <Image
-                    src={imgSrc || getFallbackImage(item.name, item.category?.name)}
-                    alt={item.name}
+                    src={imgSrc || getFallbackImage(activeItem.name, activeItem.category?.name)}
+                    alt={activeItem.name}
                     fill
                     sizes="(max-width: 768px) 80px, 96px"
                     loading="lazy"
                     className="object-cover"
-                    onError={() => setImgSrc(getFallbackImage(item.name, item.category?.name))}
+                    onError={() => setImgSrc(getFallbackImage(activeItem.name, activeItem.category?.name))}
                   />
                 </div>
                 <div className="flex flex-col justify-center">
                   <h2 className="text-lg sm:text-xl font-bold text-warm-900 mb-1 leading-tight line-clamp-1">
-                    {item.name}
+                    {activeItem.name}
                   </h2>
                   <p className="text-xs sm:text-sm text-warm-500 line-clamp-2 leading-snug">
-                    {item.description}
+                    {activeItem.description}
                   </p>
                   <div className="mt-1.5 text-base sm:text-lg font-black text-primary">
-                    ₹{item.price} <span className="text-xs text-warm-400 font-medium">base</span>
+                    ₹{activeItem.price} <span className="text-xs text-warm-400 font-medium">base</span>
                   </div>
                 </div>
               </div>
@@ -297,7 +371,6 @@ export default function ItemCustomizationModal({ item, onClose }: ItemCustomizat
                   <div className={`grid gap-3 ${variants.length >= 3 ? "grid-cols-3" : "grid-cols-2"}`}>
                     {variants.map((variant) => {
                       const isSelected = selectedVariant?.id === variant.id;
-                      // Split name to highlight the main size and show detail below
                       const nameParts = variant.name.split(" (");
                       const mainName = nameParts[0];
                       const detail = nameParts[1] ? `(${nameParts[1]}` : "";
@@ -336,13 +409,10 @@ export default function ItemCustomizationModal({ item, onClose }: ItemCustomizat
               {addons.length > 0 && (
                 <div className="px-6 pb-6">
                   {(() => {
-                    // Filter addons based on selected variant
-                    // Show global addons (variantName is null) AND addons specific to selected variant
                     const availableAddons = addons.filter(a => 
                       !a.variantName || (selectedVariant && a.variantName === selectedVariant.name)
                     );
 
-                    // Group available addons by addonGroup
                     const groupedAddons: Record<string, typeof addons> = {};
                     availableAddons.forEach(addon => {
                       const group = addon.addonGroup || "Extras";
@@ -388,12 +458,12 @@ export default function ItemCustomizationModal({ item, onClose }: ItemCustomizat
                                   </span>
                                 </div>
 
-                                <div className="flex items-center justify-between mt-auto">
+                                <div className="flex items-center justify-between mt-auto" onClick={(e) => e.stopPropagation()}>
                                   {isSelected ? (
                                     <div className="flex items-center bg-white rounded-xl border border-amber-200 p-1 shadow-sm w-full justify-between">
                                       <button
                                         onClick={(e) => { e.stopPropagation(); decrementAddon(addon); }}
-                                        className="w-8 h-8 flex items-center justify-center rounded-lg bg-warm-100 text-warm-600 hover:bg-warm-200 transition-colors"
+                                        className="w-8 h-8 flex items-center justify-center rounded-lg bg-warm-100 text-warm-600 hover:bg-warm-200 transition-colors cursor-pointer border-0"
                                       >
                                         <Minus className="w-4 h-4" />
                                       </button>
@@ -403,7 +473,7 @@ export default function ItemCustomizationModal({ item, onClose }: ItemCustomizat
                                       </div>
                                       <button
                                         onClick={(e) => { e.stopPropagation(); incrementAddon(addon); }}
-                                        className="w-8 h-8 flex items-center justify-center rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-colors shadow-sm"
+                                        className="w-8 h-8 flex items-center justify-center rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-colors shadow-sm cursor-pointer border-0"
                                       >
                                         <Plus className="w-4 h-4" />
                                       </button>
@@ -411,7 +481,7 @@ export default function ItemCustomizationModal({ item, onClose }: ItemCustomizat
                                   ) : (
                                     <button
                                       onClick={() => incrementAddon(addon)}
-                                      className="w-full py-2 flex items-center justify-center gap-2 bg-warm-100 text-warm-600 rounded-xl font-bold text-xs hover:bg-warm-200 transition-colors"
+                                      className="w-full py-2 flex items-center justify-center gap-2 bg-warm-100 text-warm-600 rounded-xl font-bold text-xs hover:bg-warm-200 transition-colors cursor-pointer border-0"
                                     >
                                       <Plus className="w-3.5 h-3.5" />
                                       Add Extra
@@ -433,7 +503,7 @@ export default function ItemCustomizationModal({ item, onClose }: ItemCustomizat
             <div className="p-4 bg-white border-t border-warm-200 flex-shrink-0 z-20">
               <button
                 onClick={handleAddToCart}
-                className="w-full flex items-center justify-between bg-primary text-white p-4 rounded-2xl font-bold shadow-lg hover:shadow-xl active:scale-[0.98] transition-all"
+                className="w-full flex items-center justify-between bg-primary text-white p-4 rounded-2xl font-bold shadow-lg hover:shadow-xl active:scale-[0.98] transition-all cursor-pointer border-0"
               >
                 <div className="flex flex-col items-start">
                   <span className="text-xs text-primary-100 uppercase tracking-wider">Total Amount</span>

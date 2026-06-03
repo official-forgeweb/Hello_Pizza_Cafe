@@ -1,5 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { clearSettingsCache } from "@/lib/settings";
 import {
   DeliveryConfig,
   DeliveryZone,
@@ -96,6 +98,9 @@ export async function PUT(request: NextRequest) {
         create: { key: "delivery_zones", value: sorted as any },
       }),
     ]);
+
+    // Clear settings cache to reflect updates instantly
+    clearSettingsCache();
 
     return NextResponse.json({ success: true, config, zones: sorted });
   } catch (error) {

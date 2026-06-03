@@ -1,7 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import prisma from "@/lib/prisma";
 import OffersList from "./OffersList";
 
-export const revalidate = 60; // Revalidate cache every minute
+export const revalidate = 3600; // Revalidate cache every hour
 
 export const metadata = {
   title: "Offers & Deals | Hello Pizza",

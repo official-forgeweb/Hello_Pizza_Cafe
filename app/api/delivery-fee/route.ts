@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import { getCachedDeliveryConfig, getCachedDeliveryZones } from "@/lib/settings";
 import {
-  DeliveryConfig,
-  DeliveryZone,
   calculateDistanceKm,
   calculateDeliveryFee,
-  getDefaultDeliveryConfig,
-  getDefaultDeliveryZones,
 } from "@/lib/delivery";
 
 /**
@@ -26,19 +22,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Fetch delivery settings from DB (with defaults fallback)
-    const [configRow, zonesRow] = await Promise.all([
-      prisma.restaurantSetting.findUnique({ where: { key: "delivery_config" } }),
-      prisma.restaurantSetting.findUnique({ where: { key: "delivery_zones" } }),
+    // Fetch delivery settings (using cached helper to reduce DB/CPU load)
+    const [config, zones] = await Promise.all([
+      getCachedDeliveryConfig(),
+      getCachedDeliveryZones(),
     ]);
-
-    const config: DeliveryConfig = configRow
-      ? (configRow.value as unknown as DeliveryConfig)
-      : getDefaultDeliveryConfig();
-
-    const zones: DeliveryZone[] = zonesRow
-      ? (zonesRow.value as unknown as DeliveryZone[])
-      : getDefaultDeliveryZones();
 
     // Calculate distance
     const distanceKm = calculateDistanceKm(

@@ -183,16 +183,28 @@ function OrderConfirmedContent() {
               {/* Rotating / Pulsing Pizza Icon */}
               <div className="flex justify-center">
                 <div className="relative">
+                  {/* Ambient pulsing blur glow */}
                   <motion.div
-                    animate={{ scale: [0.9, 1.35, 0.9], opacity: [0.2, 0.5, 0.2] }}
+                    animate={{ scale: [0.95, 1.15, 0.95], opacity: [0.15, 0.3, 0.15] }}
                     transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
-                    className="absolute inset-0 w-32 h-32 rounded-[2.5rem] bg-amber-500/20 -m-4 blur-md"
+                    className="absolute inset-0 w-32 h-32 rounded-[2.5rem] bg-amber-500/20 -m-4 blur-xl pointer-events-none"
                   />
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ repeat: Infinity, duration: 12, ease: "linear" }}
-                    className="absolute inset-0 w-32 h-32 rounded-[2.5rem] border-2 border-dashed border-amber-500/40 -m-4"
-                  />
+
+                  {/* Concentric expanding ripples (Radar/Sonar wave effect) */}
+                  {[0, 1, 2].map((i) => (
+                    <motion.div
+                      key={i}
+                      initial={{ scale: 0.85, opacity: 0.6 }}
+                      animate={{ scale: 1.5, opacity: 0 }}
+                      transition={{
+                        repeat: Infinity,
+                        duration: 2.4,
+                        delay: i * 0.8,
+                        ease: "easeOut",
+                      }}
+                      className="absolute inset-0 w-32 h-32 rounded-[2.5rem] border border-amber-500/30 -m-4 pointer-events-none"
+                    />
+                  ))}
                   
                   <div 
                     className="w-24 h-24 rounded-[2.5rem] bg-gradient-to-tr from-amber-500 to-rose-500 flex items-center justify-center relative z-10 shadow-xl"
