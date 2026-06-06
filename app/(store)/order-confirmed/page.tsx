@@ -36,7 +36,9 @@ function OrderConfirmedContent() {
 
     const fetchStatus = async () => {
       try {
-        const res = await fetch(`/api/orders/status?orderNumber=${orderNumber}`);
+        const res = await fetch(`/api/orders/status?orderNumber=${orderNumber}`, {
+          cache: "no-store"
+        });
         const data = await res.json();
         
         if (data.success && data.order) {
