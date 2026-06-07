@@ -1,15 +1,35 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Copy, CheckCircle2, Ticket, Tag, ArrowRight } from "lucide-react";
+import { getFallbackImage, isValidImageUrl } from "@/lib/utils/menuHelper";
 
 interface OffersListProps {
   heroSlides: any[];
   splashAds: any[];
   coupons: any[];
+}
+
+function SafeImage({ src, alt, fallbackName, ...props }: any) {
+  const [imgSrc, setImgSrc] = useState(isValidImageUrl(src) ? src : getFallbackImage(fallbackName || ""));
+  
+  useEffect(() => {
+    setImgSrc(isValidImageUrl(src) ? src : getFallbackImage(fallbackName || ""));
+  }, [src, fallbackName]);
+
+  return (
+    <Image
+      {...props}
+      src={imgSrc}
+      alt={alt}
+      onError={() => {
+        setImgSrc(getFallbackImage(fallbackName || ""));
+      }}
+    />
+  );
 }
 
 export default function OffersList({ heroSlides, splashAds, coupons }: OffersListProps) {
@@ -51,9 +71,10 @@ export default function OffersList({ heroSlides, splashAds, coupons }: OffersLis
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {splashAds.map((ad) => (
               <motion.div key={ad.id} variants={item} className="relative group rounded-[2rem] overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-300 aspect-[16/9] md:aspect-auto md:h-[280px]">
-                <Image 
+                <SafeImage 
                   src={ad.imageUrl} 
                   alt={ad.title} 
+                  fallbackName={ad.title}
                   fill 
                   className="object-cover group-hover:scale-105 transition-transform duration-700"
                 />
@@ -110,9 +131,10 @@ export default function OffersList({ heroSlides, splashAds, coupons }: OffersLis
             {heroSlides.map((slide) => (
               <motion.div key={slide.id} variants={item} className="bg-white rounded-[1.5rem] overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 border border-warm-100 flex flex-col">
                 <div className="relative aspect-[4/3] w-full">
-                  <Image 
+                  <SafeImage 
                     src={slide.imageUrl} 
                     alt={slide.title} 
+                    fallbackName={slide.title}
                     fill 
                     className="object-cover"
                   />

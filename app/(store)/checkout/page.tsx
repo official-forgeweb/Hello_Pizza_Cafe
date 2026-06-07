@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useState, useEffect } from "react";
@@ -177,6 +178,21 @@ export default function CheckoutPage() {
     }
 
     setErrors(newErrors);
+
+    if (Object.keys(newErrors).length > 0) {
+      setTimeout(() => {
+        const firstErrorKey = Object.keys(newErrors)[0];
+        const el = document.getElementById(`${firstErrorKey}-field`);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+          const input = el.querySelector("input, textarea") as HTMLElement;
+          if (input) {
+            input.focus();
+          }
+        }
+      }, 100);
+    }
+
     return Object.keys(newErrors).length === 0;
   };
 
@@ -342,10 +358,12 @@ export default function CheckoutPage() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-1.5">
+                <div id="name-field" className="space-y-1.5">
                   <label className="text-xs font-bold text-warm-400 uppercase tracking-widest px-1">Full Name <span className="normal-case text-warm-300 font-medium">(optional)</span></label>
                   <input
                     type="text"
+                    name="name"
+                    autoComplete="name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="e.g. Aryan (optional)"
@@ -353,7 +371,7 @@ export default function CheckoutPage() {
                   />
                 </div>
 
-                <div className="space-y-1.5">
+                <div id="phone-field" className="space-y-1.5">
                   <label className="text-xs font-bold text-warm-400 uppercase tracking-widest px-1">
                     Phone Number
                     {orderType === "dine_in" && <span className="normal-case text-warm-300 font-medium"> (optional)</span>}
@@ -364,8 +382,19 @@ export default function CheckoutPage() {
                     </span>
                     <input
                       type="tel"
+                      name="tel"
+                      autoComplete="tel"
                       value={phone}
-                      onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        let digits = val.replace(/\D/g, "");
+                        if (digits.startsWith("91") && digits.length === 12) {
+                          digits = digits.slice(2);
+                        } else if (digits.startsWith("0") && digits.length === 11) {
+                          digits = digits.slice(1);
+                        }
+                        setPhone(digits.slice(0, 10));
+                      }}
                       placeholder={orderType === "dine_in" ? "98765 43210 (optional)" : "98765 43210"}
                       className={`flex-1 px-5 py-4 bg-warm-50 rounded-r-2xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all placeholder:text-warm-300 border-0 ${
                         errors.phone ? "ring-2 ring-red-300" : ""
@@ -375,10 +404,12 @@ export default function CheckoutPage() {
                   {errors.phone && <p className="text-red-500 text-[10px] font-bold px-1">{errors.phone}</p>}
                 </div>
 
-                <div className="space-y-1.5 md:col-span-2">
+                <div id="email-field" className="space-y-1.5 md:col-span-2">
                   <label className="text-xs font-bold text-warm-400 uppercase tracking-widest px-1">Email Address (Optional)</label>
                   <input
                     type="email"
+                    name="email"
+                    autoComplete="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="hello@pizza.com (optional)"
@@ -427,7 +458,7 @@ export default function CheckoutPage() {
                     </div>
 
                     <div className="space-y-4">
-                      <div className="space-y-1.5">
+                      <div id="address-field" className="space-y-1.5">
                         <div className="flex items-center justify-between px-1">
                           <label className="text-xs font-bold text-warm-400 uppercase tracking-widest">Full Address</label>
                           <button
@@ -447,6 +478,8 @@ export default function CheckoutPage() {
                         <div className="relative">
                           <MapPin className="absolute left-4 top-4 w-5 h-5 text-primary" />
                           <textarea
+                            name="address"
+                            autoComplete="street-address"
                             value={address}
                             onChange={(e) => setAddress(e.target.value)}
                             rows={3}
@@ -459,51 +492,53 @@ export default function CheckoutPage() {
                         {errors.address && <p className="text-red-500 text-[10px] font-bold px-1">{errors.address}</p>}
 
                         {/* GPS Coordinates Validation details */}
-                        {coordinates ? (
-                          <div className="mt-3 p-4 bg-warm-50 rounded-2xl border border-warm-200/50 space-y-2">
-                            <div className="flex items-center justify-between text-xs font-bold text-warm-700">
-                              <span>GPS Coordinates:</span>
-                              <span className="text-warm-800 font-mono text-[11px]">{coordinates.lat.toFixed(5)}, {coordinates.lng.toFixed(5)}</span>
-                            </div>
-                            {loadingFee ? (
-                              <div className="flex items-center gap-2 text-xs font-semibold text-warm-500 py-1">
-                                <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" /> Calculating delivery fee...
+                        <div id="location-field" className="space-y-2">
+                          {coordinates ? (
+                            <div className="mt-3 p-4 bg-warm-50 rounded-2xl border border-warm-200/50 space-y-2">
+                              <div className="flex items-center justify-between text-xs font-bold text-warm-700">
+                                <span>GPS Coordinates:</span>
+                                <span className="text-warm-800 font-mono text-[11px]">{coordinates.lat.toFixed(5)}, {coordinates.lng.toFixed(5)}</span>
                               </div>
-                            ) : deliveryResult ? (
-                              <div className="space-y-2 pt-1 border-t border-warm-200/50">
-                                <div className="flex justify-between text-xs font-semibold">
-                                  <span className="text-warm-500">Cafe Distance:</span>
-                                  <span className="text-warm-800 font-bold">{deliveryResult.distanceKm} km</span>
+                              {loadingFee ? (
+                                <div className="flex items-center gap-2 text-xs font-semibold text-warm-500 py-1">
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" /> Calculating delivery fee...
                                 </div>
-                                <div className={`p-3 rounded-xl text-xs font-semibold leading-relaxed ${
-                                  deliveryResult.isDeliverable 
-                                    ? "bg-green-50 text-green-700 border border-green-200/55" 
-                                    : "bg-red-50 text-red-700 border border-red-200/55"
-                                }`}>
-                                  {deliveryResult.message}
-                                </div>
-                                {deliveryResult.isDeliverable && total < deliveryResult.minOrderAmount && (
-                                  <div className="p-3 bg-amber-50 text-amber-800 border border-amber-200/55 rounded-xl text-xs font-semibold leading-relaxed flex items-start gap-2">
-                                    <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-                                    <div>
-                                      <span className="font-bold block">Min Order Required</span>
-                                      <span>Add ₹{deliveryResult.minOrderAmount - total} more to deliver to your zone.</span>
-                                    </div>
+                              ) : deliveryResult ? (
+                                <div className="space-y-2 pt-1 border-t border-warm-200/50">
+                                  <div className="flex justify-between text-xs font-semibold">
+                                    <span className="text-warm-500">Cafe Distance:</span>
+                                    <span className="text-warm-800 font-bold">{deliveryResult.distanceKm} km</span>
                                   </div>
-                                )}
-                              </div>
-                            ) : null}
-                          </div>
-                        ) : (
-                          <div className="mt-3 p-4 bg-amber-50 text-amber-800 border border-amber-200/50 rounded-2xl text-xs font-semibold leading-relaxed flex items-start gap-2">
-                            <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-                            <div>
-                              <span className="font-bold block">GPS Location Required</span>
-                              <span>Please click &apos;Detect My Location&apos; above to verify your delivery distance.</span>
+                                  <div className={`p-3 rounded-xl text-xs font-semibold leading-relaxed ${
+                                    deliveryResult.isDeliverable 
+                                      ? "bg-green-50 text-green-700 border border-green-200/55" 
+                                      : "bg-red-50 text-red-700 border border-red-200/55"
+                                  }`}>
+                                    {deliveryResult.message}
+                                  </div>
+                                  {deliveryResult.isDeliverable && total < deliveryResult.minOrderAmount && (
+                                    <div className="p-3 bg-amber-50 text-amber-800 border border-amber-200/55 rounded-xl text-xs font-semibold leading-relaxed flex items-start gap-2">
+                                      <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                                      <div>
+                                        <span className="font-bold block">Min Order Required</span>
+                                        <span>Add ₹{deliveryResult.minOrderAmount - total} more to deliver to your zone.</span>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              ) : null}
                             </div>
-                          </div>
-                        )}
-                        {errors.location && <p className="text-red-500 text-[10px] font-bold px-1 mt-1">{errors.location}</p>}
+                          ) : (
+                            <div className="mt-3 p-4 bg-amber-50 text-amber-800 border border-amber-200/55 rounded-2xl text-xs font-semibold leading-relaxed flex items-start gap-2">
+                              <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                              <div>
+                                <span className="font-bold block">GPS Location Required</span>
+                                <span>Please click &apos;Detect My Location&apos; above to verify your delivery distance.</span>
+                              </div>
+                            </div>
+                          )}
+                          {errors.location && <p className="text-red-500 text-[10px] font-bold px-1 mt-1">{errors.location}</p>}
+                        </div>
                       </div>
 
                       <div className="space-y-1.5">

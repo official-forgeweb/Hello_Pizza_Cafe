@@ -7,7 +7,7 @@ import { X, Check, ShoppingBag, Plus, Minus, RefreshCw } from "lucide-react";
 import Image from "next/image";
 import { useCartStore, type CartItem } from "@/store/cart";
 import { MenuItemData } from "./MenuItemCard";
-import { getFallbackImage } from "@/lib/utils/menuHelper";
+import { getFallbackImage, isValidImageUrl } from "@/lib/utils/menuHelper";
 
 interface ItemCustomizationModalProps {
   item: MenuItemData | null;
@@ -204,7 +204,7 @@ export default function ItemCustomizationModal({ item, onClose }: ItemCustomizat
       const opts = getActualOptions(activeItem);
       setSelectedVariant(opts.variants.find(v => (v as any).isDefault) || opts.variants[0] || null);
       setSelectedAddons([]);
-      const currentImageUrl = activeItem.imageUrl && activeItem.imageUrl !== "null" ? activeItem.imageUrl : "";
+      const currentImageUrl = isValidImageUrl(activeItem.imageUrl) ? activeItem.imageUrl : "";
       setImgSrc(currentImageUrl || getFallbackImage(activeItem.name, activeItem.category?.name));
     } else {
       setSelectedVariant(null);

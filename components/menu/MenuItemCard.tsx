@@ -6,7 +6,7 @@ import { Plus, Minus, Star, Pizza } from "lucide-react";
 import VegBadge from "./VegBadge";
 import { useCartStore, type CartItem } from "@/store/cart";
 import { useState, useEffect } from "react";
-import { getFallbackImage } from "@/lib/utils/menuHelper";
+import { getFallbackImage, isValidImageUrl } from "@/lib/utils/menuHelper";
 
 export interface MenuItemData {
   id: string;
@@ -67,7 +67,7 @@ export default function MenuItemCard({ item, onCustomize }: MenuItemCardProps) {
   );
 
   const [isMounted, setIsMounted] = useState(false);
-  const initialImageUrl = item.imageUrl && item.imageUrl !== "null" ? item.imageUrl : "";
+  const initialImageUrl = isValidImageUrl(item.imageUrl) ? item.imageUrl : "";
   const [imgSrc, setImgSrc] = useState(initialImageUrl || getFallbackImage(item.name, item.category?.name));
 
   useEffect(() => {
@@ -75,7 +75,7 @@ export default function MenuItemCard({ item, onCustomize }: MenuItemCardProps) {
   }, []);
 
   useEffect(() => {
-    const currentImageUrl = item.imageUrl && item.imageUrl !== "null" ? item.imageUrl : "";
+    const currentImageUrl = isValidImageUrl(item.imageUrl) ? item.imageUrl : "";
     setImgSrc(currentImageUrl || getFallbackImage(item.name, item.category?.name));
   }, [item.imageUrl, item.name, item.category?.name]);
 

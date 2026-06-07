@@ -6,6 +6,7 @@ import { MapPin, ChevronRight, Loader2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useLocationStore } from "@/store/location";
+import { isValidImageUrl } from "@/lib/utils/menuHelper";
 
 // Splash flow: loading → ad → location → done
 type SplashStep = "loading" | "ad" | "location" | "done";
@@ -248,7 +249,7 @@ export default function SplashScreen() {
                         className="absolute inset-0"
                       >
                         <Image
-                          src={ads[currentAd]?.imageUrl || "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&q=80"}
+                          src={isValidImageUrl(ads[currentAd]?.imageUrl) ? ads[currentAd].imageUrl : "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&q=80"}
                           alt={ads[currentAd]?.title || "Promo"}
                           fill
                           className="object-cover"

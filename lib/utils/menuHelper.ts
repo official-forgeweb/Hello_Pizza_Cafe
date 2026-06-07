@@ -368,3 +368,18 @@ export const getFallbackImage = (itemName: string, categoryName: string = ""): s
   const index = hashString(itemName.toLowerCase().trim()) % images.length;
   return images[index];
 };
+
+export function isValidImageUrl(url: string | null | undefined): boolean {
+  if (!url) return false;
+  const trimmed = url.trim();
+  if (
+    trimmed === "" ||
+    trimmed === "null" ||
+    trimmed === "undefined" ||
+    trimmed === "[object Object]"
+  ) {
+    return false;
+  }
+  return trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("/");
+}
+

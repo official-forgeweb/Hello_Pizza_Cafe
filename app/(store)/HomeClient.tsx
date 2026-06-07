@@ -25,7 +25,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import MenuItemCard, { type MenuItemData } from "@/components/menu/MenuItemCard";
-import { getFallbackImage } from "@/lib/utils/menuHelper";
+import { getFallbackImage, isValidImageUrl } from "@/lib/utils/menuHelper";
 
 // ─── Mock Data ────────────────────────────────────────────────
 const HERO_ITEM = {
@@ -147,11 +147,11 @@ function FadeInSection({
 
 // ─── Safe Image Component for Hero Slides ──────────────────────
 function GallerySlideImage({ src, alt, title, ...props }: any) {
-  const [imgSrc, setImgSrc] = useState(src);
+  const [imgSrc, setImgSrc] = useState(isValidImageUrl(src) ? src : getFallbackImage(title));
   
   useEffect(() => {
-    setImgSrc(src);
-  }, [src]);
+    setImgSrc(isValidImageUrl(src) ? src : getFallbackImage(title));
+  }, [src, title]);
 
   return (
     <Image
