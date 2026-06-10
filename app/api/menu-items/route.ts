@@ -38,24 +38,15 @@ export async function GET(request: NextRequest) {
       category: { select: { id: true, name: true, slug: true } },
     };
 
-    if (isFull || isAdmin) {
-      includeClause.variants = {
-        where: { isAvailable: true },
-        orderBy: { displayOrder: "asc" },
-      };
-      includeClause.addOns = {
-        include: {
-          addOn: true,
-        },
-      };
-    } else {
-      includeClause._count = {
-        select: {
-          variants: true,
-          addOns: true,
-        },
-      };
-    }
+    includeClause.variants = {
+      where: { isAvailable: true },
+      orderBy: { displayOrder: "asc" },
+    };
+    includeClause.addOns = {
+      include: {
+        addOn: true,
+      },
+    };
 
     const [items, total] = await Promise.all([
       prisma.menuItem.findMany({
@@ -84,17 +75,36 @@ export async function GET(request: NextRequest) {
     }
     const filteredItems = Array.from(uniqueItemsMap.values());
 
-    // Map items to include hasVariants flag and resolve Decimal issues safely
     const mappedItems = filteredItems.map((item: any) => {
+      const variantsMapped = item.variants?.map((v: any) => ({
+        ...v,
+        price: Number(v.priceModifier || (v as any).price || 0),
+        priceModifier: Number(v.priceModifier || 0)
+      })) || [];
+
+      const addOnsMapped = item.addOns?.map((a: any) => ({
+        ...a,
+        addOn: a.addOn ? {
+          ...a.addOn,
+          price: Number(a.addOn.price || 0)
+        } : null
+      })) || [];
+
+      const defaultVariant = variantsMapped.find((v: any) => v.isDefault) || variantsMapped[0];
+      const basePriceNum = Number(item.basePrice || item.price || 0);
+      const displayPrice = defaultVariant ? Number(defaultVariant.priceModifier || 0) : basePriceNum;
+
       const hasVariants = item._count
         ? (item._count.variants > 0 || item._count.addOns > 0)
-        : (item.variants && item.variants.length > 0) || (item.addOns && item.addOns.length > 0);
+        : (variantsMapped.length > 0 || addOnsMapped.length > 0);
 
       return {
         ...item,
+        basePrice: basePriceNum,
+        price: displayPrice,
         hasVariants,
-        variants: item.variants || [],
-        addOns: item.addOns || [],
+        variants: variantsMapped,
+        addOns: addOnsMapped,
       };
     });
 

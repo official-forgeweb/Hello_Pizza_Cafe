@@ -16,6 +16,12 @@ async function MenuPageContent() {
       where: { isAvailable: true },
       include: {
         category: { select: { id: true, name: true, slug: true } },
+        variants: {
+          orderBy: { displayOrder: "asc" }
+        },
+        addOns: {
+          include: { addOn: true }
+        },
         _count: {
           select: {
             variants: true,
@@ -30,6 +36,23 @@ async function MenuPageContent() {
   // Transform items to resolve decimal serialization issue and guarantee correct numeric calculations
   const transformedItems = items.map((i: any) => {
     const basePriceNum = Number(i.basePrice || i.price || 0);
+
+    const variantsMapped = i.variants?.map((v: any) => ({
+      ...v,
+      price: Number(v.priceModifier || (v as any).price || 0),
+      priceModifier: Number(v.priceModifier || 0)
+    })) || [];
+
+    const addOnsMapped = i.addOns?.map((a: any) => ({
+      ...a,
+      addOn: a.addOn ? {
+        ...a.addOn,
+        price: Number(a.addOn.price || 0)
+      } : null
+    })) || [];
+
+    const defaultVariant = variantsMapped.find((v: any) => v.isDefault) || variantsMapped[0];
+    const displayPrice = defaultVariant ? Number(defaultVariant.priceModifier || 0) : basePriceNum;
     
     const hasVariants = i._count
       ? (i._count.variants > 0 || i._count.addOns > 0)
@@ -38,11 +61,11 @@ async function MenuPageContent() {
     return {
       ...i,
       basePrice: basePriceNum,
-      price: basePriceNum,
+      price: displayPrice,
       isVeg: i.itemType === "VEG" || i.isVeg === true,
       hasVariants,
-      variants: [],
-      addOns: []
+      variants: variantsMapped,
+      addOns: addOnsMapped
     };
   });
 

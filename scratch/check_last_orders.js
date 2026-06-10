@@ -9,34 +9,25 @@ const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  console.log("Checking order 260606505...");
-  const order = await prisma.order.findFirst({
-    where: {
-      OR: [
-        { orderNumber: "260606505" },
-        { orderNumber: { contains: "260606505" } }
-      ]
-    },
-    include: {
-      items: true
-    }
-  });
-
-  console.log("Found order:", order);
-
-  console.log("\nChecking last 5 orders:");
+  console.log("\nChecking last 20 orders with detailed items:");
   const lastOrders = await prisma.order.findMany({
     orderBy: { placedAt: "desc" },
-    take: 5,
-    select: {
-      id: true,
-      orderNumber: true,
-      placedAt: true,
-      status: true,
-      totalAmount: true
+    take: 20,
+    include: {
+      items: {
+        include: {
+          addOns: true
+        }
+      }
     }
   });
-  console.log(lastOrders);
+  
+  for (const order of lastOrders) {
+    console.log(`Order Number: ${order.orderNumber} | Date: ${order.placedAt.toISOString()} | Status: ${order.status} | Total: ${order.totalAmount}`);
+    for (const item of order.items) {
+      console.log(`  - Item Name: "${item.itemName}" | Qty: ${item.quantity} | Variant: "${item.variantName}" | BasePrice: ${item.basePrice} | VariantPrice: ${item.variantPrice} | ItemTotal: ${item.itemTotal}`);
+    }
+  }
 }
 
 main()

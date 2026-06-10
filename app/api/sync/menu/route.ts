@@ -50,8 +50,9 @@ export async function POST(request: NextRequest) {
     const categoriesToSync: SyncCategory[] = rawData.categories || [];
     const itemsToSync: SyncMenuItem[] = Array.isArray(rawData) ? rawData : rawData.items || [];
     const globalAddons: SyncGlobalAddon[] = rawData.globalAddons || [];
+    const pricesOnly = !!rawData.pricesOnly;
 
-    if (!itemsToSync.length && !categoriesToSync.length) {
+    if (!itemsToSync.length && !categoriesToSync.length && !pricesOnly) {
       return NextResponse.json({ success: true, message: "No data to sync" });
     }
 
@@ -72,31 +73,33 @@ export async function POST(request: NextRequest) {
     };
 
     // ── Step 1: Upsert categories ──
-    await processInChunks(categoriesToSync, 50, async (chunk) => {
-      await Promise.all(chunk.map(async (cat) => {
-        if (!cat.id || !cat.name) return;
-        const slug = cat.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-        await prisma.category.upsert({
-          where: { id: cat.id },
-          update: {
-            name: cat.name,
-            slug: slug + '-' + cat.id.slice(0, 8),
-            description: cat.description || null,
-            displayOrder: cat.displayOrder || 0,
-          },
-          create: {
-            id: cat.id,
-            name: cat.name,
-            slug: slug + '-' + cat.id.slice(0, 8),
-            description: cat.description || null,
-            displayOrder: cat.displayOrder || 0,
-          }
-        });
-        categoriesSynced++;
-      }));
-    });
+    if (!pricesOnly) {
+      await processInChunks(categoriesToSync, 50, async (chunk) => {
+        await Promise.all(chunk.map(async (cat) => {
+          if (!cat.id || !cat.name) return;
+          const slug = cat.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+          await prisma.category.upsert({
+            where: { id: cat.id },
+            update: {
+              name: cat.name,
+              slug: slug + '-' + cat.id.slice(0, 8),
+              description: cat.description || null,
+              displayOrder: cat.displayOrder || 0,
+            },
+            create: {
+              id: cat.id,
+              name: cat.name,
+              slug: slug + '-' + cat.id.slice(0, 8),
+              description: cat.description || null,
+              displayOrder: cat.displayOrder || 0,
+            }
+          });
+          categoriesSynced++;
+        }));
+      });
+    }
 
-    const validCatIds = new Set(categoriesToSync.map(c => c.id));
+    const validCatIds = pricesOnly ? new Set<string>() : new Set(categoriesToSync.map(c => c.id));
 
     // ── Step 2: Upsert global addons from POS ──
     const addonNameToId: Record<string, string> = {};
@@ -108,15 +111,25 @@ export async function POST(request: NextRequest) {
       await Promise.all(chunk.map(async (ga) => {
         const existingId = existingAddonMap.get(ga.name);
         if (existingId) {
-          await prisma.addOn.update({
-            where: { id: existingId },
-            data: {
-              price: ga.price || 0,
-              itemType: ga.type === 'non-veg' ? "NON_VEG" : "VEG",
-            }
-          });
+          if (pricesOnly) {
+            await prisma.addOn.update({
+              where: { id: existingId },
+              data: {
+                price: ga.price || 0,
+              }
+            });
+          } else {
+            await prisma.addOn.update({
+              where: { id: existingId },
+              data: {
+                price: ga.price || 0,
+                itemType: ga.type === 'non-veg' ? "NON_VEG" : "VEG",
+              }
+            });
+          }
           addonNameToId[ga.name] = existingId;
-        } else {
+          globalAddonsSynced++;
+        } else if (!pricesOnly) {
           const created = await prisma.addOn.create({
             data: {
               name: ga.name,
@@ -127,8 +140,8 @@ export async function POST(request: NextRequest) {
             }
           });
           addonNameToId[ga.name] = created.id;
+          globalAddonsSynced++;
         }
-        globalAddonsSynced++;
       }));
     });
 
@@ -139,6 +152,63 @@ export async function POST(request: NextRequest) {
     await processInChunks(itemsToSync, 20, async (chunk) => {
       // Small chunk size of 20 for menu items because each item performs multiple queries (variants, addons)
       await Promise.all(chunk.map(async (item) => {
+        if (pricesOnly) {
+          // Find existing item by ID
+          const existingById = await prisma.menuItem.findUnique({
+            where: { id: item.id }
+          });
+
+          let targetId = item.id;
+          let itemExists = !!existingById;
+
+          if (!existingById) {
+            const existingByName = await prisma.menuItem.findFirst({
+              where: {
+                name: {
+                  equals: item.name,
+                  mode: 'insensitive'
+                }
+              }
+            });
+
+            if (existingByName) {
+              targetId = existingByName.id;
+              itemExists = true;
+            }
+          }
+
+          if (itemExists) {
+            await prisma.menuItem.update({
+              where: { id: targetId },
+              data: {
+                basePrice: item.price,
+              }
+            });
+            itemsSynced++;
+
+            // ── Step 4: Sync Variants (pricesOnly mode) ──
+            if (item.variants && Array.isArray(item.variants) && item.variants.length > 0) {
+              await prisma.itemVariant.deleteMany({ where: { menuItemId: targetId } });
+              
+              const variantsToCreate = item.variants.map((v, idx) => ({
+                menuItemId: targetId,
+                name: v.name,
+                variantGroup: "Size",
+                priceModifier: v.price || 0,
+                isDefault: idx === 0,
+                isAvailable: true,
+                displayOrder: idx,
+              }));
+              
+              if (variantsToCreate.length > 0) {
+                 await prisma.itemVariant.createMany({ data: variantsToCreate });
+                 variantsSynced += variantsToCreate.length;
+              }
+            }
+          }
+          return;
+        }
+
         let categoryId = item.categoryId;
         if (!categoryId) {
           console.warn(`[MenuSync] Skipping item "${item.name}" - categoryId is empty or missing`);
