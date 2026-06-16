@@ -44,12 +44,43 @@ export default function CheckoutPage() {
   const [whatsappOptIn, setWhatsappOptIn] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Loyalty Points State
+  const [loyaltyBalance, setLoyaltyBalance] = useState<{ availablePoints: number; pendingPoints: number } | null>(null);
+  const [pointsToRedeem, setPointsToRedeem] = useState<number>(0);
+  const [redeemedDiscount, setRedeemedDiscount] = useState<number>(0);
+
   // Auto-fill address from detected location
   useEffect(() => {
     if (detectedAddress && !address) {
       setAddress(detectedAddress);
     }
   }, [detectedAddress]);
+
+  // Fetch loyalty balance when a 10-digit phone number is entered
+  useEffect(() => {
+    if (phone.length === 10) {
+      fetch(`/api/loyalty/balance?phone=${phone}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            setLoyaltyBalance({
+              availablePoints: data.availablePoints || 0,
+              pendingPoints: data.pendingPoints || 0
+            });
+          } else {
+            setLoyaltyBalance(null);
+          }
+        })
+        .catch(err => {
+          console.error("Error fetching loyalty balance:", err);
+          setLoyaltyBalance(null);
+        });
+    } else {
+      setLoyaltyBalance(null);
+      setPointsToRedeem(0);
+      setRedeemedDiscount(0);
+    }
+  }, [phone]);
 
   useEffect(() => {
     setMounted(true);
@@ -94,7 +125,7 @@ export default function CheckoutPage() {
   const total = getCartTotal();
   const tax = Math.round(total * 0.05);
   const deliveryFee = orderType === "delivery" && deliveryResult ? deliveryResult.deliveryFee : 0;
-  const grandTotal = total + tax + deliveryFee;
+  const grandTotal = Math.max(0, total + tax + deliveryFee - redeemedDiscount);
 
   useEffect(() => {
     if (orderType !== "delivery" || !coordinates || !total) {
@@ -211,6 +242,7 @@ export default function CheckoutPage() {
         deliveryInstructions: instructions,
         deliveryLat: orderType === "delivery" && coordinates ? coordinates.lat : null,
         deliveryLng: orderType === "delivery" && coordinates ? coordinates.lng : null,
+        loyaltyPointsRedeemed: pointsToRedeem,
         items: items.map(item => ({
           menuItemId: item.menuItemId,
           itemName: item.name,
@@ -419,6 +451,43 @@ export default function CheckoutPage() {
                   />
                   {errors.email && <p className="text-red-500 text-[10px] font-bold px-1">{errors.email}</p>}
                 </div>
+
+                {loyaltyBalance && loyaltyBalance.availablePoints > 0 && (
+                  <div className="md:col-span-2 p-5 bg-gradient-to-br from-amber-50 to-orange-50/50 border border-amber-200 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-4 mt-2">
+                    <div className="flex items-start gap-3">
+                      <div className="p-3 bg-amber-500/10 text-amber-700 rounded-2xl shrink-0 mt-0.5">
+                        <Wallet className="w-6 h-6 text-amber-600" />
+                      </div>
+                      <div>
+                        <span className="block font-black text-warm-900 text-sm">Loyalty Points Available!</span>
+                        <span className="text-xs text-warm-600 font-medium">
+                          You have <strong className="text-amber-700">{loyaltyBalance.availablePoints}</strong> points available (1 Point = ₹1). 
+                          {loyaltyBalance.pendingPoints > 0 && ` (${loyaltyBalance.pendingPoints} pending)`}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 w-full md:w-auto md:max-w-[240px]">
+                      <span className="text-xs font-bold text-warm-600 shrink-0">Redeem:</span>
+                      <input
+                        type="number"
+                        min="0"
+                        max={Math.min(loyaltyBalance.availablePoints, Math.floor(total + tax + deliveryFee))}
+                        value={pointsToRedeem || ""}
+                        onChange={(e) => {
+                          const val = Math.min(
+                            loyaltyBalance.availablePoints,
+                            Math.floor(total + tax + deliveryFee),
+                            Math.max(0, parseInt(e.target.value) || 0)
+                          );
+                          setPointsToRedeem(val);
+                          setRedeemedDiscount(val);
+                        }}
+                        placeholder="Points to deduct"
+                        className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-amber-500/30 text-center text-amber-900 placeholder:text-amber-300"
+                      />
+                    </div>
+                  </div>
+                )}
                 
                 <div className="md:col-span-2 pt-2">
                   <label className="flex items-center gap-3 p-4 bg-[#25D366]/5 border border-[#25D366]/20 rounded-xl cursor-pointer hover:bg-[#25D366]/10 transition-colors">
@@ -637,6 +706,12 @@ export default function CheckoutPage() {
                       {deliveryFee === 0 ? "FREE" : `₹${deliveryFee}`}
                     </span>
                   </div>
+                  {redeemedDiscount > 0 && (
+                    <div className="flex justify-between text-amber-400 font-bold">
+                      <span>Points Redeemed</span>
+                      <span>-₹{redeemedDiscount}</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="pt-6 border-t border-white/10 flex justify-between items-end">

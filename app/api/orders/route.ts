@@ -23,6 +23,7 @@ export async function POST(request: NextRequest) {
       whatsappOptIn = false,
       deliveryLat,
       deliveryLng,
+      loyaltyPointsRedeemed = 0,
     } = body;
 
     let finalPhone = customerPhone?.trim() || "";
@@ -172,6 +173,33 @@ export async function POST(request: NextRequest) {
 
     const totalAmount = subtotal + taxAmount + deliveryFee - discountAmount;
 
+    // Validate and deduct loyalty points
+    let pointsToRedeem = Number(loyaltyPointsRedeemed || 0);
+    const { CustomerService } = await import("@/lib/services/customerService");
+    if (pointsToRedeem > 0 && finalPhone && finalPhone !== "0000000000") {
+      const wallet = await CustomerService.getCustomerLoyaltyWallet(finalPhone);
+      if (pointsToRedeem > wallet.availablePoints) {
+        return NextResponse.json(
+          { error: `Insufficient loyalty points. Available: ${wallet.availablePoints}` },
+          { status: 400 }
+        );
+      }
+      if (pointsToRedeem > totalAmount) {
+        pointsToRedeem = Math.floor(totalAmount);
+      }
+    } else {
+      pointsToRedeem = 0;
+    }
+
+    const finalTotalAmount = Math.max(0, totalAmount - pointsToRedeem);
+
+    // Calculate loyalty points earned on final amount (excluding redeemed points)
+    const loyaltySettings = await prisma.loyaltySetting.findUnique({
+      where: { id: "default" }
+    }) || { pointsPerAmount: 5, amountThreshold: 100 };
+    
+    const pointsEarned = Math.floor(finalTotalAmount / Number(loyaltySettings.amountThreshold)) * Number(loyaltySettings.pointsPerAmount);
+
     // Generate order number in YYMMDD501 format with collision handling
     const now = new Date();
     const yy = String(now.getFullYear()).slice(-2);
@@ -220,7 +248,7 @@ export async function POST(request: NextRequest) {
       });
     } else {
       customer = await prisma.customer.update({
-        where: { id: customer.id },
+        where: { phone: customer.phone },
         data: {
           whatsappOptIn: finalWhatsappOptIn ? true : customer.whatsappOptIn, // Don't opt out if already opted in, only opt in
         }
@@ -231,7 +259,7 @@ export async function POST(request: NextRequest) {
     const order = await prisma.order.create({
       data: {
         orderNumber,
-        customerId: customer.id,
+        customerId: customer.phone,
         customerName: finalName,
         customerPhone: finalPhone,
         customerEmail,
@@ -242,13 +270,15 @@ export async function POST(request: NextRequest) {
         taxAmount,
         deliveryFee,
         discountAmount,
-        totalAmount,
+        totalAmount: finalTotalAmount,
         couponCode,
         orderNotes,
         estimatedPrepTime: 20,
         estimatedDeliveryTime: orderType === "PICKUP" ? 20 : orderType === "DINE_IN" ? 0 : 40,
         deliveryLat: typeof deliveryLat === "number" ? deliveryLat : null,
         deliveryLng: typeof deliveryLng === "number" ? deliveryLng : null,
+        loyaltyPointsEarned: pointsEarned,
+        loyaltyPointsRedeemed: pointsToRedeem,
         items: {
           create: orderItems,
         },
@@ -260,9 +290,42 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Create loyalty transaction logs
+    if (finalPhone && finalPhone !== "0000000000") {
+      const timestamp = new Date();
+      
+      if (pointsToRedeem > 0) {
+        await prisma.loyaltyTransaction.create({
+          data: {
+            phoneNumber: finalPhone,
+            orderId: order.id,
+            type: "REDEEM",
+            points: -pointsToRedeem,
+            timestamp,
+            expiryDate: timestamp,
+            isPending: false
+          }
+        });
+      }
+
+      if (pointsEarned > 0) {
+        const expiryDate = new Date(timestamp.getTime() + 30 * 24 * 60 * 60 * 1000);
+        await prisma.loyaltyTransaction.create({
+          data: {
+            phoneNumber: finalPhone,
+            orderId: order.id,
+            type: "EARN",
+            points: pointsEarned,
+            timestamp,
+            expiryDate,
+            isPending: true
+          }
+        });
+      }
+    }
+
     // Recalculate customer stats dynamically from order history
-    const { CustomerService } = await import("@/lib/services/customerService");
-    await CustomerService.recalculateCustomerStats(customer.id);
+    await CustomerService.recalculateCustomerStats(customer.phone);
 
     // Increment totalOrders on menu items
     for (const item of items) {

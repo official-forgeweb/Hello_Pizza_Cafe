@@ -62,6 +62,33 @@ if (process.env.REDIS_URL) {
           }
         });
         
+        if (campaignId) {
+          const campaign = await prisma.campaign.findUnique({
+            where: { id: campaignId }
+          });
+          if (campaign && campaign.bonusPoints && campaign.bonusPoints > 0) {
+            const existingTx = await prisma.loyaltyTransaction.findFirst({
+              where: {
+                phoneNumber: phone,
+                campaignId: campaign.id
+              }
+            });
+            if (!existingTx) {
+              const expiryDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+              await prisma.loyaltyTransaction.create({
+                data: {
+                  phoneNumber: phone,
+                  type: "BONUS",
+                  points: campaign.bonusPoints,
+                  expiryDate,
+                  isPending: true,
+                  campaignId: campaign.id
+                }
+              });
+            }
+          }
+        }
+        
         return { success: true, messageId: result.data?.messages?.[0]?.id };
       } else {
         throw new Error(result.error);

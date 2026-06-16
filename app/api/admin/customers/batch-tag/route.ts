@@ -14,17 +14,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let targetCustomers: { id: string; tags: string[] }[] = [];
+    let targetCustomers: { phone: string; tags: string[] }[] = [];
 
     if (Array.isArray(customerIds) && customerIds.length > 0) {
       // Use explicit customer list
       targetCustomers = await prisma.customer.findMany({
         where: {
-          id: { in: customerIds },
+          phone: { in: customerIds },
           whatsappOptIn: true,
         },
         select: {
-          id: true,
+          phone: true,
           tags: true,
         },
         orderBy: { createdAt: "desc" },
@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
       targetCustomers = await prisma.customer.findMany({
         where: whereClause,
         select: {
-          id: true,
+          phone: true,
           tags: true,
         },
         orderBy: { createdAt: "desc" },
@@ -167,7 +167,7 @@ export async function POST(request: NextRequest) {
         const subUpdates = subChunk.map((customer) => {
           const updatedTags = Array.from(new Set([...customer.tags, tagName]));
           return prisma.customer.update({
-            where: { id: customer.id },
+            where: { phone: customer.phone },
             data: {
               tags: updatedTags,
             },

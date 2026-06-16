@@ -86,6 +86,20 @@ const UTILITY_PRESETS: Preset[] = [
     headerText: "Order Cancelled",
     bodyText: "Hello {{1}}, we regret to inform you that your order {{2}} has been cancelled. Reason: {{3}}. If you have questions, please reach out directly.",
     footerText: "Hello Pizza Cafe Support"
+  },
+  {
+    id: "loyalty_points_credit",
+    title: "Loyalty Points Credit",
+    description: "Send when points are credited manually or as a bonus (e.g. Sunil, 500 points, expires 2026-07-16, message: 'Special Loyalty Bonus')",
+    templateName: "loyalty_points_credit",
+    category: "MARKETING",
+    headerType: "TEXT",
+    headerText: "Points Credited!",
+    bodyText: "Congratulations {{1}}! We have credited {{2}} loyalty points to your account. These points will expire on {{3}}. Note: {{4}}.",
+    footerText: "Hello Pizza Cafe Loyalty Club",
+    buttons: [
+      { type: "URL", text: "View Wallet", url: "https://hello-pizza-cafe.vercel.app/loyalty" }
+    ]
   }
 ];
 
@@ -193,11 +207,19 @@ export default function CreateTemplatePage() {
 
   const getMockedBodyText = () => {
     let mock = bodyText;
-    mock = mock.replace(/\{\{1\}\}/g, "Rahul Sharma");
-    mock = mock.replace(/\{\{2\}\}/g, "OD-98214");
-    mock = mock.replace(/\{\{3\}\}/g, "Amit Kumar (Rider)");
-    mock = mock.replace(/\{\{4\}\}/g, "+91 98765 43210");
-    mock = mock.replace(/\{\{5\}\}/g, "123 Cafe Street, Faridabad");
+    const isLoyalty = name.toLowerCase().includes("loyalty");
+    if (isLoyalty) {
+      mock = mock.replace(/\{\{1\}\}/g, "Rahul Sharma");
+      mock = mock.replace(/\{\{2\}\}/g, "500");
+      mock = mock.replace(/\{\{3\}\}/g, "2026-07-16");
+      mock = mock.replace(/\{\{4\}\}/g, "Special Loyalty Bonus");
+    } else {
+      mock = mock.replace(/\{\{1\}\}/g, "Rahul Sharma");
+      mock = mock.replace(/\{\{2\}\}/g, "OD-98214");
+      mock = mock.replace(/\{\{3\}\}/g, "Amit Kumar (Rider)");
+      mock = mock.replace(/\{\{4\}\}/g, "+91 98765 43210");
+      mock = mock.replace(/\{\{5\}\}/g, "123 Cafe Street, Faridabad");
+    }
     return mock || "Write some body content...";
   };
 
@@ -719,8 +741,8 @@ export default function CreateTemplatePage() {
 
               {/* Preview Body */}
               <div className="text-warm-800 whitespace-pre-wrap leading-relaxed font-sans">
-                {getMockedBodyText().split(/(\[.*?\]|Rahul Sharma|OD-98214|Amit Kumar \(Rider\)|123 Cafe Street, Faridabad|\+91 98765 43210)/g).map((part, index) => {
-                  const highlights = ["Rahul Sharma", "OD-98214", "Amit Kumar (Rider)", "+91 98765 43210", "123 Cafe Street, Faridabad"];
+                {getMockedBodyText().split(/(\[.*?\]|Rahul Sharma|OD-98214|Amit Kumar \(Rider\)|123 Cafe Street, Faridabad|\+91 98765 43210|500|2026-07-16|Special Loyalty Bonus)/g).map((part, index) => {
+                  const highlights = ["Rahul Sharma", "OD-98214", "Amit Kumar (Rider)", "+91 98765 43210", "123 Cafe Street, Faridabad", "500", "2026-07-16", "Special Loyalty Bonus"];
                   if (highlights.includes(part)) {
                     return (
                       <span key={index} className="bg-primary/10 text-primary font-semibold px-1 py-0.5 rounded text-[11px]">

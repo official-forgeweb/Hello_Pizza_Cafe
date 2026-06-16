@@ -4,7 +4,7 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("Starting global customer stats recalculation...");
   const customers = await prisma.customer.findMany({
-    select: { id: true, name: true, phone: true }
+    select: { name: true, phone: true }
   });
   
   console.log(`Found ${customers.length} customers. Recalculating stats...`);
@@ -15,7 +15,7 @@ async function main() {
       // Fetch all orders for this customer that are not CANCELLED
       const orders = await prisma.order.findMany({
         where: {
-          customerId: customer.id,
+          customerId: customer.phone,
           status: { not: "CANCELLED" }
         },
         select: {
@@ -29,7 +29,7 @@ async function main() {
 
       // Find the latest order date
       const allOrders = await prisma.order.findMany({
-        where: { customerId: customer.id },
+        where: { customerId: customer.phone },
         select: { placedAt: true },
         orderBy: { placedAt: "desc" },
         take: 1
@@ -40,7 +40,7 @@ async function main() {
       const group = totalOrders >= 5 ? "vip" : totalOrders >= 2 ? "regular" : "new";
 
       await prisma.customer.update({
-        where: { id: customer.id },
+        where: { phone: customer.phone },
         data: {
           totalOrders,
           totalSpent,
@@ -52,7 +52,7 @@ async function main() {
       console.log(`[${count + 1}/${customers.length}] Recalculated stats for ${customer.name} (${customer.phone}): orders=${totalOrders}, spent=₹${totalSpent}, group=${group}`);
       count++;
     } catch (err) {
-      console.error(`Error recalculating stats for customer ${customer.id}:`, err);
+      console.error(`Error recalculating stats for customer ${customer.phone}:`, err);
     }
   }
   

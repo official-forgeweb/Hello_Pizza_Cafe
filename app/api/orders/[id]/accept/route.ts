@@ -37,7 +37,7 @@ export async function POST(
       if (customer) {
         // Update existing customer with latest info
         customer = await prisma.customer.update({
-          where: { id: customer.id },
+          where: { phone: customer.phone },
           data: {
             name: order.customerName,
             ...(order.customerEmail && { email: order.customerEmail }),
@@ -68,7 +68,7 @@ export async function POST(
       data: {
         status: "CONFIRMED",
         confirmedAt: new Date(),
-        customerId: customer.id,
+        customerId: customer.phone,
       },
       include: {
         items: { include: { addOns: true } },

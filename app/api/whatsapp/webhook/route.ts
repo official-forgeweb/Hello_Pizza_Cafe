@@ -76,6 +76,33 @@ export async function POST(request: NextRequest) {
                 data: updateData,
               }).catch(() => null);
 
+              if (messageLog && messageLog.campaignId && (messageStatus === "sent" || messageStatus === "delivered")) {
+                const campaign = await prisma.campaign.findUnique({
+                  where: { id: messageLog.campaignId }
+                });
+                if (campaign && campaign.bonusPoints && campaign.bonusPoints > 0) {
+                  const existingTx = await prisma.loyaltyTransaction.findFirst({
+                    where: {
+                      phoneNumber: messageLog.phone,
+                      campaignId: campaign.id
+                    }
+                  });
+                  if (!existingTx) {
+                    const expiryDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+                    await prisma.loyaltyTransaction.create({
+                      data: {
+                        phoneNumber: messageLog.phone,
+                        type: "BONUS",
+                        points: campaign.bonusPoints,
+                        expiryDate,
+                        isPending: true,
+                        campaignId: campaign.id
+                      }
+                    });
+                  }
+                }
+              }
+
               // If it's part of a campaign, update campaign stats
               if (messageLog && messageLog.campaignId) {
                 if (messageStatus === "delivered") {

@@ -19,7 +19,7 @@ export async function PATCH(
     }
 
     const customer = await prisma.customer.update({
-      where: { id },
+      where: { phone: id },
       data: updateData,
     });
 
@@ -54,7 +54,7 @@ export async function DELETE(
       }),
       // Delete the customer
       prisma.customer.delete({
-        where: { id },
+        where: { phone: id },
       }),
     ]);
 

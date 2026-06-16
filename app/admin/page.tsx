@@ -67,9 +67,11 @@ export default function AdminDashboard() {
 
   // Auto-refresh function to keep dashboard completely live
   useEffect(() => {
+    let isMounted = true;
     const fetchDashboard = async () => {
       try {
         const res = await fetch("/api/admin/dashboard");
+        if (!isMounted) return;
         if (res.ok) {
           const apiData = await res.json();
           // Merge default dailyRevenue structure with fetched stats just in case it's empty
@@ -79,9 +81,14 @@ export default function AdminDashboard() {
           });
         }
       } catch (err) {
-        console.error("Dashboard fetch error:", err);
+        if (isMounted) {
+          console.error("Dashboard fetch error:", err);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
       }
-      setLoading(false);
     };
 
     // Initial load
@@ -89,7 +96,10 @@ export default function AdminDashboard() {
 
     // Re-fetch every 15 seconds for near real-time updates
     const intervalId = setInterval(fetchDashboard, 15000);
-    return () => clearInterval(intervalId);
+    return () => {
+      isMounted = false;
+      clearInterval(intervalId);
+    };
   }, []);
 
   const STATS = [

@@ -6,7 +6,7 @@ export const revalidate = 3600; // Cache page and revalidate in background every
 
 export default async function HomePage() {
   // Query DB directly in parallel on the server
-  const [categories, slides, bestSellersRaw] = await Promise.all([
+  const [categories, slides, bestSellersRaw, discounts] = await Promise.all([
     prisma.category.findMany({
       where: { isActive: true },
       orderBy: { displayOrder: "asc" },
@@ -23,6 +23,9 @@ export default async function HomePage() {
       orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
       take: 8,
     }),
+    prisma.cloudDiscountRule.findMany({
+      where: { isActive: true }
+    })
   ]);
 
   let items = bestSellersRaw;
@@ -109,11 +112,14 @@ export default async function HomePage() {
       : undefined,
   }));
 
+  const serializedDiscounts = JSON.parse(JSON.stringify(discounts));
+
   return (
     <HomeClient
       initialCategories={serializedCategories}
       initialAds={serializedSlides}
       initialBestSellers={serializedBestSellers}
+      initialDiscounts={serializedDiscounts}
     />
   );
 }

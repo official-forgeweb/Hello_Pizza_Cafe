@@ -11,6 +11,7 @@ import { useSearchParams } from "next/navigation";
 interface MenuContentClientProps {
   initialCategories: any[];
   initialMenuItems: any[];
+  initialDiscounts?: any[];
 }
 function findBestMatch(query: string, items: any[], isItemParam: boolean) {
   if (!query) return null;
@@ -41,7 +42,7 @@ function findBestMatch(query: string, items: any[], isItemParam: boolean) {
   return null;
 }
 
-export default function MenuContentClient({ initialCategories, initialMenuItems }: MenuContentClientProps) {
+export default function MenuContentClient({ initialCategories, initialMenuItems, initialDiscounts = [] }: MenuContentClientProps) {
   const searchParams = useSearchParams();
   const urlQuery = searchParams.get("q") || "";
   const focusParam = searchParams.get("focus") === "true";
@@ -398,7 +399,7 @@ export default function MenuContentClient({ initialCategories, initialMenuItems 
                       id={`item-${item.id}`}
                       className="w-full h-full transition-all duration-700 ease-out"
                     >
-                      <MenuItemCard item={item} onCustomize={(item) => setItemToCustomize(item)} />
+                       <MenuItemCard item={item} activeDiscounts={initialDiscounts} onCustomize={(item) => setItemToCustomize(item)} />
                     </div>
                   ))}
                 </div>
@@ -411,6 +412,7 @@ export default function MenuContentClient({ initialCategories, initialMenuItems 
 
       <ItemCustomizationModal
         item={itemToCustomize}
+        activeDiscounts={initialDiscounts}
         onClose={() => setItemToCustomize(null)}
       />
     </div>

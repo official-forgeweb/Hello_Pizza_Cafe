@@ -44,7 +44,7 @@ export default function StickyCartBar() {
                 </div>
                 <div className="flex items-center gap-2 text-white">
                   <motion.span
-                    key={count}
+                    key={`cart-count-${count}`}
                     initial={{ scale: 0.5, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     className="font-medium text-sm"
@@ -53,7 +53,7 @@ export default function StickyCartBar() {
                   </motion.span>
                   <span className="w-1 h-1 bg-warm-500 rounded-full" />
                   <motion.span
-                    key={total}
+                    key={`cart-total-${total}`}
                     initial={{ y: 10, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     className="font-bold text-lg"

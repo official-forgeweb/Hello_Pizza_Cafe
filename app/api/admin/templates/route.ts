@@ -41,12 +41,20 @@ export async function POST(request: NextRequest) {
         ).sort((a, b) => a - b);
 
         if (uniqueIndices.length > 0) {
+          const isLoyalty = templateName.toLowerCase().includes("loyalty");
           const examplesList = uniqueIndices.map(idx => {
-            if (idx === 1) return "Rahul Sharma"; // Default customer name
-            if (idx === 2) return "OD-98214";     // Default order number
-            if (idx === 3) return "Amit Kumar (Rider)"; // Default rider name
-            if (idx === 4) return "+91 98765 43210";    // Default phone number
-            if (idx === 5) return "123 Cafe Street, Faridabad"; // Default address
+            if (isLoyalty) {
+              if (idx === 1) return "Rahul Sharma"; // Customer name
+              if (idx === 2) return "500";          // Points amount
+              if (idx === 3) return "2026-07-16";   // Expiry date
+              if (idx === 4) return "Special Loyalty Bonus"; // Credit message/reason
+            } else {
+              if (idx === 1) return "Rahul Sharma"; // Default customer name
+              if (idx === 2) return "OD-98214";     // Default order number
+              if (idx === 3) return "Amit Kumar (Rider)"; // Default rider name
+              if (idx === 4) return "+91 98765 43210";    // Default phone number
+              if (idx === 5) return "123 Cafe Street, Faridabad"; // Default address
+            }
             return `Sample ${idx}`;
           });
 

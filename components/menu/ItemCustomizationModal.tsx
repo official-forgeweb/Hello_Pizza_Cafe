@@ -11,6 +11,7 @@ import { getFallbackImage, isValidImageUrl } from "@/lib/utils/menuHelper";
 
 interface ItemCustomizationModalProps {
   item: MenuItemData | null;
+  activeDiscounts?: any[];
   onClose: () => void;
 }
 
@@ -112,7 +113,53 @@ const CONFIG = {
   }
 };
 
-export default function ItemCustomizationModal({ item, onClose }: ItemCustomizationModalProps) {
+function getActiveDiscountRule(item: MenuItemData | null, activeDiscounts: any[]) {
+  if (!item || !activeDiscounts || activeDiscounts.length === 0) return null;
+
+  return activeDiscounts.find((d) => {
+    const isApplicable = !d.applicableItems || 
+                         d.applicableItems.length === 0 || 
+                         d.applicableItems.includes(item.id);
+    if (!isApplicable) return false;
+
+    const now = new Date();
+    if (d.validFrom) {
+      const fromDate = new Date(d.validFrom);
+      if (now < fromDate) return false;
+    }
+    if (d.validUntil) {
+      const untilDate = new Date(d.validUntil);
+      if (now > untilDate) return false;
+    }
+
+    if (d.applicableDays && d.applicableDays.length > 0) {
+      const currentDay = now.getDay();
+      if (!d.applicableDays.includes(currentDay)) {
+        return false;
+      }
+    }
+
+    if (d.startTime || d.endTime) {
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      
+      if (d.startTime) {
+        const [startHour, startMin] = d.startTime.split(":").map(Number);
+        const startMinutes = startHour * 60 + startMin;
+        if (currentMinutes < startMinutes) return false;
+      }
+      
+      if (d.endTime) {
+        const [endHour, endMin] = d.endTime.split(":").map(Number);
+        const endMinutes = endHour * 60 + endMin;
+        if (currentMinutes > endMinutes) return false;
+      }
+    }
+
+    return d.isActive;
+  });
+}
+
+export default function ItemCustomizationModal({ item, activeDiscounts = [], onClose }: ItemCustomizationModalProps) {
   const { addItem } = useCartStore();
 
   const [activeItem, setActiveItem] = useState<MenuItemData | null>(null);
@@ -202,7 +249,25 @@ export default function ItemCustomizationModal({ item, onClose }: ItemCustomizat
   useEffect(() => {
     if (activeItem) {
       const opts = getActualOptions(activeItem);
-      setSelectedVariant(opts.variants.find(v => (v as any).isDefault) || opts.variants[0] || null);
+      const discount = getActiveDiscountRule(activeItem, activeDiscounts);
+      const mappedVariants = opts.variants.map((v: any) => {
+        let finalVariantPrice = v.price;
+        if (discount) {
+          const val = Number(discount.value);
+          const dtype = String(discount.type).toLowerCase();
+          if (dtype === "percentage") {
+            finalVariantPrice = Math.max(0, v.price - Math.round((v.price * val) / 100));
+          } else {
+            finalVariantPrice = Math.max(0, v.price - val);
+          }
+        }
+        return {
+          ...v,
+          price: finalVariantPrice,
+        };
+      });
+
+      setSelectedVariant(mappedVariants.find(v => (v as any).isDefault) || mappedVariants[0] || null);
       setSelectedAddons([]);
       const currentImageUrl = isValidImageUrl(activeItem.imageUrl) ? activeItem.imageUrl : "";
       setImgSrc(currentImageUrl || getFallbackImage(activeItem.name, activeItem.category?.name));
@@ -211,7 +276,7 @@ export default function ItemCustomizationModal({ item, onClose }: ItemCustomizat
       setSelectedAddons([]);
       setImgSrc("");
     }
-  }, [activeItem]);
+  }, [activeItem, activeDiscounts]);
 
   if (!item) return null;
 
@@ -266,12 +331,24 @@ export default function ItemCustomizationModal({ item, onClose }: ItemCustomizat
     });
   };
 
+  const discount = getActiveDiscountRule(activeItem, activeDiscounts);
+  let finalBasePrice = activeItem.price;
+  if (discount) {
+    const val = Number(discount.value);
+    const dtype = String(discount.type).toLowerCase();
+    if (dtype === "percentage") {
+      finalBasePrice = Math.max(0, activeItem.price - Math.round((activeItem.price * val) / 100));
+    } else {
+      finalBasePrice = Math.max(0, activeItem.price - val);
+    }
+  }
+
   const handleAddToCart = () => {
     const newItem: CartItem = {
       id: `${activeItem.id}-${selectedVariant?.id || 'base'}-${Date.now()}`,
       menuItemId: activeItem.id,
       name: activeItem.name,
-      price: activeItem.price,
+      price: selectedVariant ? selectedVariant.price : finalBasePrice,
       quantity: 1,
       imageUrl: activeItem.imageUrl,
       categoryId: activeItem.categoryId,
@@ -286,7 +363,7 @@ export default function ItemCustomizationModal({ item, onClose }: ItemCustomizat
         price: a.price,
         quantity: a.quantity,
       })),
-      totalPrice: (selectedVariant ? selectedVariant.price : activeItem.price) + selectedAddons.reduce((acc, a) => acc + (a.price * a.quantity), 0),
+      totalPrice: (selectedVariant ? selectedVariant.price : finalBasePrice) + selectedAddons.reduce((acc, a) => acc + (a.price * a.quantity), 0),
     };
     
     addItem(newItem);
@@ -294,7 +371,7 @@ export default function ItemCustomizationModal({ item, onClose }: ItemCustomizat
   };
 
   const calculateTotal = () => {
-    const basePrice = selectedVariant ? selectedVariant.price : activeItem.price;
+    const basePrice = selectedVariant ? selectedVariant.price : finalBasePrice;
     const aPrice = selectedAddons.reduce((acc, a) => acc + (a.price * a.quantity), 0);
     return basePrice + aPrice;
   };
@@ -355,8 +432,12 @@ export default function ItemCustomizationModal({ item, onClose }: ItemCustomizat
                   <p className="text-xs sm:text-sm text-warm-500 line-clamp-2 leading-snug">
                     {activeItem.description}
                   </p>
-                  <div className="mt-1.5 text-base sm:text-lg font-black text-primary">
-                    ₹{activeItem.price} <span className="text-xs text-warm-400 font-medium">base</span>
+                  <div className="mt-1.5 text-base sm:text-lg font-black text-primary flex items-center gap-1.5">
+                    ₹{finalBasePrice}
+                    {discount && (
+                      <span className="text-xs text-warm-400 line-through">₹{activeItem.price}</span>
+                    )}
+                    <span className="text-xs text-warm-400 font-medium">base</span>
                   </div>
                 </div>
               </div>
@@ -369,36 +450,55 @@ export default function ItemCustomizationModal({ item, onClose }: ItemCustomizat
                     <span className="text-xs font-bold text-warm-500 bg-warm-100 px-2 py-0.5 rounded-md uppercase tracking-wider">Required</span>
                   </div>
                   <div className={`grid gap-3 ${variants.length >= 3 ? "grid-cols-3" : "grid-cols-2"}`}>
-                    {variants.map((variant) => {
-                      const isSelected = selectedVariant?.id === variant.id;
-                      const nameParts = variant.name.split(" (");
-                      const mainName = nameParts[0];
-                      const detail = nameParts[1] ? `(${nameParts[1]}` : "";
-                      
-                      return (
-                        <button
-                          key={variant.id}
-                          onClick={() => setSelectedVariant(variant)}
-                          className={`relative flex flex-col items-center justify-center p-3 sm:p-4 rounded-2xl border-2 transition-all duration-300 overflow-hidden cursor-pointer ${
-                            isSelected
-                              ? "border-primary bg-primary/5 shadow-sm"
-                              : "border-warm-200 bg-white hover:border-primary/40 hover:bg-warm-50"
-                          }`}
-                        >
-                          <div className={`text-sm sm:text-base font-bold z-10 ${isSelected ? "text-primary" : "text-warm-800"}`}>
-                            {mainName}
-                          </div>
-                          {detail && (
-                            <div className="text-[10px] sm:text-xs text-warm-500 mt-0.5 z-10 text-center leading-tight">
-                              {detail.replace(")", "")}
+                    {(() => {
+                      const discount = getActiveDiscountRule(activeItem, activeDiscounts);
+                      const discountedVariants = variants.map((v: any) => {
+                        let finalVariantPrice = v.price;
+                        if (discount) {
+                          const val = Number(discount.value);
+                          const dtype = String(discount.type).toLowerCase();
+                          if (dtype === "percentage") {
+                            finalVariantPrice = Math.max(0, v.price - Math.round((v.price * val) / 100));
+                          } else {
+                            finalVariantPrice = Math.max(0, v.price - val);
+                          }
+                        }
+                        return {
+                          ...v,
+                          price: finalVariantPrice,
+                        };
+                      });
+                      return discountedVariants.map((variant) => {
+                        const isSelected = selectedVariant?.id === variant.id;
+                        const nameParts = variant.name.split(" (");
+                        const mainName = nameParts[0];
+                        const detail = nameParts[1] ? `(${nameParts[1]}` : "";
+                        
+                        return (
+                          <button
+                            key={variant.id}
+                            onClick={() => setSelectedVariant(variant)}
+                            className={`relative flex flex-col items-center justify-center p-3 sm:p-4 rounded-2xl border-2 transition-all duration-300 overflow-hidden cursor-pointer ${
+                              isSelected
+                                ? "border-primary bg-primary/5 shadow-sm"
+                                : "border-warm-200 bg-white hover:border-primary/40 hover:bg-warm-50"
+                            }`}
+                          >
+                            <div className={`text-sm sm:text-base font-bold z-10 ${isSelected ? "text-primary" : "text-warm-800"}`}>
+                              {mainName}
                             </div>
-                          )}
-                          <div className={`text-xs font-black mt-2 z-10 ${isSelected ? "text-primary shadow-sm bg-white px-2 py-0.5 rounded-full" : "text-warm-500"}`}>
-                            {variant.price > 0 ? `+₹${variant.price}` : "Free"}
-                          </div>
-                        </button>
-                      );
-                    })}
+                            {detail && (
+                              <div className="text-[10px] sm:text-xs text-warm-500 mt-0.5 z-10 text-center leading-tight">
+                                {detail.replace(")", "")}
+                              </div>
+                            )}
+                            <div className={`text-xs font-black mt-2 z-10 ${isSelected ? "text-primary shadow-sm bg-white px-2 py-0.5 rounded-full" : "text-warm-500"}`}>
+                              {variant.price > 0 ? `+₹${variant.price}` : "Free"}
+                            </div>
+                          </button>
+                        );
+                      });
+                    })()}
                   </div>
                 </div>
               )}

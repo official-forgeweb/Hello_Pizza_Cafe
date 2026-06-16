@@ -165,6 +165,24 @@ export async function POST(request: NextRequest) {
       }
     });
 
+    // Double-write to Supabase menu_items table
+    try {
+      await prisma.cloudMenuItem.create({
+        data: {
+          id: newItem.id,
+          name: newItem.name,
+          category: newItem.category?.name || "General",
+          price: newItem.basePrice,
+          isAvailable: newItem.isAvailable,
+          imageUrl: newItem.imageUrl,
+          updatedAt: new Date(),
+          deleted: false
+        }
+      });
+    } catch (err) {
+      console.error("Failed to write to cloud menu_items table:", err);
+    }
+
     revalidatePath("/menu");
     revalidatePath("/");
     revalidatePath("/api/menu-items");

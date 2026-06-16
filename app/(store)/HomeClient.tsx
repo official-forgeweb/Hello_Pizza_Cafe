@@ -169,10 +169,11 @@ interface HomeClientProps {
   initialCategories: any[];
   initialAds: any[];
   initialBestSellers: any[];
+  initialDiscounts?: any[];
 }
 
 // ─── Main Page ────────────────────────────────────────────────
-export default function HomeClient({ initialCategories, initialAds, initialBestSellers }: HomeClientProps) {
+export default function HomeClient({ initialCategories, initialAds, initialBestSellers, initialDiscounts = [] }: HomeClientProps) {
   const [categories, setCategories] = useState<any[]>([]);
   const [adsData] = useState<any[]>(initialAds);
   const [bestSellers] = useState<any[]>(initialBestSellers);
@@ -550,7 +551,7 @@ export default function HomeClient({ initialCategories, initialAds, initialBestS
                 transition={{ delay: i * 0.1 }}
                 className="w-full h-full"
               >
-                <MenuItemCard item={item} />
+                <MenuItemCard item={item} activeDiscounts={initialDiscounts} />
               </motion.div>
             ))}
           </div>

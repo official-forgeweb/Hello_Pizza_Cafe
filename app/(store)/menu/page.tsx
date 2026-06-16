@@ -8,7 +8,7 @@ export const revalidate = 3600; // Enable ISR: cache page and revalidate every h
 
 // Child server component that handles asynchronous data loading
 async function MenuPageContent() {
-  const [categories, items] = await Promise.all([
+  const [categories, items, discounts] = await Promise.all([
     prisma.category.findMany({
       orderBy: { displayOrder: "asc" },
     }),
@@ -30,6 +30,9 @@ async function MenuPageContent() {
         },
       },
       orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
+    }),
+    prisma.cloudDiscountRule.findMany({
+      where: { isActive: true }
     })
   ]);
 
@@ -87,12 +90,14 @@ async function MenuPageContent() {
   // Clean all custom non-serializable objects (like Prisma Decimal and Dates) safely
   const serializedItems = JSON.parse(JSON.stringify(filteredTransformedItems));
   const serializedCategories = JSON.parse(JSON.stringify(categories));
+  const serializedDiscounts = JSON.parse(JSON.stringify(discounts));
   const allCategories = [{ id: "all", name: "All" }, ...serializedCategories];
 
   return (
     <MenuContentClient 
       initialCategories={allCategories} 
       initialMenuItems={serializedItems} 
+      initialDiscounts={serializedDiscounts}
     />
   );
 }

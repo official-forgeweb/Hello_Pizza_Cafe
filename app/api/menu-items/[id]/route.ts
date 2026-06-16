@@ -63,6 +63,34 @@ export async function PUT(
       include: { category: true }
     });
 
+    // Double-write update to Supabase menu_items table
+    try {
+      await prisma.cloudMenuItem.upsert({
+        where: { id },
+        create: {
+          id: updatedItem.id,
+          name: updatedItem.name,
+          category: updatedItem.category?.name || "General",
+          price: updatedItem.basePrice,
+          isAvailable: updatedItem.isAvailable,
+          imageUrl: updatedItem.imageUrl,
+          updatedAt: new Date(),
+          deleted: false
+        },
+        update: {
+          name: updatedItem.name,
+          category: updatedItem.category?.name || "General",
+          price: updatedItem.basePrice,
+          isAvailable: updatedItem.isAvailable,
+          imageUrl: updatedItem.imageUrl,
+          updatedAt: new Date(),
+          deleted: false
+        }
+      });
+    } catch (err) {
+      console.error("Failed to update cloud menu_items table:", err);
+    }
+
     revalidatePath("/menu");
     revalidatePath("/");
     revalidatePath("/api/menu-items");
@@ -86,6 +114,29 @@ export async function DELETE(
     await prisma.menuItem.delete({
       where: { id },
     });
+
+    // Double-write soft delete to Supabase menu_items table
+    try {
+      await prisma.cloudMenuItem.upsert({
+        where: { id },
+        create: {
+          id,
+          name: "Deleted Item",
+          category: "Deleted",
+          price: 0,
+          isAvailable: false,
+          imageUrl: null,
+          updatedAt: new Date(),
+          deleted: true
+        },
+        update: {
+          deleted: true,
+          updatedAt: new Date()
+        }
+      });
+    } catch (err) {
+      console.error("Failed to soft-delete cloud menu_items table:", err);
+    }
 
     revalidatePath("/menu");
     revalidatePath("/");

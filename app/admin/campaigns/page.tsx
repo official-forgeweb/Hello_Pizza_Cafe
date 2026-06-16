@@ -347,6 +347,7 @@ function CampaignWizard({ onClose, onComplete }: { onClose: () => void, onComple
   const [targetGroup, setTargetGroup] = useState("regular");
   const [headerImage, setHeaderImage] = useState("");
   const [bodyParameters, setBodyParameters] = useState<string[]>([]);
+  const [bonusPoints, setBonusPoints] = useState(0);
 
   const selectedTemplate = templates.find(t => t.templateName === templateName);
   const requiresImageHeader = selectedTemplate?.components?.some((c: any) => c.type === 'HEADER' && c.format === 'IMAGE');
@@ -399,7 +400,8 @@ function CampaignWizard({ onClose, onComplete }: { onClose: () => void, onComple
           targetType,
           targetGroup: (targetType === 'group' || targetType === 'tag') ? targetGroup : undefined,
           headerImage: requiresImageHeader ? headerImage : undefined,
-          bodyParameters
+          bodyParameters,
+          bonusPoints
         })
       });
       if (res.ok) {
@@ -448,6 +450,17 @@ function CampaignWizard({ onClose, onComplete }: { onClose: () => void, onComple
               value={name}
               onChange={e => setName(e.target.value)}
               placeholder="e.g. Pizza Sunday Special Offer"
+              className="w-full px-4 py-2.5 bg-warm-50 border-0 rounded-xl focus:ring-2 focus:ring-primary/20 outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-warm-700 mb-1.5 uppercase tracking-wider">Bonus Points (Optional)</label>
+            <input
+              type="number"
+              value={bonusPoints || ""}
+              onChange={e => setBonusPoints(parseInt(e.target.value) || 0)}
+              placeholder="e.g. 10 bonus points (0 to disable)"
               className="w-full px-4 py-2.5 bg-warm-50 border-0 rounded-xl focus:ring-2 focus:ring-primary/20 outline-none"
             />
           </div>
@@ -605,6 +618,16 @@ function CampaignWizard({ onClose, onComplete }: { onClose: () => void, onComple
                   {targetType === 'tag' && <CheckCircle2 className="w-4 h-4 text-primary" />}
                 </div>
                 <p className="text-xs text-warm-500">Target customers containing a specific tag/batch</p>
+              </div>
+              <div 
+                onClick={() => setTargetType('expiring')}
+                className={`p-4 rounded-xl border-2 cursor-pointer transition-colors ${targetType === 'expiring' ? 'border-primary bg-primary/5' : 'border-warm-200 bg-white hover:border-warm-300'}`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <p className="font-bold text-warm-900 text-sm">⏳ Expiring Points</p>
+                  {targetType === 'expiring' && <CheckCircle2 className="w-4 h-4 text-primary" />}
+                </div>
+                <p className="text-xs text-warm-500">Target customers with points expiring in 5 days</p>
               </div>
             </div>
           </div>

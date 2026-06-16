@@ -3,6 +3,28 @@ import { QueueService } from './queueService';
 import { WhatsAppService } from './whatsappService';
 
 export class CampaignService {
+  static async resolvePersonalizedVars(customer: any, campaign: any) {
+    const { CustomerService } = await import("./customerService");
+    const personalizedVars = [];
+    for (const param of campaign.bodyParameters) {
+      if (param === "{name}") {
+        personalizedVars.push(customer.name);
+      } else if (param === "{points_expiring}") {
+        const points = await CustomerService.getPointsExpiringInDays(customer.phone, 5);
+        personalizedVars.push(String(points));
+      } else if (param === "{expiry_date}") {
+        const expiryDate = new Date();
+        expiryDate.setDate(expiryDate.getDate() + 5);
+        personalizedVars.push(expiryDate.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }));
+      } else if (param === "{bonus_points}") {
+        personalizedVars.push(String(campaign.bonusPoints || 0));
+      } else {
+        personalizedVars.push(param);
+      }
+    }
+    return personalizedVars;
+  }
+
   /**
    * Start sending a campaign
    */
@@ -43,8 +65,28 @@ export class CampaignService {
     } else if (campaign.targetType === 'custom' && campaign.targetCustomers.length > 0) {
       targetCustomers = await prisma.customer.findMany({
         where: { 
-          id: { in: campaign.targetCustomers },
+          phone: { in: campaign.targetCustomers },
           whatsappOptIn: true 
+        }
+      });
+    } else if (campaign.targetType === 'expiring') {
+      const now = new Date();
+      const fiveDaysFromNow = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000);
+      const expiringTxs = await prisma.loyaltyTransaction.findMany({
+        where: {
+          type: "EARN",
+          expiryDate: {
+            gt: now,
+            lte: fiveDaysFromNow
+          }
+        },
+        select: { phoneNumber: true }
+      });
+      const expiringPhones = Array.from(new Set(expiringTxs.map(t => t.phoneNumber)));
+      targetCustomers = await prisma.customer.findMany({
+        where: {
+          phone: { in: expiringPhones },
+          whatsappOptIn: true
         }
       });
     }
@@ -88,13 +130,10 @@ export class CampaignService {
 
     if (useQueue) {
       for (const customer of targetCustomers) {
-        const personalizedVars = campaign.bodyParameters.map(param => {
-          if (param === '{name}') return customer.name;
-          return param;
-        });
+        const personalizedVars = await CampaignService.resolvePersonalizedVars(customer, campaign);
 
         await QueueService.queueCampaignMessage({
-          customerId: customer.id,
+          customerId: customer.phone,
           phone: customer.phone,
           templateName: campaign.templateName,
           variables: personalizedVars,
@@ -146,7 +185,7 @@ export class CampaignService {
     } else if (campaign.targetType === 'custom' && campaign.targetCustomers.length > 0) {
       targetCustomers = await prisma.customer.findMany({
         where: { 
-          id: { in: campaign.targetCustomers },
+          phone: { in: campaign.targetCustomers },
           whatsappOptIn: true 
         }
       });
@@ -207,10 +246,7 @@ export class CampaignService {
 
     for (const customer of batchCustomers) {
       try {
-        const personalizedVars = campaign.bodyParameters.map(param => {
-          if (param === '{name}') return customer.name;
-          return param;
-        });
+        const personalizedVars = await CampaignService.resolvePersonalizedVars(customer, campaign);
 
         // Build components for sending
         const components: any[] = [];
@@ -247,7 +283,7 @@ export class CampaignService {
           await prisma.messageLog.create({
             data: {
               campaignId: campaign.id,
-              customerId: customer.id,
+              customerId: customer.phone,
               phone: customer.phone,
               messageType: 'marketing',
               templateUsed: campaign.templateName,
@@ -256,6 +292,28 @@ export class CampaignService {
             }
           });
           sentCount++;
+
+          if (campaign.bonusPoints && campaign.bonusPoints > 0) {
+            const existingTx = await prisma.loyaltyTransaction.findFirst({
+              where: {
+                phoneNumber: customer.phone,
+                campaignId: campaign.id
+              }
+            });
+            if (!existingTx) {
+              const expiryDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+              await prisma.loyaltyTransaction.create({
+                data: {
+                  phoneNumber: customer.phone,
+                  type: "BONUS",
+                  points: campaign.bonusPoints,
+                  expiryDate,
+                  isPending: true,
+                  campaignId: campaign.id
+                }
+              });
+            }
+          }
         } else {
           throw new Error(result.error);
         }
@@ -264,7 +322,7 @@ export class CampaignService {
         await prisma.messageLog.create({
           data: {
             campaignId: campaign.id,
-            customerId: customer.id,
+            customerId: customer.phone,
             phone: customer.phone,
             messageType: 'marketing',
             templateUsed: campaign.templateName,

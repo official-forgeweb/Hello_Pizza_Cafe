@@ -45,10 +45,11 @@ export interface MenuItemData {
 
 interface MenuItemCardProps {
   item: MenuItemData;
+  activeDiscounts?: any[];
   onCustomize?: (item: MenuItemData) => void;
 }
 
-export default function MenuItemCard({ item, onCustomize }: MenuItemCardProps) {
+export default function MenuItemCard({ item, activeDiscounts = [], onCustomize }: MenuItemCardProps) {
   const addItem = useCartStore((state) => state.addItem);
   const updateQuantity = useCartStore((state) => state.updateQuantity);
   const removeItem = useCartStore((state) => state.removeItem);
@@ -81,6 +82,64 @@ export default function MenuItemCard({ item, onCustomize }: MenuItemCardProps) {
 
   const totalQty = isMounted ? totalQtyFromStore : 0;
 
+  // Find matching active discount based on schedule constraints
+  const activeDiscount = activeDiscounts.find((d) => {
+    const isApplicable = !d.applicableItems || 
+                         d.applicableItems.length === 0 || 
+                         d.applicableItems.includes(item.id);
+    if (!isApplicable) return false;
+
+    const now = new Date();
+    if (d.validFrom) {
+      const fromDate = new Date(d.validFrom);
+      if (now < fromDate) return false;
+    }
+    if (d.validUntil) {
+      const untilDate = new Date(d.validUntil);
+      if (now > untilDate) return false;
+    }
+
+    if (d.applicableDays && d.applicableDays.length > 0) {
+      const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
+      if (!d.applicableDays.includes(currentDay)) {
+        return false;
+      }
+    }
+
+    if (d.startTime || d.endTime) {
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      
+      if (d.startTime) {
+        const [startHour, startMin] = d.startTime.split(":").map(Number);
+        const startMinutes = startHour * 60 + startMin;
+        if (currentMinutes < startMinutes) return false;
+      }
+      
+      if (d.endTime) {
+        const [endHour, endMin] = d.endTime.split(":").map(Number);
+        const endMinutes = endHour * 60 + endMin;
+        if (currentMinutes > endMinutes) return false;
+      }
+    }
+
+    return d.isActive;
+  });
+
+  const basePrice = item.price;
+  let finalPrice = basePrice;
+  let discountAmount = 0;
+
+  if (activeDiscount) {
+    const val = Number(activeDiscount.value);
+    const dtype = String(activeDiscount.type).toLowerCase();
+    if (dtype === "percentage") {
+      discountAmount = Math.round((basePrice * val) / 100);
+    } else {
+      discountAmount = val;
+    }
+    finalPrice = Math.max(0, basePrice - discountAmount);
+  }
+
   const handleAdd = () => {
     const hasCustomizations = item.hasVariants || (item.addOns && item.addOns.length > 0) || (item.variants && item.variants.length > 0);
     if (hasCustomizations && onCustomize) {
@@ -92,11 +151,11 @@ export default function MenuItemCard({ item, onCustomize }: MenuItemCardProps) {
       id: `${item.id}-${Date.now()}`,
       menuItemId: item.id,
       name: item.name,
-      price: item.price,
+      price: finalPrice,
       quantity: 1,
       imageUrl: item.imageUrl,
       categoryId: item.categoryId,
-      totalPrice: item.price,
+      totalPrice: finalPrice,
     };
     addItem(newItem);
   };
@@ -122,10 +181,6 @@ export default function MenuItemCard({ item, onCustomize }: MenuItemCardProps) {
       if (onCustomize) onCustomize(item);
     }
   };
-
-  // Mocking original price and discount for the "deal layout"
-  const originalPrice = item.price + Math.floor(item.price * 0.25);
-  const discountAmount = originalPrice - item.price;
 
   return (
     <>
@@ -173,12 +228,16 @@ export default function MenuItemCard({ item, onCustomize }: MenuItemCardProps) {
               {/* Left: Pricing */}
               <div className="flex flex-col gap-1 shrink">
                 <div className="flex items-center gap-1.5 flex-wrap flex-row">
-                  <span className="font-bold text-white text-[18px] sm:text-[22px] leading-none bg-black/40 px-1.5 py-1 rounded drop-shadow-lg">₹{item.price}</span>
-                  <span className="text-gray-300 text-[11px] sm:text-sm line-through font-medium leading-none drop-shadow-md">₹{originalPrice}</span>
+                  <span className="font-bold text-white text-[18px] sm:text-[22px] leading-none bg-black/40 px-1.5 py-1 rounded drop-shadow-lg">₹{finalPrice}</span>
+                  {discountAmount > 0 && (
+                    <span className="text-gray-300 text-[11px] sm:text-sm line-through font-medium leading-none drop-shadow-md">₹{basePrice}</span>
+                  )}
                 </div>
-                <span className="bg-white/20 backdrop-blur-sm text-white text-[9px] sm:text-[11px] font-bold px-2 py-0.5 rounded w-fit drop-shadow-md">
-                  SAVE ₹{discountAmount}
-                </span>
+                {discountAmount > 0 && (
+                  <span className="bg-white/20 backdrop-blur-sm text-white text-[9px] sm:text-[11px] font-bold px-2 py-0.5 rounded w-fit drop-shadow-md">
+                    SAVE ₹{discountAmount}
+                  </span>
+                )}
               </div>
 
               {/* Right: ADD Button Area */}
@@ -245,9 +304,11 @@ export default function MenuItemCard({ item, onCustomize }: MenuItemCardProps) {
             </div>
           </div>
 
-          <div className="absolute bottom-2 right-2 bg-green-600 text-white px-2 py-0.5 rounded-md text-[10px] font-bold shadow-sm z-10">
-            SAVE ₹{discountAmount}
-          </div>
+          {discountAmount > 0 && (
+            <div className="absolute bottom-2 right-2 bg-green-600 text-white px-2 py-0.5 rounded-md text-[10px] font-bold shadow-sm z-10">
+              SAVE ₹{discountAmount}
+            </div>
+          )}
         </div>
 
         {/* Bottom Content Section */}
@@ -262,8 +323,10 @@ export default function MenuItemCard({ item, onCustomize }: MenuItemCardProps) {
 
           <div className="mt-auto flex items-center justify-between gap-2">
             <div className="flex items-baseline gap-1.5 min-w-0">
-              <span className="text-lg lg:text-xl font-black text-warm-900 shrink-0">₹{item.price}</span>
-              <span className="text-[11px] text-warm-400 line-through font-medium truncate">₹{originalPrice}</span>
+              <span className="text-lg lg:text-xl font-black text-warm-900 shrink-0">₹{finalPrice}</span>
+              {discountAmount > 0 && (
+                <span className="text-[11px] text-warm-400 line-through font-medium truncate">₹{basePrice}</span>
+              )}
             </div>
 
             {totalQty === 0 ? (

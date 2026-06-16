@@ -199,7 +199,7 @@ export class OrderNotificationService {
 
       const result = await WhatsAppService.sendTemplateMessage(
         order.customerPhone,
-        'order_out_for_delivery',
+        'order_out_for_delivery2',
         'en_US',
         [
           {
@@ -225,8 +225,8 @@ export class OrderNotificationService {
             customerId: order.customerId,
             orderId: order.id,
             phone: order.customerPhone,
-            messageType: 'order_out_for_delivery',
-            templateUsed: 'order_out_for_delivery',
+            messageType: 'order_out_for_delivery2',
+            templateUsed: 'order_out_for_delivery2',
             status: 'sent',
             whatsappMessageId: result.data?.messages?.[0]?.id || ''
           }
@@ -256,7 +256,7 @@ export class OrderNotificationService {
 
       const result = await WhatsAppService.sendTemplateMessage(
         order.customerPhone,
-        'order_delivered',
+        'order_delivered2',
         'en_US',
         [
           {
@@ -280,8 +280,8 @@ export class OrderNotificationService {
             customerId: order.customerId,
             orderId: order.id,
             phone: order.customerPhone,
-            messageType: 'order_delivered',
-            templateUsed: 'order_delivered',
+            messageType: 'order_delivered2',
+            templateUsed: 'order_delivered2',
             status: 'sent',
             whatsappMessageId: result.data?.messages?.[0]?.id || ''
           }

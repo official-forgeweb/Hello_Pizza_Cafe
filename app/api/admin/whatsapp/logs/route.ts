@@ -51,7 +51,6 @@ export async function GET(request: NextRequest) {
           },
           customer: {
             select: {
-              id: true,
               name: true,
               phone: true,
             },
@@ -61,8 +60,21 @@ export async function GET(request: NextRequest) {
       prisma.messageLog.count({ where }),
     ]);
 
+    const serializedLogs = logs.map((log) => {
+      if (log.customer) {
+        return {
+          ...log,
+          customer: {
+            ...log.customer,
+            id: log.customer.phone,
+          },
+        };
+      }
+      return log;
+    });
+
     return NextResponse.json({
-      logs,
+      logs: serializedLogs,
       pagination: {
         total,
         page,
@@ -208,7 +220,7 @@ export async function PUT(request: NextRequest) {
     if (customerId) {
       try {
         await prisma.customer.update({
-          where: { id: customerId },
+          where: { phone: customerId },
           data: { phone: cleanPhone },
         });
       } catch (custErr) {

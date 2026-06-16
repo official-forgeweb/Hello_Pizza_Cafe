@@ -58,7 +58,7 @@ export async function DELETE(request: NextRequest) {
         },
       },
       select: {
-        id: true,
+        phone: true,
         tags: true,
       },
     });
@@ -80,7 +80,7 @@ export async function DELETE(request: NextRequest) {
       const updates = chunk.map((customer) => {
         const updatedTags = customer.tags.filter((t) => t !== tag);
         return prisma.customer.update({
-          where: { id: customer.id },
+          where: { phone: customer.phone },
           data: {
             tags: updatedTags,
           },

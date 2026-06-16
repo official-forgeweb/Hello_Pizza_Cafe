@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
                   : [...existingTags, "pos-customer"];
 
                 customer = await prisma.customer.update({
-                  where: { id: customer.id },
+                  where: { phone: customer.phone },
                   data: {
                     // Update name only if it was a default placeholder
                     ...(customer.name === "Walk-in Customer" && record.customer_name
@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
                   }
                 });
               }
-              customerId = customer.id;
+              customerId = customer.phone;
             }
 
             // Map order types safely
@@ -293,6 +293,151 @@ export async function POST(request: NextRequest) {
           }
         } catch (err: any) {
           console.error(`[Sync Batch] Error processing item ${localId}:`, err);
+          results.push({ localId, status: "failed", error: err.message });
+        }
+      } else if (table === "customer" || table === "customers") {
+        try {
+          const cleanPhone = record.phone?.trim() || "";
+          if (!cleanPhone) {
+            results.push({ localId, status: "success" });
+            continue;
+          }
+          const data = {
+            name: record.name?.trim() || "Walk-in Customer",
+            email: record.email || null,
+            address: record.address || null,
+            whatsappOptIn: record.whatsappOptIn === true || record.whatsappOptIn === 1,
+            updatedAt: new Date(record.updated_at || record.created_at || new Date()),
+          };
+          await prisma.customer.upsert({
+            where: { phone: cleanPhone },
+            create: {
+              phone: cleanPhone,
+              ...data,
+              totalSpent: 0,
+              totalOrders: 0,
+            },
+            update: data
+          });
+          results.push({ localId, status: "success" });
+        } catch (err: any) {
+          console.error(`[Sync Batch customer] Error processing:`, err);
+          results.push({ localId, status: "failed", error: err.message });
+        }
+      } else if (table === "loyalty_setting" || table === "loyalty_settings") {
+        try {
+          await prisma.loyaltySetting.upsert({
+            where: { id: record.id || "default" },
+            create: {
+              id: record.id || "default",
+              pointsPerAmount: Number(record.pointsPerAmount || 5),
+              amountThreshold: Number(record.amountThreshold || 100),
+              updatedAt: new Date(record.updatedAt || new Date()),
+            },
+            update: {
+              pointsPerAmount: Number(record.pointsPerAmount || 5),
+              amountThreshold: Number(record.amountThreshold || 100),
+              updatedAt: new Date(record.updatedAt || new Date()),
+            }
+          });
+          results.push({ localId, status: "success" });
+        } catch (err: any) {
+          console.error(`[Sync Batch loyalty_setting] Error processing:`, err);
+          results.push({ localId, status: "failed", error: err.message });
+        }
+      } else if (table === "loyalty_transaction" || table === "loyalty_transactions") {
+        try {
+          const phone = record.phoneNumber || record.phone_number;
+          if (!phone) {
+            results.push({ localId, status: "success" });
+            continue;
+          }
+          const customerExists = await prisma.customer.findUnique({
+            where: { phone }
+          });
+          if (!customerExists) {
+            await prisma.customer.create({
+              data: {
+                phone,
+                name: "Walk-in Customer",
+                totalSpent: 0,
+                totalOrders: 0,
+              }
+            });
+          }
+
+          await prisma.loyaltyTransaction.upsert({
+            where: { id: record.id },
+            create: {
+              id: record.id,
+              phoneNumber: phone,
+              orderId: record.orderId || record.order_id || null,
+              billId: record.billId || record.bill_id || null,
+              type: record.type,
+              points: Number(record.points),
+              timestamp: new Date(record.timestamp || new Date()),
+              expiryDate: record.expiryDate ? new Date(record.expiryDate) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+              isPending: record.isPending === true || record.isPending === 1 || record.isPending === "1",
+              campaignId: record.campaignId || record.campaign_id || null,
+            },
+            update: {
+              phoneNumber: phone,
+              orderId: record.orderId || record.order_id || null,
+              billId: record.billId || record.bill_id || null,
+              type: record.type,
+              points: Number(record.points),
+              timestamp: new Date(record.timestamp || new Date()),
+              expiryDate: record.expiryDate ? new Date(record.expiryDate) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+              isPending: record.isPending === true || record.isPending === 1 || record.isPending === "1",
+              campaignId: record.campaignId || record.campaign_id || null,
+            }
+          });
+          results.push({ localId, status: "success" });
+        } catch (err: any) {
+          console.error(`[Sync Batch loyalty_transaction] Error processing:`, err);
+          results.push({ localId, status: "failed", error: err.message });
+        }
+      } else if (table === "whatsapp_log" || table === "whatsapp_logs") {
+        try {
+          const phone = record.phoneNumber || record.phone_number || record.phone;
+          if (!phone) {
+            results.push({ localId, status: "success" });
+            continue;
+          }
+          const statusMap: Record<string, string> = {
+            'SENT': 'sent',
+            'DELIVERED': 'delivered',
+            'READ': 'read',
+            'FAILED': 'failed'
+          };
+          const mappedStatus = statusMap[record.status] || record.status?.toLowerCase() || 'queued';
+          
+          await prisma.messageLog.upsert({
+            where: { id: record.id },
+            create: {
+              id: record.id,
+              phone,
+              customerId: phone,
+              whatsappMessageId: record.messageId || null,
+              messageType: "marketing",
+              templateUsed: record.templateName || null,
+              status: mappedStatus,
+              campaignId: record.campaignId || null,
+              createdAt: new Date(record.timestamp || new Date()),
+              updatedAt: new Date(record.timestamp || new Date()),
+            },
+            update: {
+              phone,
+              customerId: phone,
+              whatsappMessageId: record.messageId || null,
+              status: mappedStatus,
+              campaignId: record.campaignId || null,
+              updatedAt: new Date(record.timestamp || new Date()),
+            }
+          });
+          results.push({ localId, status: "success" });
+        } catch (err: any) {
+          console.error(`[Sync Batch whatsapp_log] Error processing:`, err);
           results.push({ localId, status: "failed", error: err.message });
         }
       } else {

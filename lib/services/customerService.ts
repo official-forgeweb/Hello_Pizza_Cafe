@@ -35,10 +35,10 @@ export class CustomerService {
       const group = totalOrders >= 5 ? "vip" : totalOrders >= 2 ? "regular" : "new";
 
       await prisma.customer.update({
-        where: { id: customerId },
+        where: { phone: customerId },
         data: {
           totalOrders,
-          totalSpent,
+          totalSpent: totalSpent,
           lastOrderDate,
           group
         }
@@ -51,18 +51,134 @@ export class CustomerService {
   }
 
   /**
+   * Calculates the loyalty wallet balance (Available and Pending points)
+   * for a customer based on their transaction history in the database.
+   */
+  static async getCustomerLoyaltyWallet(phone: string) {
+    if (!phone) return { availablePoints: 0, pendingPoints: 0, nextExpiryDate: null };
+
+    const now = new Date();
+    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+    const txs = await prisma.loyaltyTransaction.findMany({
+      where: { phoneNumber: phone },
+      orderBy: { timestamp: "asc" }
+    });
+
+    const availableList: { points: number; expiryDate: Date | null }[] = [];
+    let redeemedTotal = 0;
+
+    txs.forEach(tx => {
+      if (tx.points > 0) {
+        const isPending = tx.type === 'EARN' && tx.timestamp > oneDayAgo;
+        const isExpired = tx.expiryDate && tx.expiryDate <= now;
+        
+        if (!isPending && !isExpired) {
+          availableList.push({ points: tx.points, expiryDate: tx.expiryDate });
+        }
+      } else {
+        redeemedTotal += Math.abs(tx.points);
+      }
+    });
+
+    let availPoints = 0;
+    availableList.forEach(item => {
+      if (redeemedTotal >= item.points) {
+        redeemedTotal -= item.points;
+        item.points = 0;
+      } else {
+        item.points -= redeemedTotal;
+        redeemedTotal = 0;
+        availPoints += item.points;
+      }
+    });
+
+    let pendingPoints = 0;
+    txs.forEach(tx => {
+      if (tx.points > 0 && tx.type === 'EARN' && tx.timestamp > oneDayAgo && (!tx.expiryDate || tx.expiryDate > now)) {
+        pendingPoints += tx.points;
+      }
+    });
+
+    let earliestExpiry: Date | null = null;
+    availableList.forEach(item => {
+      if (item.points > 0 && item.expiryDate) {
+        if (!earliestExpiry || item.expiryDate < earliestExpiry) {
+          earliestExpiry = item.expiryDate;
+        }
+      }
+    });
+
+    return {
+      availablePoints: availPoints,
+      pendingPoints,
+      nextExpiryDate: earliestExpiry
+    };
+  }
+
+  static async getAvailablePointsBatches(phone: string) {
+    const now = new Date();
+    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+    const txs = await prisma.loyaltyTransaction.findMany({
+      where: { phoneNumber: phone },
+      orderBy: { timestamp: "asc" }
+    });
+
+    const availableList: { points: number; expiryDate: Date }[] = [];
+    let redeemedTotal = 0;
+
+    txs.forEach(tx => {
+      if (tx.points > 0) {
+        const isPending = tx.type === 'EARN' && tx.timestamp > oneDayAgo;
+        const isExpired = tx.expiryDate && tx.expiryDate <= now;
+        
+        if (!isPending && !isExpired && tx.expiryDate) {
+          availableList.push({ points: tx.points, expiryDate: tx.expiryDate });
+        }
+      } else {
+        redeemedTotal += Math.abs(tx.points);
+      }
+    });
+
+    availableList.forEach(item => {
+      if (redeemedTotal >= item.points) {
+        redeemedTotal -= item.points;
+        item.points = 0;
+      } else {
+        item.points -= redeemedTotal;
+        redeemedTotal = 0;
+      }
+    });
+
+    return availableList.filter(item => item.points > 0);
+  }
+
+  static async getPointsExpiringInDays(phone: string, days: number) {
+    const targetDate = new Date();
+    targetDate.setDate(targetDate.getDate() + days);
+    const targetDateStr = targetDate.toDateString();
+    
+    const batches = await this.getAvailablePointsBatches(phone);
+    return batches
+      .filter(b => b.expiryDate.toDateString() === targetDateStr)
+      .reduce((sum, b) => sum + b.points, 0);
+  }
+
+
+  /**
    * Run stats recalculation for ALL customers in the database.
    * Useful for migrations or fixing data corruptions.
    */
   static async recalculateAllCustomers() {
     console.log("[CustomerService] Starting global customer stats recalculation...");
     const customers = await prisma.customer.findMany({
-      select: { id: true }
+      select: { phone: true }
     });
     
     let count = 0;
     for (const customer of customers) {
-      await this.recalculateCustomerStats(customer.id);
+      await this.recalculateCustomerStats(customer.phone);
       count++;
     }
     console.log(`[CustomerService] Recalculated stats for ${count} customers.`);

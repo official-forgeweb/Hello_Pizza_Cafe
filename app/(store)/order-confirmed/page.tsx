@@ -88,9 +88,10 @@ function OrderConfirmedContent() {
 
   const orderItems = orderData?.items || defaultMockItems;
   const subtotal = orderData ? Number(orderData.subtotal) : 648.00;
-  const deliveryFee = orderData ? Number(orderData.deliveryFee) : 40.00;
+  const isDelivery = orderData ? orderData.orderType === "DELIVERY" : true;
+  const deliveryFee = orderData ? Number(orderData.deliveryFee) : (isDelivery ? 40.00 : 0);
   const taxAmount = orderData ? Number(orderData.taxAmount) : 32.40;
-  const totalAmount = orderData ? Number(orderData.totalAmount) : 720.40;
+  const totalAmount = orderData ? Number(orderData.totalAmount) : (subtotal + deliveryFee + taxAmount);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(orderNumber);
@@ -372,7 +373,10 @@ function OrderConfirmedContent() {
               </div>
 
               {/* Detailed Live Timeline Tracker */}
-              <OrderTimelineTracker status={orderData?.status || "CONFIRMED"} />
+              <OrderTimelineTracker 
+                status={orderData?.status || "CONFIRMED"} 
+                orderType={orderData?.orderType || "DELIVERY"}
+              />
 
               {/* Back to Menu Actions */}
               <div className="pt-2 text-center flex flex-col sm:flex-row justify-center gap-3">
@@ -394,26 +398,70 @@ function OrderConfirmedContent() {
 
             {/* Right Column: Receipt Summary & Info Cards */}
             <div className="lg:col-span-5 space-y-6">
-              {/* Delivery ETA & Address Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
-                <div className="bg-white rounded-3xl p-5 border border-warm-100 shadow-sm relative overflow-hidden">
-                  <div className="p-2.5 bg-primary/10 text-primary w-fit rounded-xl mb-3">
-                    <Clock className="w-5 h-5" />
+              {/* ETA & Location info based on Order Type */}
+              {(!orderData || orderData.orderType === "DELIVERY") && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
+                  <div className="bg-white rounded-3xl p-5 border border-warm-100 shadow-sm relative overflow-hidden">
+                    <div className="p-2.5 bg-primary/10 text-primary w-fit rounded-xl mb-3">
+                      <Clock className="w-5 h-5" />
+                    </div>
+                    <p className="text-[10px] font-extrabold text-warm-400 uppercase tracking-widest mb-0.5">Estimated Arrival</p>
+                    <p className="text-lg font-black text-warm-900">30-45 MINS</p>
+                    <div className="absolute top-0 right-0 w-12 h-12 bg-primary/5 rounded-full translate-x-1/2 -translate-y-1/2 blur-lg" />
                   </div>
-                  <p className="text-[10px] font-extrabold text-warm-400 uppercase tracking-widest mb-0.5">Estimated Arrival</p>
-                  <p className="text-lg font-black text-warm-900">30-45 MINS</p>
-                  <div className="absolute top-0 right-0 w-12 h-12 bg-primary/5 rounded-full translate-x-1/2 -translate-y-1/2 blur-lg" />
-                </div>
 
-                <div className="bg-white rounded-3xl p-5 border border-warm-100 shadow-sm relative overflow-hidden">
-                  <div className="p-2.5 bg-success/10 text-success w-fit rounded-xl mb-3">
-                    <MapPin className="w-5 h-5" />
+                  <div className="bg-white rounded-3xl p-5 border border-warm-100 shadow-sm relative overflow-hidden">
+                    <div className="p-2.5 bg-success/10 text-success w-fit rounded-xl mb-3">
+                      <MapPin className="w-5 h-5" />
+                    </div>
+                    <p className="text-[10px] font-extrabold text-warm-400 uppercase tracking-widest mb-0.5">Delivering to</p>
+                    <p className="text-xs font-bold text-warm-800 line-clamp-2 leading-relaxed">{address || orderData?.deliveryAddress || "Your Location"}</p>
+                    <div className="absolute top-0 right-0 w-12 h-12 bg-success/5 rounded-full translate-x-1/2 -translate-y-1/2 blur-lg" />
                   </div>
-                  <p className="text-[10px] font-extrabold text-warm-400 uppercase tracking-widest mb-0.5">Delivering to</p>
-                  <p className="text-xs font-bold text-warm-800 line-clamp-2 leading-relaxed">{address || orderData?.deliveryAddress || "Your Location"}</p>
-                  <div className="absolute top-0 right-0 w-12 h-12 bg-success/5 rounded-full translate-x-1/2 -translate-y-1/2 blur-lg" />
                 </div>
-              </div>
+              )}
+              {orderData && orderData.orderType === "DINE_IN" && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
+                  <div className="bg-white rounded-3xl p-5 border border-warm-100 shadow-sm relative overflow-hidden">
+                    <div className="p-2.5 bg-primary/10 text-primary w-fit rounded-xl mb-3">
+                      <Clock className="w-5 h-5" />
+                    </div>
+                    <p className="text-[10px] font-extrabold text-warm-400 uppercase tracking-widest mb-0.5">Estimated Prep Time</p>
+                    <p className="text-lg font-black text-warm-900">10-15 MINS</p>
+                    <div className="absolute top-0 right-0 w-12 h-12 bg-primary/5 rounded-full translate-x-1/2 -translate-y-1/2 blur-lg" />
+                  </div>
+
+                  <div className="bg-white rounded-3xl p-5 border border-warm-100 shadow-sm relative overflow-hidden">
+                    <div className="p-2.5 bg-success/10 text-success w-fit rounded-xl mb-3">
+                      <MapPin className="w-5 h-5" />
+                    </div>
+                    <p className="text-[10px] font-extrabold text-warm-400 uppercase tracking-widest mb-0.5">Dining Area</p>
+                    <p className="text-xs font-bold text-warm-800 line-clamp-2 leading-relaxed">Table Service inside Hello Pizza Cafe</p>
+                    <div className="absolute top-0 right-0 w-12 h-12 bg-success/5 rounded-full translate-x-1/2 -translate-y-1/2 blur-lg" />
+                  </div>
+                </div>
+              )}
+              {orderData && orderData.orderType === "PICKUP" && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
+                  <div className="bg-white rounded-3xl p-5 border border-warm-100 shadow-sm relative overflow-hidden">
+                    <div className="p-2.5 bg-primary/10 text-primary w-fit rounded-xl mb-3">
+                      <Clock className="w-5 h-5" />
+                    </div>
+                    <p className="text-[10px] font-extrabold text-warm-400 uppercase tracking-widest mb-0.5">Estimated Prep Time</p>
+                    <p className="text-lg font-black text-warm-900">15-20 MINS</p>
+                    <div className="absolute top-0 right-0 w-12 h-12 bg-primary/5 rounded-full translate-x-1/2 -translate-y-1/2 blur-lg" />
+                  </div>
+
+                  <div className="bg-white rounded-3xl p-5 border border-warm-100 shadow-sm relative overflow-hidden">
+                    <div className="p-2.5 bg-success/10 text-success w-fit rounded-xl mb-3">
+                      <MapPin className="w-5 h-5" />
+                    </div>
+                    <p className="text-[10px] font-extrabold text-warm-400 uppercase tracking-widest mb-0.5">Pickup Location</p>
+                    <p className="text-xs font-bold text-warm-800 line-clamp-2 leading-relaxed">Hello Pizza Cafe Outlet (Self Pickup)</p>
+                    <div className="absolute top-0 right-0 w-12 h-12 bg-success/5 rounded-full translate-x-1/2 -translate-y-1/2 blur-lg" />
+                  </div>
+                </div>
+              )}
 
               <OrderSummaryCard 
                 orderItems={orderItems}
@@ -570,14 +618,21 @@ function OrderConfirmedContent() {
 }
 
 // Order Timeline Progress Tracker
-function OrderTimelineTracker({ status }: { status: string }) {
-  const steps = [
+function OrderTimelineTracker({ status, orderType = "DELIVERY" }: { status: string; orderType?: string }) {
+  let steps = [
     { key: "PLACED", label: "Order Received", desc: "Your order details have been received", doneStates: ["PENDING", "CONFIRMED", "PREPARING", "READY", "OUT_FOR_DELIVERY", "DELIVERED"] },
     { key: "ACCEPTED", label: "Accepted by Kitchen", desc: "Kitchen cashier confirmed your order", doneStates: ["CONFIRMED", "PREPARING", "READY", "OUT_FOR_DELIVERY", "DELIVERED"] },
     { key: "PREPARING", label: "Preparing Meal", desc: "Chefs are preparing and baking your pizza", doneStates: ["PREPARING", "READY", "OUT_FOR_DELIVERY", "DELIVERED"] },
     { key: "READY", label: "Out for Delivery", desc: "Executive is carrying your hot meal", doneStates: ["OUT_FOR_DELIVERY", "DELIVERED"] },
     { key: "DELIVERED", label: "Delivered", desc: "Enjoy your fresh, hot pizza!", doneStates: ["DELIVERED"] }
   ];
+
+  if (orderType === "DINE_IN" || orderType === "PICKUP") {
+    steps = [
+      { key: "PLACED", label: "Order Received", desc: "Your order details have been received", doneStates: ["PENDING", "CONFIRMED", "PREPARING", "READY", "DELIVERED"] },
+      { key: "ACCEPTED", label: "Accepted by Kitchen", desc: "Kitchen cashier confirmed your order", doneStates: ["CONFIRMED", "PREPARING", "READY", "DELIVERED"] }
+    ];
+  }
 
   const currentStepIndex = steps.findIndex(step => {
     if (status === "PENDING" && step.key === "PLACED") return true;

@@ -29,7 +29,8 @@ export async function POST(request: NextRequest) {
       targetType,
       targetGroup,
       targetCustomers,
-      scheduledAt
+      scheduledAt,
+      bonusPoints = 0
     } = body;
 
     if (!name || !templateName || !targetType) {
@@ -50,6 +51,7 @@ export async function POST(request: NextRequest) {
         targetGroup,
         targetCustomers: targetCustomers || [],
         scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
+        bonusPoints: Number(bonusPoints || 0)
       }
     });
 

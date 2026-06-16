@@ -171,7 +171,7 @@ export async function GET(request: NextRequest) {
 
     // Transform using fast denormalized columns direct from database
     const result = customers.map((customer) => ({
-      id: customer.id,
+      id: customer.phone,
       name: customer.name,
       phone: customer.phone,
       email: customer.email,

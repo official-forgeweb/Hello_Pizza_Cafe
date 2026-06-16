@@ -92,9 +92,8 @@ model MenuItemAddOn {
 }
 
 model Customer {
-  id              String       @id @default(uuid())
   name            String
-  phone           String       @unique
+  phone           String       @id
   email           String?
   address         String?
   whatsappOptIn   Boolean      @default(false)
@@ -108,13 +107,14 @@ model Customer {
   updatedAt       DateTime     @updatedAt
   orders          Order[]
   messageLogs     MessageLog[]
+  loyaltyTransactions LoyaltyTransaction[]
 }
 
 model Order {
   id                     String      @id @default(uuid())
   orderNumber            String      @unique
   customerId             String?
-  customer               Customer?   @relation(fields: [customerId], references: [id])
+  customer               Customer?   @relation(fields: [customerId], references: [phone])
   customerName           String
   customerPhone          String
   customerEmail          String?
@@ -145,6 +145,8 @@ model Order {
   waPreparingSent        Boolean     @default(false)
   waOutForDeliverySent   Boolean     @default(false)
   waDeliveredSent        Boolean     @default(false)
+  loyaltyPointsEarned    Int         @default(0)
+  loyaltyPointsRedeemed  Int         @default(0)
   createdAt              DateTime    @default(now())
   updatedAt              DateTime    @updatedAt
   assignedStaffId        String?
@@ -371,6 +373,7 @@ model Campaign {
   delivered       Int          @default(0)
   read            Int          @default(0)
   failed          Int          @default(0)
+  bonusPoints     Int          @default(0)
   status          String       @default("draft") // draft, sending, completed, failed
   scheduledAt     DateTime?
   sentAt          DateTime?
@@ -387,7 +390,7 @@ model MessageLog {
   campaignId        String?
   campaign          Campaign? @relation(fields: [campaignId], references: [id])
   customerId        String?
-  customer          Customer? @relation(fields: [customerId], references: [id])
+  customer          Customer? @relation(fields: [customerId], references: [phone])
   orderId           String?
   order             Order?    @relation(fields: [orderId], references: [id])
   phone             String
@@ -403,3 +406,133 @@ model MessageLog {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 }
+
+model LoyaltySetting {
+  id              String   @id @default("default")
+  pointsPerAmount Int      @default(5)
+  amountThreshold Decimal  @db.Decimal(10, 2) @default(100.00)
+  updatedAt       DateTime @updatedAt
+}
+
+model LoyaltyTransaction {
+  id            String   @id @default(uuid())
+  phoneNumber   String
+  customer      Customer @relation(fields: [phoneNumber], references: [phone], onDelete: Cascade)
+  orderId       String?
+  billId        String?
+  type          String   // EARN, REDEEM, BONUS, EXPIRE
+  points        Int
+  timestamp     DateTime @default(now())
+  expiryDate    DateTime
+  isPending     Boolean  @default(true)
+  campaignId    String?
+}
+
+model CustomerCampaign {
+  id                String   @id @default(uuid())
+  campaignName      String
+  messageTemplateId String
+  targetFilter      String
+  status            String   @default("draft")
+  createdAt         DateTime @default(now())
+}
+
+model Device {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  deviceName String   @map("device_name")
+  deviceIp   String?  @map("device_ip")
+  lastSeenAt DateTime @default(now()) @map("last_seen_at") @db.Timestamptz
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+  syncQueues CloudSyncQueue[]
+  dbBackups  DbBackup[]
+
+  @@map("devices")
+}
+
+model GlobalSetting {
+  id                     Int      @id @default(1)
+  cafeName               String   @map("cafe_name")
+  taxPercent             Decimal  @default(5.0) @map("tax_percent") @db.Decimal(5, 2)
+  currency               String   @default("INR")
+  loyaltyPointsPerAmount Decimal  @default(5) @map("loyalty_points_per_amount") @db.Decimal(10, 2)
+  loyaltyAmountThreshold Decimal  @default(100) @map("loyalty_amount_threshold") @db.Decimal(10, 2)
+  loyaltyMinHours        Decimal  @default(24) @map("loyalty_min_hours") @db.Decimal(10, 2)
+  loyaltyMaxDays         Decimal  @default(30) @map("loyalty_max_days") @db.Decimal(10, 2)
+  updatedAt              DateTime @default(now()) @map("updated_at") @db.Timestamptz
+
+  @@map("global_settings")
+}
+
+model CloudMenuItem {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  category    String
+  price       Decimal  @db.Decimal(10, 2)
+  isAvailable Boolean  @default(true) @map("is_available")
+  imageUrl    String?  @map("image_url")
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz
+  deleted     Boolean  @default(false)
+
+  @@map("menu_items")
+}
+
+model CloudDiscountRule {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name            String
+  type            String    // "percentage" | "flat"
+  value           Decimal   @db.Decimal(10, 2)
+  minOrderAmount  Decimal   @default(0) @map("min_order_amount") @db.Decimal(10, 2)
+  applicableItems String[]  @default([]) @map("applicable_items")
+  isActive        Boolean   @default(true) @map("is_active")
+  validFrom       DateTime? @map("valid_from") @db.Timestamptz
+  validUntil      DateTime? @map("valid_until") @db.Timestamptz
+  applicableDays  Int[]     @default([]) @map("applicable_days")
+  startTime       String?   @map("start_time")
+  endTime         String?   @map("end_time")
+  updatedAt       DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+
+  @@map("discount_rules")
+}
+
+model CloudEmailConfig {
+  id                    Int      @id @default(1)
+  smtpHost              String?  @map("smtp_host")
+  smtpPort              Int?     @default(587) @map("smtp_port")
+  smtpUser              String?  @map("smtp_user")
+  smtpPass              String?  @map("smtp_pass")
+  salesReportRecipients String[] @default([]) @map("sales_report_recipients")
+  hourlyReportEnabled   Boolean  @default(true) @map("hourly_report_enabled")
+  updatedAt             DateTime @default(now()) @map("updated_at") @db.Timestamptz
+
+  @@map("email_config")
+}
+
+model CloudSyncQueue {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  deviceId   String?   @map("device_id") @db.Uuid
+  device     Device?   @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+  tableName  String    @map("table_name")
+  recordId   String    @map("record_id")
+  operation  String
+  payload    Json
+  status     String    @default("pending")
+  retryCount Int       @default(0) @map("retry_count")
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  syncedAt   DateTime? @map("synced_at") @db.Timestamptz
+
+  @@map("sync_queue")
+}
+
+model DbBackup {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  fileName        String   @map("file_name")
+  storagePath     String   @map("storage_path")
+  fileSize        BigInt   @map("file_size")
+  createdByDevice String?  @map("created_by_device") @db.Uuid
+  device          Device?  @relation(fields: [createdByDevice], references: [id], onDelete: SetNull)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@map("db_backups")
+}
+

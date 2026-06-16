@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
         const newTags = Array.from(new Set([...existing.tags, ...(contact.tags || [])]));
         
         await prisma.customer.update({
-          where: { id: existing.id },
+          where: { phone: existing.phone },
           data: {
             name: contact.name, // optionally update name
             email: contact.email || existing.email,

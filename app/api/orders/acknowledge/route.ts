@@ -33,16 +33,8 @@ export async function POST(request: NextRequest) {
 
     // Trigger notifications asynchronously so we don't block the POS sync response
     if (newStatus === "CONFIRMED") {
-      // 1. WhatsApp confirmation
-      if (order.customerPhone && order.customerPhone !== "0000000000") {
-        import("@/lib/services/orderNotificationService").then(({ OrderNotificationService }) => {
-          OrderNotificationService.sendOrderConfirmation(order.id).catch(err => {
-            console.error("WhatsApp order confirmation failed:", err);
-          });
-        }).catch(err => {
-          console.error("Failed to load OrderNotificationService:", err);
-        });
-      }
+      // WhatsApp confirmation is intentionally skipped here so it can be sent 
+      // when the cashier actually saves and syncs the order from the POS.
 
       // 2. Email confirmation
       if (order.customerEmail) {
