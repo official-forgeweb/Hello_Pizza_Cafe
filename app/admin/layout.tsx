@@ -55,10 +55,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [collapsed, setCollapsed] = useState(false);
   const [hoveredHref, setHoveredHref] = useState<string | null>(null);
 
-  // Check auth on mount and path change
+  // Check auth on mount
   useEffect(() => {
     checkSession();
-  }, [pathname, checkSession]);
+  }, [checkSession]);
 
   // Handle redirects based on auth state
   useEffect(() => {

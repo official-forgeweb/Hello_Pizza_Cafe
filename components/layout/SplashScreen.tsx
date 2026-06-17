@@ -174,6 +174,7 @@ export default function SplashScreen() {
                       src="/logo-splash.png"
                       alt="Hello Pizza Café"
                       fill
+                      sizes="(max-width: 768px) 256px, 320px"
                       className="object-contain drop-shadow-2xl"
                       priority
                     />

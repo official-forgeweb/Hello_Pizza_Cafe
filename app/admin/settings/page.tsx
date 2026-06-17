@@ -85,15 +85,21 @@ export default function SettingsPage() {
   // Tab 6: Backups
   const [backups, setBackups] = useState<any[]>([]);
 
-  // Load Initial Data
+  // Fetch data dynamically based on the active tab
   useEffect(() => {
-    fetchPosSettings();
-    fetchSmtpSettings();
-    fetchDiscounts();
-    fetchMenuItems();
-    fetchDevices();
-    fetchBackups();
-  }, []);
+    if (activeTab === "pos-settings") {
+      fetchPosSettings();
+    } else if (activeTab === "smtp") {
+      fetchSmtpSettings();
+    } else if (activeTab === "discounts") {
+      fetchDiscounts();
+      fetchMenuItems();
+    } else if (activeTab === "devices") {
+      fetchDevices();
+    } else if (activeTab === "backups") {
+      fetchBackups();
+    }
+  }, [activeTab]);
 
   // API Fetches
   const fetchPosSettings = async () => {

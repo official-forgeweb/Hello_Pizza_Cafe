@@ -63,6 +63,7 @@ export default function Header() {
                   src="/logo-navbar.png"
                   alt="Hello Pizza"
                   fill
+                  sizes="(max-width: 768px) 144px, 176px"
                   className="object-contain"
                   priority
                 />
@@ -209,6 +210,7 @@ export default function Header() {
                     src="/logo-navbar.png"
                     alt="Hello Pizza"
                     fill
+                    sizes="128px"
                     className="object-contain"
                     priority
                   />

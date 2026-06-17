@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
     // Format orders precisely how the FlashBill POS expects them
     const formattedOrders = orders.map(order => ({
       order_id: order.id,
+      order_number: order.orderNumber,
       customer: {
         name: order.customerName,
         phone: order.customerPhone,

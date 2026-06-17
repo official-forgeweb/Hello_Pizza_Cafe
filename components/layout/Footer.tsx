@@ -14,6 +14,7 @@ export default function Footer() {
                 src="/logo-footer.png"
                 alt="Hello Pizza"
                 fill
+                sizes="(max-width: 768px) 256px, 288px"
                 className="object-contain"
               />
             </div>

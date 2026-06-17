@@ -21,27 +21,27 @@ export async function GET(request: NextRequest) {
     ]);
 
     // Last 7 days revenue for chart
-    const dailyRevenue = [];
+    const dailyRevenuePromises = [];
     for (let i = 6; i >= 0; i--) {
       const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
       const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
 
-      const rev = await prisma.order.aggregate({
+      const promise = prisma.order.aggregate({
         where: {
           placedAt: { gte: dayStart, lt: dayEnd },
           status: { not: "CANCELLED" },
         },
         _sum: { totalAmount: true },
         _count: true,
-      });
-
-      dailyRevenue.push({
+      }).then((rev) => ({
         date: dayStart.toISOString().split("T")[0],
         day: dayStart.toLocaleDateString("en-IN", { weekday: "short" }),
         revenue: Number(rev._sum.totalAmount || 0),
         orders: rev._count,
-      });
+      }));
+      dailyRevenuePromises.push(promise);
     }
+    const dailyRevenue = await Promise.all(dailyRevenuePromises);
 
     // Top selling items
     const topItems = await prisma.orderItem.groupBy({

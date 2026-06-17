@@ -1,13 +1,16 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/set-state-in-effect */
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Check, ShoppingBag, Plus, Minus, RefreshCw } from "lucide-react";
 import Image from "next/image";
 import { useCartStore, type CartItem } from "@/store/cart";
 import { MenuItemData } from "./MenuItemCard";
 import { getFallbackImage, isValidImageUrl } from "@/lib/utils/menuHelper";
+
+// Client-side cache for fetched customizable menu item details
+const itemCache: Record<string, MenuItemData> = {};
 
 interface ItemCustomizationModalProps {
   item: MenuItemData | null;
@@ -164,6 +167,30 @@ export default function ItemCustomizationModal({ item, activeDiscounts = [], onC
 
   const [activeItem, setActiveItem] = useState<MenuItemData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [prevItemId, setPrevItemId] = useState<string | null>(null);
+
+  // Sync state with props during render to avoid intermediate flash/render of loading state
+  if (item && item.id !== prevItemId) {
+    setPrevItemId(item.id);
+    const cachedItem = itemCache[item.id];
+    const activeData = cachedItem || item;
+    const hasVariantsInProp = activeData.variants && activeData.variants.length > 0;
+    const hasAddOnsInProp = activeData.addOns && activeData.addOns.length > 0;
+    const isCustomizable = activeData.hasVariants || hasVariantsInProp || hasAddOnsInProp;
+    const needFetch = isCustomizable && !hasVariantsInProp && !hasAddOnsInProp;
+
+    if (!needFetch) {
+      setActiveItem(activeData);
+      setLoading(false);
+    } else {
+      setLoading(true);
+      setActiveItem(null);
+    }
+  } else if (!item && prevItemId !== null) {
+    setPrevItemId(null);
+    setActiveItem(null);
+    setLoading(false);
+  }
 
   const [selectedVariant, setSelectedVariant] = useState<any | null>(null);
   const [selectedAddons, setSelectedAddons] = useState<any[]>([]);
@@ -211,11 +238,13 @@ export default function ItemCustomizationModal({ item, activeDiscounts = [], onC
       return;
     }
 
-    const hasVariantsInProp = item.variants && item.variants.length > 0;
-    const hasAddOnsInProp = item.addOns && item.addOns.length > 0;
+    const cachedItem = itemCache[item.id];
+    const activeData = cachedItem || item;
+    const hasVariantsInProp = activeData.variants && activeData.variants.length > 0;
+    const hasAddOnsInProp = activeData.addOns && activeData.addOns.length > 0;
     
     // Check if customizable but details are missing
-    const isCustomizable = item.hasVariants || hasVariantsInProp || hasAddOnsInProp;
+    const isCustomizable = activeData.hasVariants || hasVariantsInProp || hasAddOnsInProp;
 
     if (isCustomizable && !hasVariantsInProp && !hasAddOnsInProp) {
       setLoading(true);
@@ -230,6 +259,7 @@ export default function ItemCustomizationModal({ item, activeDiscounts = [], onC
             price: Number(data.basePrice || data.price),
             isVeg: data.itemType === "VEG" || data.isVeg === true,
           };
+          itemCache[item.id] = transformed;
           setActiveItem(transformed);
         })
         .catch((err) => {
@@ -239,9 +269,6 @@ export default function ItemCustomizationModal({ item, activeDiscounts = [], onC
         .finally(() => {
           setLoading(false);
         });
-    } else {
-      setActiveItem(item);
-      setLoading(false);
     }
   }, [item]);
 
@@ -278,34 +305,23 @@ export default function ItemCustomizationModal({ item, activeDiscounts = [], onC
     }
   }, [activeItem, activeDiscounts]);
 
-  if (!item) return null;
-
-  if (loading || !activeItem) {
-    return (
-      <AnimatePresence>
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={onClose}
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]"
-        />
-        <motion.div
-          initial={{ y: "100%" }}
-          animate={{ y: 0 }}
-          exit={{ y: "100%" }}
-          transition={{ type: "spring", damping: 25, stiffness: 200 }}
-          className="fixed bottom-0 left-0 right-0 h-[40vh] bg-white rounded-t-3xl z-[101] flex flex-col items-center justify-center md:max-w-2xl md:mx-auto shadow-2xl p-6"
-        >
-          <RefreshCw className="w-10 h-10 text-primary animate-spin mb-4" />
-          <p className="font-bold text-warm-900 text-sm">Configuring Customizations...</p>
-          <p className="text-xs text-warm-500 mt-1">Fetching size options and add-ons</p>
-        </motion.div>
-      </AnimatePresence>
-    );
-  }
-
   const { variants, addons } = getActualOptions(activeItem);
+
+  // Memoize grouped addons to avoid heavy grouping/filtering on every selection change
+  const groupedAddons = useMemo(() => {
+    const availableAddons = addons.filter(a => 
+      !a.variantName || (selectedVariant && a.variantName === selectedVariant.name)
+    );
+
+    const groups: Record<string, typeof addons> = {};
+    availableAddons.forEach(addon => {
+      const group = addon.addonGroup || "Extras";
+      if (!groups[group]) groups[group] = [];
+      groups[group].push(addon);
+    });
+
+    return groups;
+  }, [addons, selectedVariant?.name]);
 
   const incrementAddon = (addon: typeof addons[0]) => {
     setSelectedAddons((prev) => {
@@ -332,8 +348,8 @@ export default function ItemCustomizationModal({ item, activeDiscounts = [], onC
   };
 
   const discount = getActiveDiscountRule(activeItem, activeDiscounts);
-  let finalBasePrice = activeItem.price;
-  if (discount) {
+  let finalBasePrice = activeItem ? activeItem.price : 0;
+  if (discount && activeItem) {
     const val = Number(discount.value);
     const dtype = String(discount.type).toLowerCase();
     if (dtype === "percentage") {
@@ -344,6 +360,7 @@ export default function ItemCustomizationModal({ item, activeDiscounts = [], onC
   }
 
   const handleAddToCart = () => {
+    if (!activeItem) return;
     const newItem: CartItem = {
       id: `${activeItem.id}-${selectedVariant?.id || 'base'}-${Date.now()}`,
       menuItemId: activeItem.id,
@@ -378,19 +395,36 @@ export default function ItemCustomizationModal({ item, activeDiscounts = [], onC
 
   return (
     <AnimatePresence>
-      {activeItem && (
-        <>
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]"
-          />
+      {/* Backdrop */}
+      {item && (
+        <motion.div
+          key={loading || !activeItem ? "loading-backdrop" : "custom-backdrop"}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={onClose}
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]"
+        />
+      )}
 
-          {/* Bottom Sheet Modal */}
+      {/* Bottom Sheet Modal */}
+      {item && (
+        loading || !activeItem ? (
           <motion.div
+            key="loading-sheet"
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            className="fixed bottom-0 left-0 right-0 h-[40vh] bg-white rounded-t-3xl z-[101] flex flex-col items-center justify-center md:max-w-2xl md:mx-auto shadow-2xl p-6"
+          >
+            <RefreshCw className="w-10 h-10 text-primary animate-spin mb-4" />
+            <p className="font-bold text-warm-900 text-sm">Configuring Customizations...</p>
+            <p className="text-xs text-warm-500 mt-1">Fetching size options and add-ons</p>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="custom-sheet"
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
@@ -493,7 +527,7 @@ export default function ItemCustomizationModal({ item, activeDiscounts = [], onC
                               </div>
                             )}
                             <div className={`text-xs font-black mt-2 z-10 ${isSelected ? "text-primary shadow-sm bg-white px-2 py-0.5 rounded-full" : "text-warm-500"}`}>
-                              {variant.price > 0 ? `+₹${variant.price}` : "Free"}
+                              {variant.price > 0 ? `₹${variant.price}` : "Free"}
                             </div>
                           </button>
                         );
@@ -508,19 +542,7 @@ export default function ItemCustomizationModal({ item, activeDiscounts = [], onC
             <div className="overflow-y-auto flex-1 hide-scrollbar bg-warm-50/20">
               {addons.length > 0 && (
                 <div className="px-6 pb-6">
-                  {(() => {
-                    const availableAddons = addons.filter(a => 
-                      !a.variantName || (selectedVariant && a.variantName === selectedVariant.name)
-                    );
-
-                    const groupedAddons: Record<string, typeof addons> = {};
-                    availableAddons.forEach(addon => {
-                      const group = addon.addonGroup || "Extras";
-                      if (!groupedAddons[group]) groupedAddons[group] = [];
-                      groupedAddons[group].push(addon);
-                    });
-
-                    return Object.entries(groupedAddons).map(([groupName, groupAddons]) => (
+                  {Object.entries(groupedAddons).map(([groupName, groupAddons]) => (
                       <div key={groupName} className="mb-6 last:mb-0">
                         <div className="sticky top-0 bg-white py-3 -mx-6 px-6 z-20 border-b border-warm-100/50 flex items-center justify-between mb-4 shadow-sm">
                           <h3 className="font-bold text-warm-900">{groupName}</h3>
@@ -593,8 +615,7 @@ export default function ItemCustomizationModal({ item, activeDiscounts = [], onC
                           })}
                         </div>
                       </div>
-                    ));
-                  })()}
+                    ))}
                 </div>
               )}
             </div>
@@ -616,7 +637,7 @@ export default function ItemCustomizationModal({ item, activeDiscounts = [], onC
               </button>
             </div>
           </motion.div>
-        </>
+        )
       )}
     </AnimatePresence>
   );
