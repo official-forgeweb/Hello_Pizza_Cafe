@@ -80,13 +80,14 @@ model AddOn {
 }
 
 model MenuItemAddOn {
-  id          String   @id @default(uuid())
-  menuItemId  String
-  menuItem    MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
-  addOnId     String
-  addOn       AddOn    @relation(fields: [addOnId], references: [id], onDelete: Cascade)
-  addonGroup  String   @default("Extras")
-  variantName String?
+  id            String   @id @default(uuid())
+  menuItemId    String
+  menuItem      MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  addOnId       String
+  addOn         AddOn    @relation(fields: [addOnId], references: [id], onDelete: Cascade)
+  addonGroup    String   @default("Extras")
+  variantName   String?
+  priceOverride Decimal? @db.Decimal(10, 2)
 
   @@unique([menuItemId, addOnId, variantName])
 }

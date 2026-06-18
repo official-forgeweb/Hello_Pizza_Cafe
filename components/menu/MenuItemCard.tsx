@@ -35,6 +35,7 @@ export interface MenuItemData {
     id: string;
     addonGroup?: string;
     variantName?: string | null;
+    priceOverride?: number | null;
     addOn: {
       id: string;
       name: string;

@@ -49,6 +49,7 @@ async function MenuPageContent() {
 
       const addOnsMapped = i.addOns?.map((a: any) => ({
         ...a,
+        priceOverride: a.priceOverride != null ? Number(a.priceOverride) : null,
         addOn: a.addOn ? {
           ...a.addOn,
           price: Number(a.addOn.price || 0)

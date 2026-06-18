@@ -177,7 +177,8 @@ export default function ItemCustomizationModal({ item, activeDiscounts = [], onC
     const hasVariantsInProp = activeData.variants && activeData.variants.length > 0;
     const hasAddOnsInProp = activeData.addOns && activeData.addOns.length > 0;
     const isCustomizable = activeData.hasVariants || hasVariantsInProp || hasAddOnsInProp;
-    const needFetch = isCustomizable && !hasVariantsInProp && !hasAddOnsInProp;
+    // Fetch if customizable but variants or addOns data is undefined (not loaded)
+    const needFetch = isCustomizable && (activeData.variants === undefined || activeData.addOns === undefined);
 
     if (!needFetch) {
       setActiveItem(activeData);
@@ -209,7 +210,7 @@ export default function ItemCustomizationModal({ item, activeDiscounts = [], onC
     const dbAddons = targetItem.addOns?.map(a => ({
       id: a.addOn.id,
       name: a.addOn.name,
-      price: Number(a.addOn.price) || 0,
+      price: Number(a.priceOverride ?? a.addOn.price) || 0,
       addonGroup: a.addonGroup || "Extras",
       variantName: a.variantName || null
     })) || [];
@@ -243,10 +244,10 @@ export default function ItemCustomizationModal({ item, activeDiscounts = [], onC
     const hasVariantsInProp = activeData.variants && activeData.variants.length > 0;
     const hasAddOnsInProp = activeData.addOns && activeData.addOns.length > 0;
     
-    // Check if customizable but details are missing
+    // Check if customizable but details are missing (variants or addOns undefined = not loaded)
     const isCustomizable = activeData.hasVariants || hasVariantsInProp || hasAddOnsInProp;
 
-    if (isCustomizable && !hasVariantsInProp && !hasAddOnsInProp) {
+    if (isCustomizable && (activeData.variants === undefined || activeData.addOns === undefined)) {
       setLoading(true);
       fetch(`/api/menu-items/${item.id}`)
         .then((res) => {
@@ -307,11 +308,27 @@ export default function ItemCustomizationModal({ item, activeDiscounts = [], onC
 
   const { variants, addons } = getActualOptions(activeItem);
 
+  // Normalize variant name for comparison: lowercase, trim, take first word token
+  // This handles mismatches like "Regular (Serves 1)" vs "Small", "Small (6\")" vs "Small"
+  const normalizeVariantToken = (name: string | null | undefined): string => {
+    if (!name) return '';
+    return name.trim().split(/[\s(]/)[0].toLowerCase();
+  };
+
+  // Map mock CONFIG names to actual DB addon variant names
+  const VARIANT_ALIASES: Record<string, string> = { 'regular': 'small' };
+
   // Memoize grouped addons to avoid heavy grouping/filtering on every selection change
   const groupedAddons = useMemo(() => {
-    const availableAddons = addons.filter(a => 
-      !a.variantName || (selectedVariant && a.variantName === selectedVariant.name)
-    );
+    let selectedToken = normalizeVariantToken(selectedVariant?.name);
+    // Apply alias mapping (e.g. "Regular" → "Small")
+    selectedToken = VARIANT_ALIASES[selectedToken] || selectedToken;
+
+    const availableAddons = addons.filter(a => {
+      if (!a.variantName) return true; // global addon, always show
+      const addonToken = normalizeVariantToken(a.variantName);
+      return selectedToken === addonToken;
+    });
 
     const groups: Record<string, typeof addons> = {};
     availableAddons.forEach(addon => {

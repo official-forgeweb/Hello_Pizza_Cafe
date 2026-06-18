@@ -211,7 +211,8 @@ export async function POST(request: NextRequest) {
                       menuItemId: targetId, 
                       addOnId: addonId,
                       addonGroup: group.groupName || "Extras",
-                      variantName: group.variantName || null
+                      variantName: group.variantName || null,
+                      priceOverride: addon.price || null
                     });
                     addonsSynced++;
                   }
@@ -238,7 +239,8 @@ export async function POST(request: NextRequest) {
                     menuItemId: targetId, 
                     addOnId: addonId,
                     addonGroup: "Extras",
-                    variantName: null
+                    variantName: null,
+                    priceOverride: addon.price || null
                   });
                   addonsSynced++;
                 }
@@ -448,7 +450,8 @@ export async function POST(request: NextRequest) {
                   menuItemId: item.id, 
                   addOnId: addonId,
                   addonGroup: group.groupName || "Extras",
-                  variantName: group.variantName || null
+                  variantName: group.variantName || null,
+                  priceOverride: addon.price || null
                 });
                 addonsSynced++;
               }
@@ -476,7 +479,8 @@ export async function POST(request: NextRequest) {
                 menuItemId: item.id, 
                 addOnId: addonId,
                 addonGroup: "Extras",
-                variantName: null
+                variantName: null,
+                priceOverride: addon.price || null
               });
               addonsSynced++;
             }

@@ -19,6 +19,9 @@ export default async function HomePage() {
       where: { isAvailable: true, isBestSeller: true },
       include: {
         category: { select: { id: true, name: true, slug: true } },
+        variants: { orderBy: { displayOrder: "asc" } },
+        addOns: { include: { addOn: true } },
+        _count: { select: { variants: true, addOns: true } },
       },
       orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
       take: 8,
@@ -36,6 +39,9 @@ export default async function HomePage() {
       where: { isAvailable: true },
       include: {
         category: { select: { id: true, name: true, slug: true } },
+        variants: { orderBy: { displayOrder: "asc" } },
+        addOns: { include: { addOn: true } },
+        _count: { select: { variants: true, addOns: true } },
       },
       orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
       take: 30,
@@ -91,26 +97,55 @@ export default async function HomePage() {
     isActive: s.isActive,
   }));
 
-  const serializedBestSellers = finalBestSellers.map((i: any) => ({
-    id: i.id,
-    categoryId: i.categoryId,
-    name: i.name,
-    slug: i.slug,
-    description: i.description || null,
-    shortDescription: i.shortDescription || null,
-    price: Number(i.basePrice || 0),
-    imageUrl: i.imageUrl || null,
-    thumbnailUrl: i.thumbnailUrl || null,
-    isVeg: i.itemType === "VEG",
-    isBestSeller: true,
-    category: i.category
-      ? {
-          id: i.category.id,
-          name: i.category.name,
-          slug: i.category.slug,
-        }
-      : undefined,
-  }));
+  const serializedBestSellers = finalBestSellers.map((i: any) => {
+    const basePriceNum = Number(i.basePrice || 0);
+
+    const variantsMapped = i.variants?.map((v: any) => ({
+      ...v,
+      price: Number(v.priceModifier || (v as any).price || 0),
+      priceModifier: Number(v.priceModifier || 0)
+    })) || [];
+
+    const addOnsMapped = i.addOns?.map((a: any) => ({
+      ...a,
+      priceOverride: a.priceOverride != null ? Number(a.priceOverride) : null,
+      addOn: a.addOn ? {
+        ...a.addOn,
+        price: Number(a.addOn.price || 0)
+      } : null
+    })) || [];
+
+    const defaultVariant = variantsMapped.find((v: any) => v.isDefault) || variantsMapped[0];
+    const displayPrice = defaultVariant ? Number(defaultVariant.priceModifier || 0) : basePriceNum;
+
+    const hasVariants = i._count
+      ? (i._count.variants > 0 || i._count.addOns > 0)
+      : (variantsMapped.length > 0 || addOnsMapped.length > 0);
+
+    return {
+      id: i.id,
+      categoryId: i.categoryId,
+      name: i.name,
+      slug: i.slug,
+      description: i.description || null,
+      shortDescription: i.shortDescription || null,
+      price: displayPrice,
+      imageUrl: i.imageUrl || null,
+      thumbnailUrl: i.thumbnailUrl || null,
+      isVeg: i.itemType === "VEG",
+      isBestSeller: true,
+      hasVariants,
+      category: i.category
+        ? {
+            id: i.category.id,
+            name: i.category.name,
+            slug: i.category.slug,
+          }
+        : undefined,
+      variants: variantsMapped,
+      addOns: addOnsMapped,
+    };
+  });
 
   const serializedDiscounts = JSON.parse(JSON.stringify(discounts));
 
