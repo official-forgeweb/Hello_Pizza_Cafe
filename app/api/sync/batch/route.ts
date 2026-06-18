@@ -129,11 +129,33 @@ export async function POST(request: NextRequest) {
               where: { id: orderId }
             });
 
-            // Fallback: check by orderNumber to prevent unique constraint failures
+            // Fallback: check by orderNumber to prevent unique constraint failures, handle collisions gracefully
+            let finalOrderNumber = orderNumber;
             if (!exists && orderNumber) {
-              exists = await prisma.order.findUnique({
+              const matchedOrder = await prisma.order.findUnique({
                 where: { orderNumber: orderNumber }
               });
+              if (matchedOrder) {
+                if (matchedOrder.id === orderId) {
+                  exists = matchedOrder;
+                } else {
+                  // Collision: different order has the same order number
+                  let suffix = 1;
+                  let uniqueNumber = `${orderNumber}-${suffix}`;
+                  while (true) {
+                    const checkCollision = await prisma.order.findUnique({
+                      where: { orderNumber: uniqueNumber }
+                    });
+                    if (!checkCollision) {
+                      break;
+                    }
+                    suffix++;
+                    uniqueNumber = `${orderNumber}-${suffix}`;
+                  }
+                  console.log(`[Sync Batch] Collision detected for order number ${orderNumber}. Assigned unique order number: ${uniqueNumber}`);
+                  finalOrderNumber = uniqueNumber;
+                }
+              }
             }
 
             const targetOrderId = exists ? exists.id : orderId;
@@ -143,7 +165,7 @@ export async function POST(request: NextRequest) {
               const createdOrder = await prisma.order.create({
                 data: {
                   id: orderId,
-                  orderNumber,
+                  orderNumber: finalOrderNumber,
                   customerId,
                   customerName: cleanName,
                   customerPhone: cleanPhone,

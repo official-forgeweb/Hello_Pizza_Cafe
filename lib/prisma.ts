@@ -24,7 +24,7 @@ const getPrismaClient = () => {
       connectionString,
       max: 5,                       // Limit connections per pool in dev mode
       idleTimeoutMillis: 15000,     // Close idle connections faster (15s)
-      connectionTimeoutMillis: 10000, // Timeout faster if database is unreachable
+      connectionTimeoutMillis: 30000, // Wait up to 30s for database connection
     });
     if (process.env.NODE_ENV !== 'production') {
       globalThis.pgPoolGlobal = pool;

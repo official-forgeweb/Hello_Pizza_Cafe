@@ -92,13 +92,26 @@ export const useLocationStore = create<LocationState>()(
         }
 
         try {
-          const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(resolve, reject, {
-              enableHighAccuracy: true,
-              timeout: 10000,
-              maximumAge: 0,
+          let position: GeolocationPosition;
+          try {
+            // Try high accuracy with a 5-second timeout
+            position = await new Promise<GeolocationPosition>((resolve, reject) => {
+              navigator.geolocation.getCurrentPosition(resolve, reject, {
+                enableHighAccuracy: true,
+                timeout: 5000,
+                maximumAge: 0,
+              });
             });
-          });
+          } catch (firstError) {
+            // Fallback to low accuracy which is faster and reliable
+            position = await new Promise<GeolocationPosition>((resolve, reject) => {
+              navigator.geolocation.getCurrentPosition(resolve, reject, {
+                enableHighAccuracy: false,
+                timeout: 5000,
+                maximumAge: 300000, // 5 minutes cache
+              });
+            });
+          }
 
           const { latitude, longitude } = position.coords;
           set({ coordinates: { lat: latitude, lng: longitude } });
@@ -112,8 +125,16 @@ export const useLocationStore = create<LocationState>()(
           else if (error?.code === 2) message = "Position unavailable";
           else if (error?.code === 3) message = "Request timed out";
           
-          console.warn("Geolocation warning:", message);
-          set({ address: null, isDetecting: false });
+          console.warn("Geolocation warning failed fallback:", message);
+          
+          // Fallback to default coordinates & address so app doesn't stay in broken state
+          const defaultLat = Number(process.env.NEXT_PUBLIC_CAFE_LAT || 28.33783755243623);
+          const defaultLng = Number(process.env.NEXT_PUBLIC_CAFE_LNG || 77.32388555917792);
+          set({ 
+            coordinates: { lat: defaultLat, lng: defaultLng }, 
+            address: "Connaught Place, New Delhi", 
+            isDetecting: false 
+          });
         }
       },
     }),

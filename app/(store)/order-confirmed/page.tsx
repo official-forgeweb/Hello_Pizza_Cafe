@@ -619,30 +619,12 @@ function OrderConfirmedContent() {
 
 // Order Timeline Progress Tracker
 function OrderTimelineTracker({ status, orderType = "DELIVERY" }: { status: string; orderType?: string }) {
-  let steps = [
+  const steps = [
     { key: "PLACED", label: "Order Received", desc: "Your order details have been received", doneStates: ["PENDING", "CONFIRMED", "PREPARING", "READY", "OUT_FOR_DELIVERY", "DELIVERED"] },
-    { key: "ACCEPTED", label: "Accepted by Kitchen", desc: "Kitchen cashier confirmed your order", doneStates: ["CONFIRMED", "PREPARING", "READY", "OUT_FOR_DELIVERY", "DELIVERED"] },
-    { key: "PREPARING", label: "Preparing Meal", desc: "Chefs are preparing and baking your pizza", doneStates: ["PREPARING", "READY", "OUT_FOR_DELIVERY", "DELIVERED"] },
-    { key: "READY", label: "Out for Delivery", desc: "Executive is carrying your hot meal", doneStates: ["OUT_FOR_DELIVERY", "DELIVERED"] },
-    { key: "DELIVERED", label: "Delivered", desc: "Enjoy your fresh, hot pizza!", doneStates: ["DELIVERED"] }
+    { key: "ACCEPTED", label: "Accepted by Kitchen", desc: "Kitchen cashier confirmed your order", doneStates: ["CONFIRMED", "PREPARING", "READY", "OUT_FOR_DELIVERY", "DELIVERED"] }
   ];
 
-  if (orderType === "DINE_IN" || orderType === "PICKUP") {
-    steps = [
-      { key: "PLACED", label: "Order Received", desc: "Your order details have been received", doneStates: ["PENDING", "CONFIRMED", "PREPARING", "READY", "DELIVERED"] },
-      { key: "ACCEPTED", label: "Accepted by Kitchen", desc: "Kitchen cashier confirmed your order", doneStates: ["CONFIRMED", "PREPARING", "READY", "DELIVERED"] }
-    ];
-  }
-
-  const currentStepIndex = steps.findIndex(step => {
-    if (status === "PENDING" && step.key === "PLACED") return true;
-    if (status === "CONFIRMED" && step.key === "ACCEPTED") return true;
-    if (status === "PREPARING" && step.key === "PREPARING") return true;
-    if (status === "READY" && step.key === "READY") return true;
-    if (status === "OUT_FOR_DELIVERY" && step.key === "READY") return true;
-    if (status === "DELIVERED" && step.key === "DELIVERED") return true;
-    return false;
-  });
+  const currentStepIndex = status === "PENDING" ? 0 : 1;
 
   return (
     <div className="bg-white/80 border border-warm-200/50 rounded-3xl p-6 text-left space-y-4">
