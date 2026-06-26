@@ -8,21 +8,42 @@ export class CampaignService {
     const personalizedVars = [];
     for (const param of campaign.bodyParameters) {
       if (param === "{name}") {
-        personalizedVars.push(customer.name);
+        personalizedVars.push("Customer");
       } else if (param === "{points_expiring}") {
         const points = await CustomerService.getPointsExpiringInDays(customer.phone, 5);
         personalizedVars.push(String(points));
       } else if (param === "{expiry_date}") {
         const expiryDate = new Date();
-        expiryDate.setDate(expiryDate.getDate() + 5);
+        expiryDate.setDate(expiryDate.getDate() + 30);
         personalizedVars.push(expiryDate.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }));
       } else if (param === "{bonus_points}") {
-        personalizedVars.push(String(campaign.bonusPoints || 0));
+        personalizedVars.push(String(CampaignService.getEffectiveBonusPoints(campaign)));
       } else {
         personalizedVars.push(param);
       }
     }
     return personalizedVars;
+  }
+
+  /**
+   * Extracts the effective bonus points for a campaign.
+   * Falls back to parsing the first body parameter if bonusPoints field is 0
+   * (handles campaigns created before the frontend auto-sync fix).
+   */
+  static getEffectiveBonusPoints(campaign: any): number {
+    if (campaign.bonusPoints && campaign.bonusPoints > 0) {
+      return campaign.bonusPoints;
+    }
+    // Fallback: For loyalty_balance_update template, the first body param is the bonus points value
+    if (campaign.templateName === 'loyalty_balance_update' && 
+        Array.isArray(campaign.bodyParameters) && 
+        campaign.bodyParameters.length > 0) {
+      const parsed = parseInt(campaign.bodyParameters[0]);
+      if (!isNaN(parsed) && parsed > 0) {
+        return parsed;
+      }
+    }
+    return 0;
   }
 
   /**
@@ -272,6 +293,24 @@ export class CampaignService {
           });
         }
 
+        // Add dynamic button parameters if template contains dynamic URL buttons
+        if (template && Array.isArray(template.components)) {
+          const buttonsComp = (template.components as any[]).find((c: any) => c.type === 'BUTTONS');
+          if (buttonsComp && Array.isArray(buttonsComp.buttons)) {
+            const urlButtonIndex = buttonsComp.buttons.findIndex((b: any) => b.type === 'URL' && b.url && b.url.includes('{{1}}'));
+            if (urlButtonIndex !== -1) {
+              components.push({
+                type: 'button',
+                sub_type: 'url',
+                index: String(urlButtonIndex),
+                parameters: [
+                  { type: 'text', text: customer.phone }
+                ]
+              });
+            }
+          }
+        }
+
         const result = await WhatsAppService.sendTemplateMessage(
           customer.phone,
           campaign.templateName,
@@ -293,7 +332,8 @@ export class CampaignService {
           });
           sentCount++;
 
-          if (campaign.bonusPoints && campaign.bonusPoints > 0) {
+          const effectiveBonus = CampaignService.getEffectiveBonusPoints(campaign);
+          if (effectiveBonus > 0) {
             const existingTx = await prisma.loyaltyTransaction.findFirst({
               where: {
                 phoneNumber: customer.phone,
@@ -306,7 +346,7 @@ export class CampaignService {
                 data: {
                   phoneNumber: customer.phone,
                   type: "BONUS",
-                  points: campaign.bonusPoints,
+                  points: effectiveBonus,
                   expiryDate,
                   isPending: true,
                   campaignId: campaign.id

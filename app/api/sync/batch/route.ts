@@ -324,11 +324,23 @@ export async function POST(request: NextRequest) {
             results.push({ localId, status: "success" });
             continue;
           }
+
+          // Fetch the existing customer to check their current opt-in status
+          const existingCustomer = await prisma.customer.findUnique({
+            where: { phone: cleanPhone },
+            select: { whatsappOptIn: true }
+          });
+
+          // If the customer is already opted-in in the web store database, preserve it
+          const finalWhatsappOptIn = existingCustomer?.whatsappOptIn
+            ? true
+            : (record.whatsappOptIn === true || record.whatsappOptIn === 1);
+
           const data = {
             name: record.name?.trim() || "Walk-in Customer",
             email: record.email || null,
             address: record.address || null,
-            whatsappOptIn: record.whatsappOptIn === true || record.whatsappOptIn === 1,
+            whatsappOptIn: finalWhatsappOptIn,
             updatedAt: new Date(record.updated_at || record.created_at || new Date()),
           };
           await prisma.customer.upsert({

@@ -28,7 +28,7 @@ const UTILITY_PRESETS: Preset[] = [
     title: "Order Confirmed",
     description: "Send automatically when order is accepted by restaurant",
     templateName: "order_confirmation2",
-    category: "MARKETING",
+    category: "UTILITY",
     headerType: "TEXT",
     headerText: "Order Accepted",
     bodyText: "Hello {{1}}, your order {{2}} has been confirmed and is being processed! Thank you for ordering from Hello Pizza Cafe. We are preparing it fresh.",
@@ -42,7 +42,7 @@ const UTILITY_PRESETS: Preset[] = [
     title: "Order Preparing",
     description: "Send when order is sent to the kitchen",
     templateName: "order_preparing3",
-    category: "MARKETING",
+    category: "UTILITY",
     headerType: "TEXT",
     headerText: "Order Preparing",
     bodyText: "Hi {{1}}, our kitchen staff is preparing your delicious order {{2}} right now! We will notify you as soon as it is baked and ready for delivery.",
@@ -53,7 +53,7 @@ const UTILITY_PRESETS: Preset[] = [
     title: "Out for Delivery",
     description: "Send when order is picked up by rider",
     templateName: "order_out_for_delivery2",
-    category: "MARKETING",
+    category: "UTILITY",
     headerType: "TEXT",
     headerText: "Out for Delivery",
     bodyText: "Great news {{1}}! Your hot order {{2}} is out for delivery. Your rider {{3}} (phone: {{4}}) is on their way. Get ready to feast!",
@@ -67,7 +67,7 @@ const UTILITY_PRESETS: Preset[] = [
     title: "Order Delivered",
     description: "Send when order is delivered successfully",
     templateName: "order_delivered2",
-    category: "MARKETING",
+    category: "UTILITY",
     headerType: "TEXT",
     headerText: "Order Delivered",
     bodyText: "Yum! Your order {{2}} has been delivered to {{1}}. Enjoy your meal! We would love to hear your feedback. Please leave us a review.",
@@ -81,25 +81,49 @@ const UTILITY_PRESETS: Preset[] = [
     title: "Order Cancelled",
     description: "Send if order is rejected or cancelled",
     templateName: "order_cancelled3",
-    category: "MARKETING",
+    category: "UTILITY",
     headerType: "TEXT",
     headerText: "Order Cancelled",
     bodyText: "Hello {{1}}, we regret to inform you that your order {{2}} has been cancelled. Reason: {{3}}. If you have questions, please reach out directly.",
     footerText: "Hello Pizza Cafe Support"
   },
   {
-    id: "loyalty_points_credit",
+    id: "loyalty_balance_update",
     title: "Loyalty Points Credit",
-    description: "Send when points are credited manually or as a bonus (e.g. Sunil, 500 points, expires 2026-07-16, message: 'Special Loyalty Bonus')",
-    templateName: "loyalty_points_credit",
-    category: "MARKETING",
+    description: "Send when points are credited (Meta-compliant UTILITY category wording)",
+    templateName: "loyalty_balance_update",
+    category: "UTILITY",
     headerType: "TEXT",
-    headerText: "Points Credited!",
-    bodyText: "Congratulations {{1}}! We have credited {{2}} loyalty points to your account. These points will expire on {{3}}. Note: {{4}}.",
-    footerText: "Hello Pizza Cafe Loyalty Club",
+    headerText: "Balance Update",
+    bodyText: "Hello, your loyalty points balance has been updated. We have credited {{1}} points to your account. These points will expire on {{2}}. Note: {{3}}. You can view your updated wallet balance details using the link below.",
+    footerText: "Hello Pizza Cafe",
     buttons: [
-      { type: "URL", text: "View Wallet", url: "https://hello-pizza-cafe.vercel.app/loyalty" }
+      { type: "URL", text: "View Wallet", url: "https://hello-pizza-cafe.vercel.app/loyalty?{{1}}" }
     ]
+  },
+  {
+    id: "loyalty_verification_otp",
+    title: "Loyalty Redeem OTP",
+    description: "Send when customer requests an OTP to redeem points during POS checkout (Meta Authentication category)",
+    templateName: "loyalty_verification_otp",
+    category: "AUTHENTICATION",
+    headerType: "NONE",
+    bodyText: "*{{1}}* is your verification code. For your security, do not share this code.",
+    footerText: "Expires in 5 minutes.",
+    buttons: [
+      { type: "COPY_CODE", text: "Copy Code" }
+    ]
+  },
+  {
+    id: "loyalty_points_redeemed",
+    title: "Loyalty Points Redeemed",
+    description: "Send after customer successfully redeems loyalty points at POS checkout",
+    templateName: "loyalty_points_redeemed",
+    category: "UTILITY",
+    headerType: "TEXT",
+    headerText: "Redemption Success",
+    bodyText: "You have successfully redeemed {{1}} loyalty points on your purchase! Your remaining loyalty balance is {{2}} points, which will be valid until {{3}}. Thank you for ordering from Hello Pizza Cafe!",
+    footerText: "Hello Pizza Cafe"
   }
 ];
 
@@ -165,7 +189,7 @@ export default function CreateTemplatePage() {
   const [headerImageUrl, setHeaderImageUrl] = useState("https://upload.wikimedia.org/wikipedia/commons/9/91/Pizza-3007395.jpg");
   const [bodyText, setBodyText] = useState("");
   const [footerText, setFooterText] = useState("");
-  const [buttonType, setButtonType] = useState<"NONE" | "URL">("NONE");
+  const [buttonType, setButtonType] = useState<"NONE" | "URL" | "COPY_CODE">("NONE");
   const [buttonText, setButtonText] = useState("");
   const [buttonUrl, setButtonUrl] = useState("");
 
@@ -187,9 +211,10 @@ export default function CreateTemplatePage() {
     setFooterText(preset.footerText || "");
     
     if (preset.buttons && preset.buttons.length > 0) {
-      setButtonType("URL");
-      setButtonText(preset.buttons[0].text);
-      setButtonUrl(preset.buttons[0].url);
+      const btn = preset.buttons[0];
+      setButtonType(btn.type === "COPY_CODE" ? "COPY_CODE" : "URL");
+      setButtonText(btn.text);
+      setButtonUrl(btn.url || "");
     } else {
       setButtonType("NONE");
       setButtonText("");
@@ -207,8 +232,18 @@ export default function CreateTemplatePage() {
 
   const getMockedBodyText = () => {
     let mock = bodyText;
-    const isLoyalty = name.toLowerCase().includes("loyalty");
-    if (isLoyalty) {
+    const lowerName = name.toLowerCase();
+    if (lowerName.includes("otp") || lowerName.includes("verify")) {
+      mock = mock.replace(/\{\{1\}\}/g, "123456");
+    } else if (lowerName.includes("redeem") || lowerName.includes("deduct")) {
+      mock = mock.replace(/\{\{1\}\}/g, "150");
+      mock = mock.replace(/\{\{2\}\}/g, "350");
+      mock = mock.replace(/\{\{3\}\}/g, "2026-07-22");
+    } else if (lowerName.includes("points_credit") || lowerName.includes("points_update") || lowerName.includes("balance_update")) {
+      mock = mock.replace(/\{\{1\}\}/g, "500");
+      mock = mock.replace(/\{\{2\}\}/g, "2026-07-16");
+      mock = mock.replace(/\{\{3\}\}/g, "Special Loyalty Bonus");
+    } else if (lowerName.includes("loyalty")) {
       mock = mock.replace(/\{\{1\}\}/g, "Rahul Sharma");
       mock = mock.replace(/\{\{2\}\}/g, "500");
       mock = mock.replace(/\{\{3\}\}/g, "2026-07-16");
@@ -315,6 +350,16 @@ export default function CreateTemplatePage() {
               type: "URL",
               text: buttonText,
               url: buttonUrl
+            }
+          ]
+        });
+      } else if (buttonType === "COPY_CODE" && buttonText) {
+        components.push({
+          type: "BUTTONS",
+          buttons: [
+            {
+              type: "COPY_CODE",
+              text: buttonText
             }
           ]
         });
@@ -482,6 +527,7 @@ export default function CreateTemplatePage() {
                 >
                   <option value="MARKETING">Marketing (Promotions/Offers)</option>
                   <option value="UTILITY">Utility (Order Notifications)</option>
+                  <option value="AUTHENTICATION">Authentication (OTPs/Verification)</option>
                 </select>
               </div>
             </div>
@@ -677,6 +723,16 @@ export default function CreateTemplatePage() {
                   />
                   Website Link URL
                 </label>
+                <label className="flex items-center gap-2 text-xs text-warm-700 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="btnType"
+                    checked={buttonType === "COPY_CODE"}
+                    onChange={() => setButtonType("COPY_CODE")}
+                    className="text-primary focus:ring-primary"
+                  />
+                  Copy Code (Authentication Only)
+                </label>
               </div>
 
               {buttonType === "URL" && (
@@ -699,6 +755,20 @@ export default function CreateTemplatePage() {
                       className="w-full px-3 py-2 bg-warm-50/50 border border-warm-200 focus:border-primary rounded-xl text-xs outline-none focus:ring-2 focus:ring-primary/10 font-mono"
                     />
                   </div>
+                </div>
+              )}
+              {buttonType === "COPY_CODE" && (
+                <div className="max-w-md">
+                  <input
+                    type="text"
+                    placeholder="Button Label (e.g. Copy Code)"
+                    value={buttonText}
+                    onChange={(e) => setButtonText(e.target.value)}
+                    className="w-full px-3 py-2 bg-warm-50/50 border border-warm-200 focus:border-primary rounded-xl text-xs outline-none focus:ring-2 focus:ring-primary/10"
+                  />
+                  <span className="text-[10px] text-warm-400 mt-1 block">
+                    Copy Code button text can be up to 25 characters.
+                  </span>
                 </div>
               )}
             </div>
@@ -741,8 +811,8 @@ export default function CreateTemplatePage() {
 
               {/* Preview Body */}
               <div className="text-warm-800 whitespace-pre-wrap leading-relaxed font-sans">
-                {getMockedBodyText().split(/(\[.*?\]|Rahul Sharma|OD-98214|Amit Kumar \(Rider\)|123 Cafe Street, Faridabad|\+91 98765 43210|500|2026-07-16|Special Loyalty Bonus)/g).map((part, index) => {
-                  const highlights = ["Rahul Sharma", "OD-98214", "Amit Kumar (Rider)", "+91 98765 43210", "123 Cafe Street, Faridabad", "500", "2026-07-16", "Special Loyalty Bonus"];
+                {getMockedBodyText().split(/(\[.*?\]|Rahul Sharma|OD-98214|Amit Kumar \(Rider\)|123 Cafe Street, Faridabad|\+91 98765 43210|500|2026-07-16|Special Loyalty Bonus|123456|150|350|2026-07-22)/g).map((part, index) => {
+                  const highlights = ["Rahul Sharma", "OD-98214", "Amit Kumar (Rider)", "+91 98765 43210", "123 Cafe Street, Faridabad", "500", "2026-07-16", "Special Loyalty Bonus", "123456", "150", "350", "2026-07-22"];
                   if (highlights.includes(part)) {
                     return (
                       <span key={index} className="bg-primary/10 text-primary font-semibold px-1 py-0.5 rounded text-[11px]">
@@ -767,6 +837,14 @@ export default function CreateTemplatePage() {
               <div className="w-full max-w-[270px] mt-1">
                 <div className="bg-white rounded-xl py-2 px-3 text-center text-xs font-semibold text-blue-600 shadow-sm border border-warm-200/50 flex items-center justify-center gap-1.5">
                   <Laptop className="w-3.5 h-3.5 text-blue-500" />
+                  <span>{buttonText}</span>
+                </div>
+              </div>
+            )}
+            {buttonType === "COPY_CODE" && buttonText && (
+              <div className="w-full max-w-[270px] mt-1">
+                <div className="bg-white rounded-xl py-2 px-3 text-center text-xs font-semibold text-blue-600 shadow-sm border border-warm-200/50 flex items-center justify-center gap-1.5">
+                  <FileText className="w-3.5 h-3.5 text-blue-500" />
                   <span>{buttonText}</span>
                 </div>
               </div>

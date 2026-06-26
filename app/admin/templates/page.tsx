@@ -297,6 +297,15 @@ export default function TemplatesPage() {
             const headerComponent = template.components?.find((c: any) => c.type === 'HEADER');
             const footerComponent = template.components?.find((c: any) => c.type === 'FOOTER');
             const buttonsComponent = template.components?.find((c: any) => c.type === 'BUTTONS');
+
+            const isAuth = template.category === 'AUTHENTICATION';
+            const bodyText = isAuth 
+              ? `*{{1}}* is your verification code.${bodyComponent?.add_security_recommendation !== false ? ' For your security, do not share this code.' : ''}`
+              : (bodyComponent?.text || "No body content");
+            
+            const footerText = isAuth && footerComponent?.code_expiration_minutes
+              ? `Expires in ${footerComponent.code_expiration_minutes} minutes.`
+              : footerComponent?.text;
             
             return (
               <motion.div
@@ -332,7 +341,7 @@ export default function TemplatesPage() {
                     <span className="text-[10px] font-bold uppercase tracking-wider text-warm-500 bg-warm-100 px-2 py-0.5 rounded">{template.category}</span>
                     <span className="text-[10px] font-bold uppercase tracking-wider text-warm-500 bg-warm-100 px-2 py-0.5 rounded">{template.language}</span>
                   </div>
-
+ 
                   <div className="bg-[#EFEAE2] rounded-xl p-4 relative font-sans text-sm shadow-inner min-h-[120px]">
                     {/* Fake WA Message Bubble */}
                     <div className="bg-white rounded-tr-xl rounded-b-xl p-3 shadow-sm max-w-[90%] relative">
@@ -360,12 +369,12 @@ export default function TemplatesPage() {
                       )}
                       
                       <div className="text-warm-800 whitespace-pre-wrap leading-relaxed text-xs">
-                        {bodyComponent?.text || "No body content"}
+                        {bodyText}
                       </div>
-
-                      {footerComponent && (
+ 
+                      {footerText && (
                         <div className="text-warm-400 text-[10px] mt-1.5 border-t border-warm-50 pt-1">
-                          {footerComponent.text}
+                          {footerText}
                         </div>
                       )}
                     </div>

@@ -109,6 +109,8 @@ model Customer {
   orders          Order[]
   messageLogs     MessageLog[]
   loyaltyTransactions LoyaltyTransaction[]
+
+  @@map("customers")
 }
 
 model Order {
@@ -413,6 +415,8 @@ model LoyaltySetting {
   pointsPerAmount Int      @default(5)
   amountThreshold Decimal  @db.Decimal(10, 2) @default(100.00)
   updatedAt       DateTime @updatedAt
+
+  @@map("loyalty_settings")
 }
 
 model LoyaltyTransaction {
@@ -427,6 +431,8 @@ model LoyaltyTransaction {
   expiryDate    DateTime
   isPending     Boolean  @default(true)
   campaignId    String?
+
+  @@map("loyalty_transactions")
 }
 
 model CustomerCampaign {

@@ -45,6 +45,27 @@ if (process.env.REDIS_URL) {
         });
       }
 
+      // Add dynamic button parameters if template contains dynamic URL buttons
+      const template = await prisma.whatsAppTemplate.findUnique({
+        where: { templateName }
+      });
+      if (template && Array.isArray(template.components)) {
+        const buttonsComp = (template.components as any[]).find((c: any) => c.type === 'BUTTONS');
+        if (buttonsComp && Array.isArray(buttonsComp.buttons)) {
+          const urlButtonIndex = buttonsComp.buttons.findIndex((b: any) => b.type === 'URL' && b.url && b.url.includes('{{1}}'));
+          if (urlButtonIndex !== -1) {
+            components.push({
+              type: 'button',
+              sub_type: 'url',
+              index: String(urlButtonIndex),
+              parameters: [
+                { type: 'text', text: phone }
+              ]
+            });
+          }
+        }
+      }
+
       // Send the message via WhatsApp
       const result = await WhatsAppService.sendTemplateMessage(phone, templateName, language || 'en_US', components);
 
@@ -66,25 +87,36 @@ if (process.env.REDIS_URL) {
           const campaign = await prisma.campaign.findUnique({
             where: { id: campaignId }
           });
-          if (campaign && campaign.bonusPoints && campaign.bonusPoints > 0) {
-            const existingTx = await prisma.loyaltyTransaction.findFirst({
-              where: {
-                phoneNumber: phone,
-                campaignId: campaign.id
+          if (campaign) {
+            const getEffectiveBonusPoints = (c: any) => {
+              if (c.bonusPoints && c.bonusPoints > 0) return c.bonusPoints;
+              if (c.templateName === 'loyalty_balance_update' && Array.isArray(c.bodyParameters) && c.bodyParameters.length > 0) {
+                const parsed = parseInt(c.bodyParameters[0]);
+                if (!isNaN(parsed) && parsed > 0) return parsed;
               }
-            });
-            if (!existingTx) {
-              const expiryDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-              await prisma.loyaltyTransaction.create({
-                data: {
+              return 0;
+            };
+            const effectiveBonus = getEffectiveBonusPoints(campaign);
+            if (effectiveBonus > 0) {
+              const existingTx = await prisma.loyaltyTransaction.findFirst({
+                where: {
                   phoneNumber: phone,
-                  type: "BONUS",
-                  points: campaign.bonusPoints,
-                  expiryDate,
-                  isPending: true,
                   campaignId: campaign.id
                 }
               });
+              if (!existingTx) {
+                const expiryDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+                await prisma.loyaltyTransaction.create({
+                  data: {
+                    phoneNumber: phone,
+                    type: "BONUS",
+                    points: effectiveBonus,
+                    expiryDate,
+                    isPending: true,
+                    campaignId: campaign.id
+                  }
+                });
+              }
             }
           }
         }

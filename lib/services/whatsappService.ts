@@ -220,6 +220,7 @@ export class WhatsAppService {
     }
 
     try {
+      console.log('Sending createTemplate payload to Meta:', JSON.stringify(templateData, null, 2));
       const response = await fetch(
         `https://graph.facebook.com/${config.apiVersion}/${config.wabaId}/message_templates`,
         {
@@ -235,7 +236,12 @@ export class WhatsAppService {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error?.message || 'Failed to create template in Meta');
+        console.error('Meta API createTemplate error response:', JSON.stringify(data, null, 2));
+        return {
+          success: false,
+          error: data.error?.message || 'Failed to create template in Meta',
+          rawError: data.error
+        };
       }
 
       return { success: true, data };

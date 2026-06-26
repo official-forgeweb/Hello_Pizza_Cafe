@@ -244,6 +244,14 @@ export default function CustomersPage() {
 
   const handleGenerateBatches = async () => {
     if (!batchPrefix.trim()) return;
+    const targetCount = selectedCustomerIds.size > 0 ? selectedOptedInCount : stats.optedInCount;
+    if (targetCount === 0) {
+      setToast({
+        message: "No opted-in customers found to batch.",
+        type: "error"
+      });
+      return;
+    }
     setIsBatching(true);
     try {
       const requestBody: any = {
@@ -440,7 +448,9 @@ export default function CustomersPage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-
+  const selectedOptedInCount = Array.from(selectedCustomerIds).filter(
+    (phone) => customers.find((c) => c.phone === phone)?.whatsappOptIn
+  ).length;
 
   return (
     <div className="space-y-6">
@@ -844,12 +854,12 @@ export default function CustomersPage() {
           >
             <Users className="w-3.5 h-3.5" />
             {selectedCustomerIds.size > 0 
-              ? (selectedCustomerIds.size <= 300 
-                  ? `Batch Selected (${selectedCustomerIds.size})` 
-                  : `Batch Selected (${selectedCustomerIds.size} - 300 each)`)
-              : (stats.totalCustomers <= 300 
-                  ? `Batch All Filtered (${stats.totalCustomers})` 
-                  : `Batch All Filtered (${stats.totalCustomers} - 300 each)`)
+              ? (selectedOptedInCount <= 300 
+                  ? `Batch Selected (${selectedOptedInCount} Opted In)` 
+                  : `Batch Selected (${selectedOptedInCount} Opted In - 300 each)`)
+              : (stats.optedInCount <= 300 
+                  ? `Batch All Filtered (${stats.optedInCount} Opted In)` 
+                  : `Batch All Filtered (${stats.optedInCount} Opted In - 300 each)`)
             }
           </button>
         </div>
@@ -1087,12 +1097,16 @@ export default function CustomersPage() {
                 <h2 className="text-xl font-bold text-warm-900">Generate Marketing Batches</h2>
                 <p className="text-xs text-warm-500 mt-1">
                   {selectedCustomerIds.size > 0 
-                    ? (selectedCustomerIds.size <= 300
-                      ? `This will tag the ${selectedCustomerIds.size} selected customer(s) with your batch name.`
-                      : `This will split the ${selectedCustomerIds.size} selected customer(s) into sequential batches of 300 each.`)
-                    : (stats.totalCustomers <= 300
-                      ? `This will tag the ${stats.totalCustomers} opted-in customer(s) matching your current filters.`
-                      : `This will split the ${stats.totalCustomers} opted-in customer(s) matching your current filters into sequential batches of 300 each.`)
+                    ? (selectedOptedInCount === 0
+                      ? `None of the selected customers are opted-in for WhatsApp. Please opt them in first.`
+                      : selectedOptedInCount <= 300
+                        ? `This will tag the ${selectedOptedInCount} opted-in customer(s) (out of ${selectedCustomerIds.size} selected) with your batch name.`
+                        : `This will split the ${selectedOptedInCount} opted-in customer(s) (out of ${selectedCustomerIds.size} selected) into sequential batches of 300 each.`)
+                    : (stats.optedInCount === 0
+                      ? `No opted-in customers match your current filters. Please adjust your filters or opt customers in.`
+                      : stats.optedInCount <= 300
+                        ? `This will tag the ${stats.optedInCount} opted-in customer(s) matching your current filters.`
+                        : `This will split the ${stats.optedInCount} opted-in customer(s) matching your current filters into sequential batches of 300 each.`)
                   }
                 </p>
               </div>
@@ -1108,7 +1122,7 @@ export default function CustomersPage() {
                     className="w-full px-4 py-2.5 bg-warm-50 border-0 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-mono placeholder:font-sans placeholder:text-warm-400"
                   />
                   <p className="text-[10px] text-warm-400 mt-1">
-                    {((selectedCustomerIds.size > 0 ? selectedCustomerIds.size : stats.totalCustomers) <= 300) ? (
+                    {((selectedCustomerIds.size > 0 ? selectedOptedInCount : stats.optedInCount) <= 300) ? (
                       <>
                         Customers will be tagged with <span className="font-mono bg-warm-50 px-1 py-0.5 rounded">{batchPrefix || "prefix"}-1</span>.
                       </>
@@ -1120,6 +1134,19 @@ export default function CustomersPage() {
                   </p>
                 </div>
 
+                {/* Warning Alert if target count is 0 */}
+                {((selectedCustomerIds.size > 0 ? selectedOptedInCount : stats.optedInCount) === 0) && (
+                  <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs flex gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-bold">No Opted-in Customers</p>
+                      <p className="mt-0.5">
+                        Marketing batches can only target opted-in contacts. Click the <strong>Opted Out</strong> badge on Sunil&apos;s card (or use the green WhatsApp button in the bottom right) to opt them in first.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex gap-3 pt-2">
                   <button
                     onClick={() => setShowBatchModal(false)}
@@ -1130,7 +1157,7 @@ export default function CustomersPage() {
                   </button>
                   <button
                     onClick={handleGenerateBatches}
-                    disabled={isBatching || !batchPrefix.trim()}
+                    disabled={isBatching || !batchPrefix.trim() || (selectedCustomerIds.size > 0 ? selectedOptedInCount : stats.optedInCount) === 0}
                     className="flex-1 py-2.5 rounded-xl font-bold text-white bg-primary hover:bg-[#cc1530] transition-colors cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 border-0"
                   >
                     {isBatching ? (

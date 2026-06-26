@@ -132,167 +132,21 @@ export class OrderNotificationService {
    * Send order preparing update
    */
   static async sendOrderPreparing(orderId: string) {
-    try {
-      const order = await prisma.order.findUnique({
-        where: { id: orderId },
-        include: { customer: true }
-      });
-
-      if (!order || !order.customerPhone) return { success: false, error: 'No order or phone found' };
-      if (order.customerPhone === '0000000000') return { success: true, note: 'Skipped for dummy phone' };
-      if (order.waPreparingSent) return { success: true, note: 'Already sent' };
-
-      const result = await WhatsAppService.sendTemplateMessage(
-        order.customerPhone,
-        'order_preparing3',
-        'en_US',
-        [
-          {
-            type: 'body',
-            parameters: [
-              { type: 'text', text: order.customerName },
-              { type: 'text', text: order.orderNumber }
-            ]
-          }
-        ]
-      );
-
-      if (result.success) {
-        await prisma.order.update({
-          where: { id: order.id },
-          data: { waPreparingSent: true }
-        });
-
-        await prisma.messageLog.create({
-          data: {
-            customerId: order.customerId,
-            orderId: order.id,
-            phone: order.customerPhone,
-            messageType: 'order_preparing3',
-            templateUsed: 'order_preparing3',
-            status: 'sent',
-            whatsappMessageId: result.data?.messages?.[0]?.id || ''
-          }
-        });
-      }
-
-      return result;
-    } catch (error: any) {
-      console.error('Error sending order preparing notification:', error);
-      return { success: false, error: error.message };
-    }
+    return { success: true, note: 'Preparing notification disabled' };
   }
 
   /**
    * Send order out for delivery update
    */
   static async sendOrderOutForDelivery(orderId: string, deliveryBoy: { name: string, phone: string }) {
-    try {
-      const order = await prisma.order.findUnique({
-        where: { id: orderId },
-        include: { customer: true }
-      });
-
-      if (!order || !order.customerPhone) return { success: false, error: 'No order or phone found' };
-      if (order.customerPhone === '0000000000') return { success: true, note: 'Skipped for dummy phone' };
-      if (order.waOutForDeliverySent) return { success: true, note: 'Already sent' };
-
-      const result = await WhatsAppService.sendTemplateMessage(
-        order.customerPhone,
-        'order_out_for_delivery2',
-        'en_US',
-        [
-          {
-            type: 'body',
-            parameters: [
-              { type: 'text', text: order.customerName },
-              { type: 'text', text: order.orderNumber },
-              { type: 'text', text: deliveryBoy.name },
-              { type: 'text', text: deliveryBoy.phone }
-            ]
-          }
-        ]
-      );
-
-      if (result.success) {
-        await prisma.order.update({
-          where: { id: order.id },
-          data: { waOutForDeliverySent: true }
-        });
-
-        await prisma.messageLog.create({
-          data: {
-            customerId: order.customerId,
-            orderId: order.id,
-            phone: order.customerPhone,
-            messageType: 'order_out_for_delivery2',
-            templateUsed: 'order_out_for_delivery2',
-            status: 'sent',
-            whatsappMessageId: result.data?.messages?.[0]?.id || ''
-          }
-        });
-      }
-
-      return result;
-    } catch (error: any) {
-      console.error('Error sending order out for delivery notification:', error);
-      return { success: false, error: error.message };
-    }
+    return { success: true, note: 'Out for delivery notification disabled' };
   }
 
   /**
    * Send order delivered update
    */
   static async sendOrderDelivered(orderId: string) {
-    try {
-      const order = await prisma.order.findUnique({
-        where: { id: orderId },
-        include: { customer: true }
-      });
-
-      if (!order || !order.customerPhone) return { success: false, error: 'No order or phone found' };
-      if (order.customerPhone === '0000000000') return { success: true, note: 'Skipped for dummy phone' };
-      if (order.waDeliveredSent) return { success: true, note: 'Already sent' };
-
-      const result = await WhatsAppService.sendTemplateMessage(
-        order.customerPhone,
-        'order_delivered2',
-        'en_US',
-        [
-          {
-            type: 'body',
-            parameters: [
-              { type: 'text', text: order.customerName },
-              { type: 'text', text: order.orderNumber }
-            ]
-          }
-        ]
-      );
-
-      if (result.success) {
-        await prisma.order.update({
-          where: { id: order.id },
-          data: { waDeliveredSent: true }
-        });
-
-        await prisma.messageLog.create({
-          data: {
-            customerId: order.customerId,
-            orderId: order.id,
-            phone: order.customerPhone,
-            messageType: 'order_delivered2',
-            templateUsed: 'order_delivered2',
-            status: 'sent',
-            whatsappMessageId: result.data?.messages?.[0]?.id || ''
-          }
-        });
-      }
-
-      return result;
-    } catch (error: any) {
-      console.error('Error sending order delivered notification:', error);
-      return { success: false, error: error.message };
-    }
+    return { success: true, note: 'Delivered notification disabled' };
   }
 
   /**

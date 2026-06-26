@@ -160,8 +160,8 @@ export async function POST(request: NextRequest) {
       const tagName = `${prefix.trim()}-${batchNum}`;
       generatedTags.push(tagName);
 
-      // Process updates concurrently in smaller sub-chunks of 30 to avoid Prisma/DB pool exhaustion
-      const subBatchSize = 30;
+      // Process updates concurrently in smaller sub-chunks of 5 to avoid Prisma/DB pool exhaustion
+      const subBatchSize = 5;
       for (let j = 0; j < chunk.length; j += subBatchSize) {
         const subChunk = chunk.slice(j, j + subBatchSize);
         const subUpdates = subChunk.map((customer) => {

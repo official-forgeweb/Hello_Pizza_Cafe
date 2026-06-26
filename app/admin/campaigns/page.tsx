@@ -491,7 +491,11 @@ function CampaignWizard({ onClose, onComplete }: { onClose: () => void, onComple
                   }
 
                   if (selected && selected.variables && selected.variables.length > 0) {
-                    setBodyParameters(selected.variables.map((_: any, i: number) => i === 0 ? "{name}" : ""));
+                    if (nameVal === "loyalty_balance_update") {
+                      setBodyParameters(["{bonus_points}", "{expiry_date}", "Special Loyalty Bonus"]);
+                    } else {
+                      setBodyParameters(selected.variables.map((_: any, i: number) => i === 0 ? "{name}" : ""));
+                    }
                   } else {
                     setBodyParameters([]);
                   }
@@ -570,6 +574,15 @@ function CampaignWizard({ onClose, onComplete }: { onClose: () => void, onComple
                       const newParams = [...bodyParameters];
                       newParams[idx] = e.target.value;
                       setBodyParameters(newParams);
+                      
+                      // Auto-sync bonusPoints when the user types into a {bonus_points} slot
+                      // Check if this parameter was originally {bonus_points} by checking the template defaults
+                      if (templateName === "loyalty_balance_update" && idx === 0) {
+                        const parsed = parseInt(e.target.value);
+                        if (!isNaN(parsed) && parsed > 0) {
+                          setBonusPoints(parsed);
+                        }
+                      }
                     }}
                     placeholder={`Value for {{${idx + 1}}}`}
                     className="w-full px-3 py-2 bg-white border border-warm-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-primary/20 font-mono"
