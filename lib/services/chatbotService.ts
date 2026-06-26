@@ -161,7 +161,7 @@ async function processStep(
 
     case 'MAIN_MENU':
     case 'GREETING':
-      return handleMainMenu(phone, textLower);
+      return await handleMainMenu(phone, textLower);
 
     case 'MENU_CATEGORIES':
       return await handleMenuCategories(phone, textLower);
@@ -226,6 +226,9 @@ async function processStep(
     case 'RESTAURANT_INFO':
       return handleRestaurantInfo(phone, textLower);
 
+    case 'SELECT_VARIANT':
+      return await handleSelectVariant(phone, textLower, state);
+
     default:
       return handleIdle(phone, text, textLower);
   }
@@ -244,14 +247,14 @@ function handleIdle(phone: string, text: string, textLower: string): string {
   return getWelcomeMessage();
 }
 
-function handleMainMenu(phone: string, textLower: string): string {
+async function handleMainMenu(phone: string, textLower: string): Promise<string> {
   switch (textLower) {
     case '1':
     case 'browse':
     case 'menu':
     case 'order':
       chatbotState.updateState(phone, { step: 'MENU_CATEGORIES' });
-      return ''; // Will be handled by keyword
+      return await formatCategoriesMessage();
     case '2':
     case 'previous':
     case 'history':
@@ -270,7 +273,7 @@ function handleMainMenu(phone: string, textLower: string): string {
     case '5':
     case 'offers':
     case 'deals':
-      return ''; // Will be handled by keyword
+      return await getOffersMessage();
     case '6':
     case 'support':
     case 'human':
@@ -332,13 +335,27 @@ async function handleCategoryView(
   if (result) {
     const { item, quantity } = result;
 
+    // Check if item has variants (sizes like Small, Medium, Large)
+    if (item.variants && item.variants.length > 0) {
+      chatbotState.updateState(phone, {
+        step: 'SELECT_VARIANT',
+        pendingItem: { item, quantity }
+      });
+
+      let msg = `🍕 *Select size for ${item.name}*:\n\n`;
+      item.variants.forEach((v: any, idx: number) => {
+        msg += `🔹 *${idx + 1}.* ${v.name} (${formatPrice(v.price)})\n`;
+      });
+      msg += `\n👇 Please reply with a number (1-${item.variants.length})`;
+      return msg;
+    }
+
+    // No variants — add directly to cart
     const cartItem: CartItem = {
       menuItemId: item.id,
       itemName: item.name,
       itemType: item.itemType,
       basePrice: item.basePrice,
-      variantName: item.variants.length > 0 ? item.variants[0].name : undefined,
-      variantPrice: item.variants.length > 0 ? item.variants[0].price : undefined,
       addonsPrice: 0,
       quantity,
       addOns: [],
@@ -346,12 +363,9 @@ async function handleCategoryView(
 
     chatbotState.addToCart(phone, cartItem);
 
-    const effectivePrice = cartItem.variantPrice && cartItem.variantPrice > 0
-      ? cartItem.variantPrice
-      : cartItem.basePrice;
     const totalItems = chatbotState.getState(phone).cart.reduce((sum, i) => sum + i.quantity, 0);
 
-    let msg = `✅ Added *${item.name}* x${quantity} (${formatPrice(effectivePrice * quantity)}) to your cart!\n\n`;
+    let msg = `✅ Added *${item.name}* x${quantity} (${formatPrice(item.basePrice * quantity)}) to your cart!\n\n`;
     msg += `🛒 Cart: ${totalItems} item${totalItems > 1 ? 's' : ''}\n\n`;
     msg += '➕ Add more items from this category\n';
     msg += 'Type *MENU* for other categories\n';
@@ -361,7 +375,62 @@ async function handleCategoryView(
   }
 
   // If not an item, check if user typed a number that doesn't match
-  return `🤔 I couldn't find that item. Please type the *item number* or *name* from the menu above.\n\nExample: *1 x 2* (item 1, quantity 2)\n\nType *MENU* to see categories again.`;
+  return `🤔 I couldn't find that item. Please type the *item number* or *name* from the menu above.\n\nExample: *1*2* (item 1, quantity 2)\n\nType *MENU* to see categories again.`;
+}
+
+async function handleSelectVariant(
+  phone: string,
+  textLower: string,
+  state: ConversationState
+): Promise<string> {
+  if (!state.pendingItem) {
+    chatbotState.updateState(phone, { step: 'MENU_CATEGORIES' });
+    return await formatCategoriesMessage();
+  }
+
+  const { item, quantity } = state.pendingItem;
+  const choice = parseInt(textLower);
+
+  if (!isNaN(choice) && choice >= 1 && choice <= item.variants.length) {
+    const selectedVariant = item.variants[choice - 1];
+
+    const cartItem: CartItem = {
+      menuItemId: item.id,
+      itemName: item.name,
+      itemType: item.itemType,
+      basePrice: item.basePrice,
+      variantName: selectedVariant.name,
+      variantPrice: selectedVariant.price,
+      addonsPrice: 0,
+      quantity,
+      addOns: [],
+    };
+
+    chatbotState.addToCart(phone, cartItem);
+
+    // Clear pending item and return to CATEGORY_VIEW
+    chatbotState.updateState(phone, {
+      step: 'CATEGORY_VIEW',
+      pendingItem: undefined
+    });
+
+    const totalItems = chatbotState.getState(phone).cart.reduce((sum, i) => sum + i.quantity, 0);
+
+    let msg = `✅ Added *${item.name} (${selectedVariant.name})* x${quantity} (${formatPrice(selectedVariant.price * quantity)}) to your cart!\n\n`;
+    msg += `🛒 Cart: ${totalItems} item${totalItems > 1 ? 's' : ''}\n\n`;
+    msg += '➕ Add more items from this category\n';
+    msg += 'Type *MENU* for other categories\n';
+    msg += 'Type *CART* to view cart & checkout 🛒';
+
+    return msg;
+  }
+
+  // Invalid choice — show variants list again
+  let msg = `🤔 Please enter a valid number (1-${item.variants.length}) to select a size for *${item.name}*:\n\n`;
+  item.variants.forEach((v: any, idx: number) => {
+    msg += `🔹 *${idx + 1}.* ${v.name} (${formatPrice(v.price)})\n`;
+  });
+  return msg;
 }
 
 async function handleCartView(

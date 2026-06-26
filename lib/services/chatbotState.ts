@@ -33,7 +33,8 @@ export type ConversationStep =
   | 'VIEW_LOYALTY'
   | 'RESTAURANT_INFO'
   | 'HUMAN_HANDOFF'
-  | 'OFFERS';
+  | 'OFFERS'
+  | 'SELECT_VARIANT';
 
 export interface CartItem {
   menuItemId: string;
@@ -76,6 +77,10 @@ export interface ConversationState {
   pickupTime: string;
   lastActivity: number;
   messageCount: number;
+  pendingItem?: {
+    item: any;
+    quantity: number;
+  };
 }
 
 // ─── Defaults ──────────────────────────────────────────────
