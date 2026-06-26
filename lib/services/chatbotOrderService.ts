@@ -72,9 +72,8 @@ export function formatCartMessage(state: ConversationState): string {
       ? item.variantPrice
       : item.basePrice;
     const lineTotal = (unitPrice + item.addonsPrice) * item.quantity;
-    const typeEmoji = item.itemType === 'VEG' ? '🟢' : '🔴';
 
-    msg += `${idx + 1}. ${item.itemName} ${typeEmoji} x${item.quantity} → ${formatPrice(lineTotal)}\n`;
+    msg += `${idx + 1}. *${item.itemName}* x${item.quantity} → ${formatPrice(lineTotal)}\n`;
 
     if (item.variantName) {
       msg += `   └ ${item.variantName}\n`;
@@ -110,10 +109,10 @@ export function formatCartMessage(state: ConversationState): string {
   msg += '━━━━━━━━━━━━━━━━━━━━━━\n\n';
 
   msg += 'What would you like to do?\n';
-  msg += '*1️⃣ ✅ Proceed to Checkout*\n';
-  msg += '*2️⃣ ➕ Add More Items*\n';
-  msg += '*3️⃣ ❌ Remove an Item*\n';
-  msg += '*4️⃣ 🗑️ Clear Cart*';
+  msg += '🔹 *1. ✅ Proceed to Checkout*\n';
+  msg += '🔹 *2. ➕ Add More Items*\n';
+  msg += '🔹 *3. ❌ Remove an Item*\n';
+  msg += '🔹 *4. 🗑️ Clear Cart*';
 
   return msg;
 }
@@ -191,9 +190,9 @@ export function formatOrderSummary(state: ConversationState): string {
   const eta = state.orderType === 'DELIVERY' ? '35-45' : '20-25';
   msg += `⏱️ *Estimated Time:* ${eta} mins\n\n`;
 
-  msg += '*1️⃣ ✅ CONFIRM ORDER*\n';
-  msg += '*2️⃣ ✏️ Make Changes*\n';
-  msg += '*3️⃣ ❌ Cancel*';
+  msg += '🔹 *1. ✅ CONFIRM ORDER*\n';
+  msg += '🔹 *2. ✏️ Make Changes*\n';
+  msg += '🔹 *3. ❌ Cancel*';
 
   return msg;
 }

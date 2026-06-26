@@ -349,10 +349,9 @@ async function handleCategoryView(
     const effectivePrice = cartItem.variantPrice && cartItem.variantPrice > 0
       ? cartItem.variantPrice
       : cartItem.basePrice;
-    const typeEmoji = item.itemType === 'VEG' ? '🟢' : '🔴';
     const totalItems = chatbotState.getState(phone).cart.reduce((sum, i) => sum + i.quantity, 0);
 
-    let msg = `✅ Added *${item.name}* ${typeEmoji} x${quantity} (${formatPrice(effectivePrice * quantity)}) to your cart!\n\n`;
+    let msg = `✅ Added *${item.name}* x${quantity} (${formatPrice(effectivePrice * quantity)}) to your cart!\n\n`;
     msg += `🛒 Cart: ${totalItems} item${totalItems > 1 ? 's' : ''}\n\n`;
     msg += '➕ Add more items from this category\n';
     msg += 'Type *MENU* for other categories\n';
@@ -494,7 +493,7 @@ async function handleCollectPhone(phone: string, text: string): Promise<string> 
 
   if (state.orderType === 'PICKUP') {
     chatbotState.updateState(phone, { step: 'COLLECT_PICKUP_TIME' });
-    return `🕐 *When would you like to pick up?*\n\n*1️⃣ ASAP* (Ready in ~20-25 mins)\n*2️⃣ Schedule* (Tell us your preferred time)`;
+    return `🕐 *When would you like to pick up?*\n\n🔹 *1. ASAP* (Ready in ~20-25 mins)\n🔹 *2. Schedule* (Tell us your preferred time)`;
   }
 
   if (state.orderType === 'DINE_IN') {
@@ -572,7 +571,7 @@ function handleCollectDineInGuests(phone: string, text: string): string {
     guestCount: guests,
   });
 
-  return `🕐 *When are you planning to arrive?*\n\n*1️⃣ I'm already here / Coming in 15 mins*\n*2️⃣ Schedule a time* (Tell us when)`;
+  return `🕐 *When are you planning to arrive?*\n\n🔹 *1. I'm already here / Coming in 15 mins*\n🔹 *2. Schedule a time* (Tell us when)`;
 }
 
 function handleCollectDineInArrival(phone: string, text: string, textLower: string): string {
@@ -591,7 +590,7 @@ function handleCollectDineInArrival(phone: string, text: string, textLower: stri
     arrivalTime,
   });
 
-  return `🎉 *Any special occasion?*\n\n*1️⃣ Birthday 🎂*\n*2️⃣ Anniversary 💑*\n*3️⃣ Business Meeting 💼*\n*4️⃣ No Special Occasion*\n\n(We'll make it extra special if it's a celebration! 🎊)`;
+  return `🎉 *Any special occasion?*\n\n🔹 *1. Birthday 🎂*\n🔹 *2. Anniversary 💑*\n🔹 *3. Business Meeting 💼*\n🔹 *4. No Special Occasion*\n\n(We'll make it extra special if it's a celebration! 🎊)`;
 }
 
 function handleCollectDineInOccasion(phone: string, text: string, textLower: string): string {
@@ -640,7 +639,7 @@ async function handleLoyaltyCheck(phone: string, textLower: string): Promise<str
     return getPaymentMethodMessage();
   }
 
-  return '⭐ Please select:\n*1️⃣* Yes, use my points\n*2️⃣* No, save for later';
+  return '⭐ Please select:\n🔹 *1.* Yes, use my points\n🔹 *2.* No, save for later';
 }
 
 function handlePaymentMethod(phone: string, textLower: string): string {
@@ -729,7 +728,7 @@ async function handleOrderSummary(phone: string, textLower: string): Promise<str
     return '❌ Order cancelled.\n\nType *MENU* to start a new order or *HELP* for options. 😊';
   }
 
-  return 'Please select:\n*1️⃣* Confirm Order\n*2️⃣* Make Changes\n*3️⃣* Cancel';
+  return 'Please select:\n🔹 *1.* Confirm Order\n🔹 *2.* Make Changes\n🔹 *3.* Cancel';
 }
 
 function handleOrderPlaced(phone: string, textLower: string): string {
@@ -782,7 +781,7 @@ async function handleViewHistory(phone: string, textLower: string): Promise<stri
     return getWelcomeMessage();
   }
 
-  return 'Please select:\n*1️⃣* Reorder Last Order\n*2️⃣* Place New Order\n*3️⃣* Back to Main Menu';
+  return 'Please select:\n🔹 *1.* Reorder Last Order\n🔹 *2.* Place New Order\n🔹 *3.* Back to Main Menu';
 }
 
 async function handleCheckLoyaltyPhone(phone: string, text: string): Promise<string> {
@@ -826,8 +825,8 @@ async function handleCheckLoyaltyPhone(phone: string, text: string): Promise<str
   }
 
   msg += '━━━━━━━━━━━━━━━━━━━━━━\n\n';
-  msg += '*1️⃣ 🛒 Place New Order & Use Points*\n';
-  msg += '*2️⃣ 🏠 Back to Main Menu*';
+  msg += '🔹 *1. 🛒 Place New Order & Use Points*\n';
+  msg += '🔹 *2. 🏠 Back to Main Menu*';
 
   return msg;
 }
@@ -843,7 +842,7 @@ function handleViewLoyalty(phone: string, textLower: string): string {
     return getWelcomeMessage();
   }
 
-  return 'Please select:\n*1️⃣* Place New Order\n*2️⃣* Back to Main Menu';
+  return 'Please select:\n🔹 *1.* Place New Order\n🔹 *2.* Back to Main Menu';
 }
 
 function handleRestaurantInfo(phone: string, textLower: string): string {
@@ -854,15 +853,15 @@ function handleRestaurantInfo(phone: string, textLower: string): string {
 // ─── Message Templates ─────────────────────────────────────
 
 function getWelcomeMessage(): string {
-  return `👋 Welcome to *${RESTAURANT_NAME}*!\n\nI'm your personal food assistant 🍽️\nHow can I help you today? Please choose an option:\n\n*1️⃣ 🍴 Browse Menu & Place Order*\n*2️⃣ 📦 Check My Previous Orders*\n*3️⃣ ⭐ Check My Loyalty Points*\n*4️⃣ 🕐 Restaurant Timings & Info*\n*5️⃣ 🎯 Today's Special Offers*\n*6️⃣ 🙋 Talk to a Human (Support)*\n\n👇 Just reply with a number or type your choice!`;
+  return `👋 Welcome to *${RESTAURANT_NAME}*!\n\nI'm your personal food assistant 🍽️\nHow can I help you today? Please choose an option:\n\n🔹 *1.* 🍴 Browse Menu & Place Order\n🔹 *2.* 📦 Check My Previous Orders\n🔹 *3.* ⭐ Check My Loyalty Points\n🔹 *4.* 🕐 Restaurant Timings & Info\n🔹 *5.* 🎯 Today's Special Offers\n🔹 *6.* 🙋 Talk to a Human (Support)\n\n👇 Just reply with a number or type your choice!`;
 }
 
 function getCheckoutTypeMessage(): string {
-  return `Great! 🎉 Let's complete your order.\n\n*How would you like your order?*\n\n*1️⃣ 🏠 Home Delivery*\n   (Delivered to your doorstep)\n\n*2️⃣ 🏃 Pickup / Takeaway*\n   (Pick up from our restaurant)\n\n*3️⃣ 🍽️ Dine In*\n   (Enjoy at our restaurant)\n\n👇 Please select 1, 2, or 3`;
+  return `Great! 🎉 Let's complete your order.\n\n*How would you like your order?*\n\n🔹 *1. 🏠 Home Delivery*\n   (Delivered to your doorstep)\n\n🔹 *2. 🏃 Pickup / Takeaway*\n   (Pick up from our restaurant)\n\n🔹 *3. 🍽️ Dine In*\n   (Enjoy at our restaurant)\n\n👇 Please select 1, 2, or 3`;
 }
 
 function getPaymentMethodMessage(): string {
-  return `💳 *Select Payment Method*\n\n*1️⃣ 📱 UPI / GPay / PhonePe / Paytm*\n*2️⃣ 💳 Credit / Debit Card*\n*3️⃣ 💵 Cash on Delivery*\n*4️⃣ 🔗 Pay via Link*\n   (We'll send you a secure payment link)`;
+  return `💳 *Select Payment Method*\n\n🔹 *1. 📱 UPI / GPay / PhonePe / Paytm*\n🔹 *2. 💳 Credit / Debit Card*\n🔹 *3. 💵 Cash on Delivery*\n🔹 *4. 🔗 Pay via Link*\n   (We'll send you a secure payment link)`;
 }
 
 function getRestaurantInfoMessage(): string {
@@ -968,7 +967,7 @@ async function checkLoyaltyForOrder(phone: string): Promise<string> {
         loyaltyDiscount: discount,
       });
 
-      return `⭐ *Do you want to use your Loyalty Points?*\n\nYou have *${wallet.availablePoints} points* = *${formatPrice(discount)} discount* available!\n\n*1️⃣ Yes, use my ${wallet.availablePoints} points (Save ${formatPrice(discount)})*\n*2️⃣ No, save points for later*`;
+      return `⭐ *Do you want to use your Loyalty Points?*\n\nYou have *${wallet.availablePoints} points* = *${formatPrice(discount)} discount* available!\n\n🔹 *1. Yes, use my ${wallet.availablePoints} points (Save ${formatPrice(discount)})\n🔹 *2. No, save points for later*`;
     }
   } catch {
     // No loyalty data — skip

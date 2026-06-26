@@ -75,12 +75,36 @@ function getCategoryEmoji(categoryName: string): string {
   return CATEGORY_EMOJIS[lower] || '🍴';
 }
 
+// ─── Cache Configuration ───────────────────────────────────
+
+let cachedCategories: FormattedCategory[] | null = null;
+let cachedCategoriesTime = 0;
+
+const cachedItems: Record<string, FormattedMenuItem[]> = {};
+const cachedItemsTime: Record<string, number> = {};
+
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
+
+export function clearMenuCache() {
+  cachedCategories = null;
+  cachedCategoriesTime = 0;
+  for (const key in cachedItems) {
+    delete cachedItems[key];
+    delete cachedItemsTime[key];
+  }
+}
+
 // ─── Public Functions ──────────────────────────────────────
 
 /**
- * Fetch all active categories with item counts
+ * Fetch all active categories with item counts (cached for 5 minutes)
  */
 export async function getMenuCategories(): Promise<FormattedCategory[]> {
+  const now = Date.now();
+  if (cachedCategories && (now - cachedCategoriesTime < CACHE_TTL)) {
+    return cachedCategories;
+  }
+
   const categories = await prisma.category.findMany({
     where: { isActive: true },
     orderBy: { displayOrder: 'asc' },
@@ -95,7 +119,7 @@ export async function getMenuCategories(): Promise<FormattedCategory[]> {
     },
   });
 
-  return categories
+  const result = categories
     .filter((c) => c._count.menuItems > 0)
     .map((c) => ({
       id: c.id,
@@ -103,6 +127,10 @@ export async function getMenuCategories(): Promise<FormattedCategory[]> {
       slug: c.slug,
       itemCount: c._count.menuItems,
     }));
+
+  cachedCategories = result;
+  cachedCategoriesTime = now;
+  return result;
 }
 
 /**
@@ -119,20 +147,24 @@ export async function formatCategoriesMessage(): Promise<string> {
 
   categories.forEach((cat, idx) => {
     const emoji = getCategoryEmoji(cat.name);
-    msg += `*${idx + 1}️⃣ ${emoji} ${cat.name}* (${cat.itemCount} items)\n`;
+    msg += `🔹 *${idx + 1}.* ${emoji} *${cat.name}* (${cat.itemCount} items)\n`;
   });
 
-  msg += `\n*${categories.length + 1}️⃣ 📋 View Full Menu*`;
-  msg += `\n*${categories.length + 2}️⃣ 🛒 Go to Cart / Place Order*`;
-  msg += '\n\n🟢 = Veg | 🔴 = Non-Veg';
+  msg += `\n🔹 *${categories.length + 1}.* 📋 *View Full Menu*`;
+  msg += `\n🔹 *${categories.length + 2}.* 🛒 *Go to Cart / Place Order*`;
 
   return msg;
 }
 
 /**
- * Fetch items for a specific category
+ * Fetch items for a specific category (cached for 5 minutes)
  */
 export async function getCategoryItems(categoryId: string): Promise<FormattedMenuItem[]> {
+  const now = Date.now();
+  if (cachedItems[categoryId] && (now - (cachedItemsTime[categoryId] || 0) < CACHE_TTL)) {
+    return cachedItems[categoryId];
+  }
+
   const items = await prisma.menuItem.findMany({
     where: {
       categoryId,
@@ -162,7 +194,7 @@ export async function getCategoryItems(categoryId: string): Promise<FormattedMen
     }
   }
 
-  return unique.map((item) => ({
+  const result = unique.map((item) => ({
     id: item.id,
     name: item.name,
     basePrice: Number(item.basePrice),
@@ -183,10 +215,14 @@ export async function getCategoryItems(categoryId: string): Promise<FormattedMen
       group: a.addonGroup,
     })),
   }));
+
+  cachedItems[categoryId] = result;
+  cachedItemsTime[categoryId] = now;
+  return result;
 }
 
 /**
- * Format category items for WhatsApp display
+ * Format category items for WhatsApp display (No Veg/Non-Veg indicators)
  */
 export async function formatCategoryItemsMessage(
   categoryId: string,
@@ -202,27 +238,26 @@ export async function formatCategoryItemsMessage(
   let msg = `${emoji} *${categoryName.toUpperCase()}*\n━━━━━━━━━━━━━━━\n`;
 
   items.forEach((item, idx) => {
-    const typeEmoji = item.itemType === 'VEG' ? '🟢' : '🔴';
     const price = formatPrice(item.basePrice);
 
     // If item has variants, show "starts at" price
     if (item.variants.length > 0) {
       const prices = item.variants.map((v) => v.price);
       const minPrice = Math.min(...prices);
-      msg += `${idx + 1}. ${item.name} ${typeEmoji} - *from ${formatPrice(minPrice)}*\n`;
+      msg += `*${idx + 1}.* *${item.name}* - from *${formatPrice(minPrice)}*\n`;
 
       // Show variant options inline
       item.variants.forEach((v) => {
         msg += `   └ ${v.name}: ${formatPrice(v.price)}\n`;
       });
     } else {
-      msg += `${idx + 1}. ${item.name} ${typeEmoji} - *${price}*\n`;
+      msg += `*${idx + 1}.* *${item.name}* - *${price}*\n`;
     }
   });
 
   msg += '━━━━━━━━━━━━━━━\n';
   msg += 'To add items, type item *number & quantity*\n';
-  msg += 'Example: *"1 x 2"* or *"2 Paneer Tikka"*\n\n';
+  msg += 'Example: *"1*2"* or *"2 Paneer Tikka"*\n\n';
   msg += 'Type *MENU* to go back to categories\n';
   msg += 'Type *CART* to view your current cart 🛒';
 
@@ -230,7 +265,7 @@ export async function formatCategoryItemsMessage(
 }
 
 /**
- * Format full menu for WhatsApp display
+ * Format full menu for WhatsApp display (No Veg/Non-Veg indicators)
  */
 export async function formatFullMenuMessage(): Promise<string> {
   const categories = await getMenuCategories();
@@ -242,12 +277,11 @@ export async function formatFullMenuMessage(): Promise<string> {
     msg += `${emoji} *${cat.name.toUpperCase()}*\n`;
 
     items.forEach((item, idx) => {
-      const typeEmoji = item.itemType === 'VEG' ? '🟢' : '🔴';
       if (item.variants.length > 0) {
         const minPrice = Math.min(...item.variants.map((v) => v.price));
-        msg += `  ${idx + 1}. ${item.name} ${typeEmoji} - from ${formatPrice(minPrice)}\n`;
+        msg += `  ${idx + 1}. *${item.name}* - from ${formatPrice(minPrice)}\n`;
       } else {
-        msg += `  ${idx + 1}. ${item.name} ${typeEmoji} - ${formatPrice(item.basePrice)}\n`;
+        msg += `  ${idx + 1}. *${item.name}* - ${formatPrice(item.basePrice)}\n`;
       }
     });
 
@@ -272,12 +306,12 @@ export async function findMenuItemInCategory(
   const items = await getCategoryItems(categoryId);
   if (items.length === 0) return null;
 
-  // Parse quantity from input: "2 x 3", "3 Paneer Tikka", "1", etc.
+  // Parse quantity from input: "2*3", "1 x 2", "3 Paneer Tikka", "1", etc.
   let quantity = 1;
   let searchTerm = query.trim();
 
-  // Pattern: "NUMBER x QUANTITY" or "NUMBER X QUANTITY"
-  const numXqty = searchTerm.match(/^(\d+)\s*[xX×]\s*(\d+)$/);
+  // Pattern: "NUMBER separator QUANTITY" (supports *, x, X, ×, -, or space separator, e.g. 1*2, 1x2, 1-2, 1 2)
+  const numXqty = searchTerm.match(/^(\d+)\s*[\*xX×\-]?\s*(\d+)$/);
   if (numXqty) {
     const itemNum = parseInt(numXqty[1]);
     quantity = parseInt(numXqty[2]) || 1;

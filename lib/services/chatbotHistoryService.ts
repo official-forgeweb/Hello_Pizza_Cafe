@@ -46,7 +46,7 @@ export async function getOrderHistory(phone: string): Promise<string> {
   });
 
   if (orders.length === 0) {
-    return `📦 *No previous orders found*\n\nWe couldn't find any orders for this number.\n\n*1️⃣ 🍴 Place a New Order*\n*2️⃣ 🏠 Back to Main Menu*`;
+    return `📦 *No previous orders found*\n\nWe couldn't find any orders for this number.\n\n🔹 *1. 🍴 Place a New Order*\n🔹 *2. 🏠 Back to Main Menu*`;
   }
 
   let msg = '📦 *ORDER HISTORY*\n━━━━━━━━━━━━━━━━━━━━━━\n';
@@ -72,9 +72,9 @@ export async function getOrderHistory(phone: string): Promise<string> {
   });
 
   msg += '\n━━━━━━━━━━━━━━━━━━━━━━\n\n';
-  msg += '*1️⃣ 🔄 Reorder Last Order*\n';
-  msg += '*2️⃣ 🍴 Place New Order*\n';
-  msg += '*3️⃣ 🏠 Back to Main Menu*';
+  msg += '🔹 *1. 🔄 Reorder Last Order*\n';
+  msg += '🔹 *2. 🍴 Place New Order*\n';
+  msg += '🔹 *3. 🏠 Back to Main Menu*';
 
   return msg;
 }
