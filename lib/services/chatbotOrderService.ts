@@ -60,7 +60,7 @@ export function calculateOrderTotals(state: ConversationState) {
 /**
  * Format cart for WhatsApp display
  */
-export function formatCartMessage(state: ConversationState): string {
+export function formatCartBase(state: ConversationState): string {
   if (state.cart.length === 0) {
     return '🛒 *Your cart is empty!*\n\nType *MENU* to browse our menu and add items. 😊';
   }
@@ -106,8 +106,16 @@ export function formatCartMessage(state: ConversationState): string {
 
   msg += '━━━━━━━━━━━━━━━━━━━━━━\n';
   msg += `💰 *TOTAL: ${formatPrice(totals.totalAmount)}*\n`;
-  msg += '━━━━━━━━━━━━━━━━━━━━━━\n\n';
+  msg += '━━━━━━━━━━━━━━━━━━━━━━';
 
+  return msg;
+}
+
+export function formatCartMessage(state: ConversationState): string {
+  const base = formatCartBase(state);
+  if (state.cart.length === 0) return base;
+
+  let msg = base + '\n\n';
   msg += 'What would you like to do?\n';
   msg += '🔹 *1. ✅ Proceed to Checkout*\n';
   msg += '🔹 *2. ➕ Add More Items*\n';
@@ -117,10 +125,7 @@ export function formatCartMessage(state: ConversationState): string {
   return msg;
 }
 
-/**
- * Format final order summary for confirmation
- */
-export function formatOrderSummary(state: ConversationState): string {
+export function formatOrderSummaryBase(state: ConversationState): string {
   const totals = calculateOrderTotals(state);
 
   let msg = '📋 *ORDER SUMMARY — Please Confirm*\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n';
@@ -188,7 +193,17 @@ export function formatOrderSummary(state: ConversationState): string {
   msg += '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n';
 
   const eta = state.orderType === 'DELIVERY' ? '35-45' : '20-25';
-  msg += `⏱️ *Estimated Time:* ${eta} mins\n\n`;
+  msg += `⏱️ *Estimated Time:* ${eta} mins`;
+
+  return msg;
+}
+
+/**
+ * Format final order summary for confirmation
+ */
+export function formatOrderSummary(state: ConversationState): string {
+  const base = formatOrderSummaryBase(state);
+  let msg = base + '\n\n';
 
   msg += '🔹 *1. ✅ CONFIRM ORDER*\n';
   msg += '🔹 *2. ✏️ Make Changes*\n';

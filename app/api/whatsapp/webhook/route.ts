@@ -20,24 +20,56 @@ async function processIncomingMessage(senderPhone: string, messageText: string) 
     const { WhatsAppService } = await import("@/lib/services/whatsappService");
 
     // Get the bot's response
-    const responseText = await handleIncomingMessage(senderPhone, messageText);
+    const response = await handleIncomingMessage(senderPhone, messageText);
 
-    if (!responseText) {
+    if (!response) {
       console.log("[WhatsApp Bot] Empty response — skipping send");
       return;
     }
 
-    // WhatsApp has a 4096 character limit per message — split if needed
-    const chunks = splitMessage(responseText, 4000);
+    let success = false;
+    let errorMsg = '';
 
-    for (const chunk of chunks) {
-      const result = await WhatsAppService.sendTextMessage(senderPhone, chunk);
-      if (!result.success) {
-        console.error(`[WhatsApp Bot] Failed to send reply to ${senderPhone}:`, result.error);
+    if (typeof response === 'object' && response !== null) {
+      if (response.type === 'buttons' && response.buttons) {
+        const result = await WhatsAppService.sendInteractiveButtons(
+          senderPhone,
+          response.text,
+          response.buttons
+        );
+        success = result.success;
+        if (!success) errorMsg = result.error || 'Failed to send buttons';
+      } else if (response.type === 'list' && response.list) {
+        const result = await WhatsAppService.sendInteractiveList(
+          senderPhone,
+          undefined,
+          response.text,
+          undefined,
+          response.list.buttonLabel,
+          response.list.sections
+        );
+        success = result.success;
+        if (!success) errorMsg = result.error || 'Failed to send list';
+      }
+    } else {
+      // It's a plain string, split and send as normal text messages
+      const chunks = splitMessage(response, 4000);
+      success = true;
+      for (const chunk of chunks) {
+        const result = await WhatsAppService.sendTextMessage(senderPhone, chunk);
+        if (!result.success) {
+          success = false;
+          errorMsg = result.error || 'Failed to send text chunk';
+          console.error(`[WhatsApp Bot] Failed to send reply chunk to ${senderPhone}:`, result.error);
+        }
       }
     }
 
-    console.log(`[WhatsApp Bot] Sent ${chunks.length} message(s) to ${senderPhone}`);
+    if (success) {
+      console.log(`[WhatsApp Bot] Successfully sent interactive/text reply to ${senderPhone}`);
+    } else {
+      console.error(`[WhatsApp Bot] Failed to send reply to ${senderPhone}: ${errorMsg}`);
+    }
   } catch (error) {
     console.error("[WhatsApp Bot] Error processing message:", error);
 
@@ -236,9 +268,9 @@ export async function POST(request: NextRequest) {
               } else if (message.type === "interactive") {
                 // Button reply or list reply
                 if (message.interactive?.type === "button_reply") {
-                  messageText = message.interactive.button_reply.title || message.interactive.button_reply.id;
+                  messageText = message.interactive.button_reply.id || message.interactive.button_reply.title;
                 } else if (message.interactive?.type === "list_reply") {
-                  messageText = message.interactive.list_reply.title || message.interactive.list_reply.id;
+                  messageText = message.interactive.list_reply.id || message.interactive.list_reply.title;
                 }
               } else if (message.type === "button" && message.button?.text) {
                 // Template button click

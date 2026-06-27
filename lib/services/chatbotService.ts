@@ -10,6 +10,16 @@
  * Loyalty Check → Payment → Order Summary → Order Placement
  */
 
+export interface BotInteractiveResponse {
+  type: 'buttons' | 'list';
+  text: string;
+  buttons?: { id: string; title: string }[];
+  list?: {
+    buttonLabel: string;
+    sections: { title: string; rows: { id: string; title: string; description?: string }[] }[];
+  };
+}
+
 import {
   chatbotState,
   ConversationState,
@@ -27,7 +37,9 @@ import {
 } from './menuHelper';
 import {
   formatCartMessage,
+  formatCartBase,
   formatOrderSummary,
+  formatOrderSummaryBase,
   calculateOrderTotals,
   createOrderFromBot,
 } from './chatbotOrderService';
@@ -50,12 +62,12 @@ const RESTAURANT_NAME = 'Hello Pizza Cafe';
 // ─── Main Entry Point ──────────────────────────────────────
 
 /**
- * Process an incoming WhatsApp message and return the response text
+ * Process an incoming WhatsApp message and return the response text or interactive payload
  */
 export async function handleIncomingMessage(
   phone: string,
   messageText: string
-): Promise<string> {
+): Promise<string | BotInteractiveResponse> {
   try {
     const text = messageText.trim();
     const textLower = text.toLowerCase();
@@ -81,7 +93,7 @@ async function handleGlobalKeywords(
   phone: string,
   textLower: string,
   state: ConversationState
-): Promise<string | null> {
+): Promise<string | BotInteractiveResponse | null> {
   // RESTART — always reset
   if (textLower === 'restart' || textLower === 'start over') {
     chatbotState.resetState(phone);
@@ -103,7 +115,19 @@ async function handleGlobalKeywords(
   // CART — view cart
   if (textLower === 'cart' || textLower === 'view cart' || textLower === 'my cart') {
     chatbotState.updateState(phone, { step: 'CART_VIEW' });
-    return formatCartMessage(chatbotState.getState(phone));
+    const cartState = chatbotState.getState(phone);
+    if (cartState.cart.length === 0) {
+      return formatCartMessage(cartState);
+    }
+    return {
+      type: 'buttons',
+      text: formatCartBase(cartState),
+      buttons: [
+        { id: '1', title: 'Checkout ✅' },
+        { id: '2', title: 'Add More Items ➕' },
+        { id: '4', title: 'Clear Cart 🗑️' }
+      ]
+    };
   }
 
   // ORDER — go to checkout
@@ -154,7 +178,7 @@ async function processStep(
   text: string,
   textLower: string,
   state: ConversationState
-): Promise<string> {
+): Promise<string | BotInteractiveResponse> {
   switch (state.step) {
     case 'IDLE':
       return handleIdle(phone, text, textLower);
@@ -236,7 +260,7 @@ async function processStep(
 
 // ─── Step Handlers ─────────────────────────────────────────
 
-function handleIdle(phone: string, text: string, textLower: string): string {
+function handleIdle(phone: string, text: string, textLower: string): string | BotInteractiveResponse {
   if (GREETING_PATTERNS.test(textLower)) {
     chatbotState.updateState(phone, { step: 'MAIN_MENU' });
     return getWelcomeMessage();
@@ -247,7 +271,7 @@ function handleIdle(phone: string, text: string, textLower: string): string {
   return getWelcomeMessage();
 }
 
-async function handleMainMenu(phone: string, textLower: string): Promise<string> {
+async function handleMainMenu(phone: string, textLower: string): Promise<string | BotInteractiveResponse> {
   switch (textLower) {
     case '1':
     case 'browse':
@@ -281,11 +305,11 @@ async function handleMainMenu(phone: string, textLower: string): Promise<string>
     default:
       // Try to match as menu browsing
       chatbotState.updateState(phone, { step: 'MENU_CATEGORIES' });
-      return formatCategoriesMessage() as unknown as string;
+      return await formatCategoriesMessage();
   }
 }
 
-async function handleMenuCategories(phone: string, textLower: string): Promise<string> {
+async function handleMenuCategories(phone: string, textLower: string): Promise<string | BotInteractiveResponse> {
   const catCount = await getCategoryCount();
   const num = parseInt(textLower);
 
@@ -299,7 +323,19 @@ async function handleMenuCategories(phone: string, textLower: string): Promise<s
     // "Go to Cart" option
     if (num === catCount + 2) {
       chatbotState.updateState(phone, { step: 'CART_VIEW' });
-      return formatCartMessage(chatbotState.getState(phone));
+      const cartState = chatbotState.getState(phone);
+      if (cartState.cart.length === 0) {
+        return formatCartMessage(cartState);
+      }
+      return {
+        type: 'buttons',
+        text: formatCartBase(cartState),
+        buttons: [
+          { id: '1', title: 'Checkout ✅' },
+          { id: '2', title: 'Add More Items ➕' },
+          { id: '4', title: 'Clear Cart 🗑️' }
+        ]
+      };
     }
 
     // Category selection
@@ -323,7 +359,7 @@ async function handleCategoryView(
   text: string,
   textLower: string,
   state: ConversationState
-): Promise<string> {
+): Promise<string | BotInteractiveResponse> {
   if (!state.currentCategoryId) {
     chatbotState.updateState(phone, { step: 'MENU_CATEGORIES' });
     return await formatCategoriesMessage();
@@ -342,12 +378,38 @@ async function handleCategoryView(
         pendingItem: { item, quantity }
       });
 
-      let msg = `🍕 *Select size for ${item.name}*:\n\n`;
-      item.variants.forEach((v: any, idx: number) => {
-        msg += `🔹 *${idx + 1}.* ${v.name} (${formatPrice(v.price)})\n`;
-      });
-      msg += `\n👇 Please reply with a number (1-${item.variants.length})`;
-      return msg;
+      const buttons = item.variants.slice(0, 3).map((v: any, idx: number) => ({
+        id: String(idx + 1),
+        title: `${v.name} (${formatPrice(v.price)})`
+      }));
+
+      const bodyText = `🍕 *Select size for ${item.name}*:`;
+
+      if (item.variants.length <= 3) {
+        return {
+          type: 'buttons',
+          text: bodyText,
+          buttons
+        };
+      } else {
+        return {
+          type: 'list',
+          text: bodyText,
+          list: {
+            buttonLabel: 'Select Size',
+            sections: [
+              {
+                title: 'Available Sizes',
+                rows: item.variants.map((v: any, idx: number) => ({
+                  id: String(idx + 1),
+                  title: v.name,
+                  description: formatPrice(v.price)
+                }))
+              }
+            ]
+          }
+        };
+      }
     }
 
     // No variants — add directly to cart
@@ -365,13 +427,14 @@ async function handleCategoryView(
 
     const totalItems = chatbotState.getState(phone).cart.reduce((sum, i) => sum + i.quantity, 0);
 
-    let msg = `✅ Added *${item.name}* x${quantity} (${formatPrice(item.basePrice * quantity)}) to your cart!\n\n`;
-    msg += `🛒 Cart: ${totalItems} item${totalItems > 1 ? 's' : ''}\n\n`;
-    msg += '➕ Add more items from this category\n';
-    msg += 'Type *MENU* for other categories\n';
-    msg += 'Type *CART* to view cart & checkout 🛒';
-
-    return msg;
+    return {
+      type: 'buttons',
+      text: `✅ Added *${item.name}* x${quantity} (${formatPrice(item.basePrice * quantity)}) to your cart!\n\n🛒 Cart: ${totalItems} item${totalItems > 1 ? 's' : ''}`,
+      buttons: [
+        { id: 'menu', title: 'Browse Menu 🍴' },
+        { id: 'cart', title: 'View Cart 🛒' }
+      ]
+    };
   }
 
   // If not an item, check if user typed a number that doesn't match
@@ -382,7 +445,7 @@ async function handleSelectVariant(
   phone: string,
   textLower: string,
   state: ConversationState
-): Promise<string> {
+): Promise<string | BotInteractiveResponse> {
   if (!state.pendingItem) {
     chatbotState.updateState(phone, { step: 'MENU_CATEGORIES' });
     return await formatCategoriesMessage();
@@ -416,28 +479,56 @@ async function handleSelectVariant(
 
     const totalItems = chatbotState.getState(phone).cart.reduce((sum, i) => sum + i.quantity, 0);
 
-    let msg = `✅ Added *${item.name} (${selectedVariant.name})* x${quantity} (${formatPrice(selectedVariant.price * quantity)}) to your cart!\n\n`;
-    msg += `🛒 Cart: ${totalItems} item${totalItems > 1 ? 's' : ''}\n\n`;
-    msg += '➕ Add more items from this category\n';
-    msg += 'Type *MENU* for other categories\n';
-    msg += 'Type *CART* to view cart & checkout 🛒';
-
-    return msg;
+    return {
+      type: 'buttons',
+      text: `✅ Added *${item.name} (${selectedVariant.name})* x${quantity} (${formatPrice(selectedVariant.price * quantity)}) to your cart!\n\n🛒 Cart: ${totalItems} item${totalItems > 1 ? 's' : ''}`,
+      buttons: [
+        { id: 'menu', title: 'Browse Menu 🍴' },
+        { id: 'cart', title: 'View Cart 🛒' }
+      ]
+    };
   }
 
   // Invalid choice — show variants list again
-  let msg = `🤔 Please enter a valid number (1-${item.variants.length}) to select a size for *${item.name}*:\n\n`;
-  item.variants.forEach((v: any, idx: number) => {
-    msg += `🔹 *${idx + 1}.* ${v.name} (${formatPrice(v.price)})\n`;
-  });
-  return msg;
+  const buttons = item.variants.slice(0, 3).map((v: any, idx: number) => ({
+    id: String(idx + 1),
+    title: `${v.name} (${formatPrice(v.price)})`
+  }));
+
+  const bodyText = `🤔 Please select a valid size for *${item.name}*:`;
+
+  if (item.variants.length <= 3) {
+    return {
+      type: 'buttons',
+      text: bodyText,
+      buttons
+    };
+  } else {
+    return {
+      type: 'list',
+      text: bodyText,
+      list: {
+        buttonLabel: 'Select Size',
+        sections: [
+          {
+            title: 'Available Sizes',
+            rows: item.variants.map((v: any, idx: number) => ({
+              id: String(idx + 1),
+              title: v.name,
+              description: formatPrice(v.price)
+            }))
+          }
+        ]
+      }
+    };
+  }
 }
 
 async function handleCartView(
   phone: string,
   textLower: string,
   state: ConversationState
-): Promise<string> {
+): Promise<string | BotInteractiveResponse> {
   switch (textLower) {
     case '1':
     case 'checkout':
@@ -472,15 +563,42 @@ async function handleCartView(
       if (!isNaN(removeNum) && removeNum >= 1 && removeNum <= state.cart.length) {
         const removedItem = state.cart[removeNum - 1];
         chatbotState.removeFromCart(phone, removeNum);
-        return `❌ Removed *${removedItem.itemName}* from cart.\n\n` +
-          formatCartMessage(chatbotState.getState(phone));
+        const updatedState = chatbotState.getState(phone);
+        if (updatedState.cart.length === 0) {
+          return `❌ Removed *${removedItem.itemName}* from cart.\n\n` + formatCartMessage(updatedState);
+        }
+        return {
+          type: 'buttons',
+          text: `❌ Removed *${removedItem.itemName}* from cart.\n\n` + formatCartBase(updatedState),
+          buttons: [
+            { id: '1', title: 'Checkout ✅' },
+            { id: '2', title: 'Add More Items ➕' },
+            { id: '4', title: 'Clear Cart 🗑️' }
+          ]
+        };
       }
 
-      return formatCartMessage(state);
+      if (state.cart.length === 0) {
+        return formatCartMessage(state);
+      }
+      return {
+        type: 'buttons',
+        text: formatCartBase(state),
+        buttons: [
+          { id: '1', title: 'Checkout ✅' },
+          { id: '2', title: 'Add More Items ➕' },
+          { id: '4', title: 'Clear Cart 🗑️' }
+        ]
+      };
   }
 }
 
-function handleCheckoutType(phone: string, textLower: string): string {
+function get10DigitPhone(phone: string): string {
+  const cleaned = phone.replace(/\D/g, '');
+  return cleaned.length >= 10 ? cleaned.slice(-10) : cleaned;
+}
+
+function handleCheckoutType(phone: string, textLower: string): string | BotInteractiveResponse {
   switch (textLower) {
     case '1':
     case 'delivery':
@@ -515,13 +633,13 @@ function handleCheckoutType(phone: string, textLower: string): string {
   }
 }
 
-function handleCollectName(phone: string, text: string): string {
+function handleCollectName(phone: string, text: string): string | BotInteractiveResponse {
   const name = text.trim();
   if (name.length < 2) {
     return '❌ Please enter a valid name (at least 2 characters). 👤';
   }
 
-  const state = chatbotState.updateState(phone, {
+  chatbotState.updateState(phone, {
     step: 'COLLECT_PHONE',
     customerInfo: {
       ...chatbotState.getState(phone).customerInfo,
@@ -529,16 +647,32 @@ function handleCollectName(phone: string, text: string): string {
     },
   });
 
-  return `Thanks *${name}*! 😊\n\n*What is your 10-digit mobile number?* 📱\n(For order updates)`;
+  const rawPhone = get10DigitPhone(phone);
+
+  return {
+    type: 'buttons',
+    text: `Thanks *${name}*! 😊\n\nWould you like to use your WhatsApp mobile number *${rawPhone}* for order updates, or enter a different number? 📱`,
+    buttons: [
+      { id: 'use_wa', title: `Use ${rawPhone}` },
+      { id: 'change_no', title: 'Enter Different No. ✏️' }
+    ]
+  };
 }
 
-async function handleCollectPhone(phone: string, text: string): Promise<string> {
-  const cleaned = text.replace(/\D/g, '');
+async function handleCollectPhone(phone: string, text: string): Promise<string | BotInteractiveResponse> {
+  let finalPhone = '';
+  const textLower = text.trim().toLowerCase();
 
-  // Accept 10-digit or 12-digit (with 91 prefix)
-  let finalPhone = cleaned;
-  if (cleaned.length === 12 && cleaned.startsWith('91')) {
-    finalPhone = cleaned.substring(2);
+  if (textLower === 'use_wa') {
+    finalPhone = get10DigitPhone(phone);
+  } else if (textLower === 'change_no') {
+    return 'Please enter your *10-digit mobile number* 📱:';
+  } else {
+    const cleaned = text.replace(/\D/g, '');
+    finalPhone = cleaned;
+    if (cleaned.length === 12 && cleaned.startsWith('91')) {
+      finalPhone = cleaned.substring(2);
+    }
   }
 
   if (finalPhone.length !== 10) {
@@ -562,7 +696,14 @@ async function handleCollectPhone(phone: string, text: string): Promise<string> 
 
   if (state.orderType === 'PICKUP') {
     chatbotState.updateState(phone, { step: 'COLLECT_PICKUP_TIME' });
-    return `🕐 *When would you like to pick up?*\n\n🔹 *1. ASAP* (Ready in ~20-25 mins)\n🔹 *2. Schedule* (Tell us your preferred time)`;
+    return {
+      type: 'buttons',
+      text: `🕐 *When would you like to pick up?*`,
+      buttons: [
+        { id: '1', title: 'ASAP (~20-25 mins)' },
+        { id: '2', title: 'Schedule a time 📅' }
+      ]
+    };
   }
 
   if (state.orderType === 'DINE_IN') {
@@ -596,7 +737,7 @@ async function handleCollectInstructions(
   phone: string,
   text: string,
   textLower: string
-): Promise<string> {
+): Promise<string | BotInteractiveResponse> {
   const instructions = textLower === 'skip' || textLower === 'no' ? '' : text.trim();
 
   chatbotState.updateState(phone, {
@@ -610,7 +751,7 @@ async function handleCollectInstructions(
   return await checkLoyaltyForOrder(phone);
 }
 
-function handleCollectPickupTime(phone: string, text: string, textLower: string): string {
+function handleCollectPickupTime(phone: string, text: string, textLower: string): string | BotInteractiveResponse {
   let pickupTime = '';
 
   if (textLower === '1' || textLower === 'asap' || textLower === 'now') {
@@ -629,7 +770,7 @@ function handleCollectPickupTime(phone: string, text: string, textLower: string)
   return checkLoyaltyForOrderSync(phone);
 }
 
-function handleCollectDineInGuests(phone: string, text: string): string {
+function handleCollectDineInGuests(phone: string, text: string): string | BotInteractiveResponse {
   const guests = parseInt(text.trim());
   if (isNaN(guests) || guests < 1 || guests > 50) {
     return '❌ Please enter a valid number of guests (1-50). 👥';
@@ -640,10 +781,17 @@ function handleCollectDineInGuests(phone: string, text: string): string {
     guestCount: guests,
   });
 
-  return `🕐 *When are you planning to arrive?*\n\n🔹 *1. I'm already here / Coming in 15 mins*\n🔹 *2. Schedule a time* (Tell us when)`;
+  return {
+    type: 'buttons',
+    text: `🕐 *When are you planning to arrive?*`,
+    buttons: [
+      { id: '1', title: "I'm already here" },
+      { id: '2', title: 'Schedule a time 📅' }
+    ]
+  };
 }
 
-function handleCollectDineInArrival(phone: string, text: string, textLower: string): string {
+function handleCollectDineInArrival(phone: string, text: string, textLower: string): string | BotInteractiveResponse {
   let arrivalTime = '';
 
   if (textLower === '1' || textLower === 'now' || textLower === 'here') {
@@ -659,10 +807,18 @@ function handleCollectDineInArrival(phone: string, text: string, textLower: stri
     arrivalTime,
   });
 
-  return `🎉 *Any special occasion?*\n\n🔹 *1. Birthday 🎂*\n🔹 *2. Anniversary 💑*\n🔹 *3. Business Meeting 💼*\n🔹 *4. No Special Occasion*\n\n(We'll make it extra special if it's a celebration! 🎊)`;
+  return {
+    type: 'buttons',
+    text: `🎉 *Any special occasion?*`,
+    buttons: [
+      { id: '1', title: 'Birthday 🎂' },
+      { id: '2', title: 'Anniversary 💑' },
+      { id: '4', title: 'None / Regular 🍕' }
+    ]
+  };
 }
 
-function handleCollectDineInOccasion(phone: string, text: string, textLower: string): string {
+function handleCollectDineInOccasion(phone: string, text: string, textLower: string): string | BotInteractiveResponse {
   const occasions: Record<string, string> = {
     '1': 'Birthday 🎂',
     '2': 'Anniversary 💑',
@@ -685,7 +841,7 @@ function handleCollectDineInOccasion(phone: string, text: string, textLower: str
   return checkLoyaltyForOrderSync(phone);
 }
 
-async function handleLoyaltyCheck(phone: string, textLower: string): Promise<string> {
+async function handleLoyaltyCheck(phone: string, textLower: string): Promise<string | BotInteractiveResponse> {
   const state = chatbotState.getState(phone);
 
   if (textLower === '1' || HINGLISH_YES.test(textLower)) {
@@ -708,10 +864,17 @@ async function handleLoyaltyCheck(phone: string, textLower: string): Promise<str
     return getPaymentMethodMessage();
   }
 
-  return '⭐ Please select:\n🔹 *1.* Yes, use my points\n🔹 *2.* No, save for later';
+  return {
+    type: 'buttons',
+    text: '⭐ Please select whether you want to redeem your loyalty discount:',
+    buttons: [
+      { id: '1', title: 'Yes, Use Points 🎟' },
+      { id: '2', title: 'No, Save Points ❌' }
+    ]
+  };
 }
 
-function handlePaymentMethod(phone: string, textLower: string): string {
+function handlePaymentMethod(phone: string, textLower: string): string | BotInteractiveResponse {
   const payments: Record<string, 'UPI' | 'CARD' | 'COD' | 'LINK'> = {
     '1': 'UPI',
     '2': 'CARD',
@@ -738,10 +901,18 @@ function handlePaymentMethod(phone: string, textLower: string): string {
   });
 
   const state = chatbotState.getState(phone);
-  return formatOrderSummary(state);
+  return {
+    type: 'buttons',
+    text: formatOrderSummaryBase(state),
+    buttons: [
+      { id: '1', title: 'Confirm Order ✅' },
+      { id: '2', title: 'Make Changes ✏️' },
+      { id: '3', title: 'Cancel Order ❌' }
+    ]
+  };
 }
 
-async function handleOrderSummary(phone: string, textLower: string): Promise<string> {
+async function handleOrderSummary(phone: string, textLower: string): Promise<string | BotInteractiveResponse> {
   if (textLower === '1' || textLower === 'confirm' || HINGLISH_YES.test(textLower)) {
     // Place the order!
     const state = chatbotState.getState(phone);
@@ -789,7 +960,19 @@ async function handleOrderSummary(phone: string, textLower: string): Promise<str
 
   if (textLower === '2' || textLower === 'edit' || textLower === 'change') {
     chatbotState.updateState(phone, { step: 'CART_VIEW' });
-    return formatCartMessage(chatbotState.getState(phone));
+    const cartState = chatbotState.getState(phone);
+    if (cartState.cart.length === 0) {
+      return formatCartMessage(cartState);
+    }
+    return {
+      type: 'buttons',
+      text: formatCartBase(cartState),
+      buttons: [
+        { id: '1', title: 'Checkout ✅' },
+        { id: '2', title: 'Add More Items ➕' },
+        { id: '4', title: 'Clear Cart 🗑️' }
+      ]
+    };
   }
 
   if (textLower === '3' || HINGLISH_NO.test(textLower)) {
@@ -797,16 +980,25 @@ async function handleOrderSummary(phone: string, textLower: string): Promise<str
     return '❌ Order cancelled.\n\nType *MENU* to start a new order or *HELP* for options. 😊';
   }
 
-  return 'Please select:\n🔹 *1.* Confirm Order\n🔹 *2.* Make Changes\n🔹 *3.* Cancel';
+  const state = chatbotState.getState(phone);
+  return {
+    type: 'buttons',
+    text: formatOrderSummaryBase(state),
+    buttons: [
+      { id: '1', title: 'Confirm Order ✅' },
+      { id: '2', title: 'Make Changes ✏️' },
+      { id: '3', title: 'Cancel Order ❌' }
+    ]
+  };
 }
 
-function handleOrderPlaced(phone: string, textLower: string): string {
+function handleOrderPlaced(phone: string, textLower: string): string | BotInteractiveResponse {
   // After order placed, treat as new conversation
   chatbotState.resetState(phone);
   return getWelcomeMessage();
 }
 
-async function handleCheckHistoryPhone(phone: string, text: string): Promise<string> {
+async function handleCheckHistoryPhone(phone: string, text: string): Promise<string | BotInteractiveResponse> {
   const cleaned = text.replace(/\D/g, '');
   let finalPhone = cleaned;
   if (cleaned.length === 12 && cleaned.startsWith('91')) {
@@ -821,7 +1013,7 @@ async function handleCheckHistoryPhone(phone: string, text: string): Promise<str
   return await getOrderHistory(finalPhone);
 }
 
-async function handleViewHistory(phone: string, textLower: string): Promise<string> {
+async function handleViewHistory(phone: string, textLower: string): Promise<string | BotInteractiveResponse> {
   if (textLower === '1' || textLower === 'reorder') {
     // Get the sender's phone for reorder lookup
     const senderPhone = phone.replace(/\D/g, '');
@@ -836,8 +1028,16 @@ async function handleViewHistory(phone: string, textLower: string): Promise<stri
     items.forEach((item) => chatbotState.addToCart(phone, item));
     chatbotState.updateState(phone, { step: 'CART_VIEW' });
 
-    return '🔄 *Last order items loaded into your cart!*\n\n' +
-      formatCartMessage(chatbotState.getState(phone));
+    const cartState = chatbotState.getState(phone);
+    return {
+      type: 'buttons',
+      text: '🔄 *Last order items loaded into your cart!*\n\n' + formatCartBase(cartState),
+      buttons: [
+        { id: '1', title: 'Checkout ✅' },
+        { id: '2', title: 'Add More Items ➕' },
+        { id: '4', title: 'Clear Cart 🗑️' }
+      ]
+    };
   }
 
   if (textLower === '2') {
@@ -850,10 +1050,18 @@ async function handleViewHistory(phone: string, textLower: string): Promise<stri
     return getWelcomeMessage();
   }
 
-  return 'Please select:\n🔹 *1.* Reorder Last Order\n🔹 *2.* Place New Order\n🔹 *3.* Back to Main Menu';
+  return {
+    type: 'buttons',
+    text: 'Please choose an option:',
+    buttons: [
+      { id: '1', title: 'Reorder Last Order 🔄' },
+      { id: '2', title: 'Place New Order 🍴' },
+      { id: '3', title: 'Back to Main Menu 🏠' }
+    ]
+  };
 }
 
-async function handleCheckLoyaltyPhone(phone: string, text: string): Promise<string> {
+async function handleCheckLoyaltyPhone(phone: string, text: string): Promise<string | BotInteractiveResponse> {
   const cleaned = text.replace(/\D/g, '');
   let finalPhone = cleaned;
   if (cleaned.length === 12 && cleaned.startsWith('91')) {
@@ -893,17 +1101,22 @@ async function handleCheckLoyaltyPhone(phone: string, text: string): Promise<str
     msg += `📅 *Next Expiry: ${expiryStr}*\n`;
   }
 
-  msg += '━━━━━━━━━━━━━━━━━━━━━━\n\n';
-  msg += '🔹 *1. 🛒 Place New Order & Use Points*\n';
-  msg += '🔹 *2. 🏠 Back to Main Menu*';
+  msg += '━━━━━━━━━━━━━━━━━━━━━━';
 
-  return msg;
+  return {
+    type: 'buttons',
+    text: msg,
+    buttons: [
+      { id: '1', title: 'Place New Order 🍴' },
+      { id: '2', title: 'Back to Main Menu 🏠' }
+    ]
+  };
 }
 
-function handleViewLoyalty(phone: string, textLower: string): string {
+function handleViewLoyalty(phone: string, textLower: string): string | BotInteractiveResponse {
   if (textLower === '1') {
     chatbotState.updateState(phone, { step: 'MENU_CATEGORIES' });
-    return ''; // Will trigger menu keyword
+    return ''; // Will trigger menu keyword search
   }
 
   if (textLower === '2') {
@@ -911,37 +1124,95 @@ function handleViewLoyalty(phone: string, textLower: string): string {
     return getWelcomeMessage();
   }
 
-  return 'Please select:\n🔹 *1.* Place New Order\n🔹 *2.* Back to Main Menu';
+  return {
+    type: 'buttons',
+    text: 'Please select an action:',
+    buttons: [
+      { id: '1', title: 'Place New Order 🍴' },
+      { id: '2', title: 'Back to Main Menu 🏠' }
+    ]
+  };
 }
 
-function handleRestaurantInfo(phone: string, textLower: string): string {
+function handleRestaurantInfo(phone: string, textLower: string): string | BotInteractiveResponse {
   chatbotState.updateState(phone, { step: 'MAIN_MENU' });
   return getWelcomeMessage();
 }
 
 // ─── Message Templates ─────────────────────────────────────
 
-function getWelcomeMessage(): string {
-  return `👋 Welcome to *${RESTAURANT_NAME}*!\n\nI'm your personal food assistant 🍽️\nHow can I help you today? Please choose an option:\n\n🔹 *1.* 🍴 Browse Menu & Place Order\n🔹 *2.* 📦 Check My Previous Orders\n🔹 *3.* ⭐ Check My Loyalty Points\n🔹 *4.* 🕐 Restaurant Timings & Info\n🔹 *5.* 🎯 Today's Special Offers\n🔹 *6.* 🙋 Talk to a Human (Support)\n\n👇 Just reply with a number or type your choice!`;
+function getWelcomeMessage(): BotInteractiveResponse {
+  return {
+    type: 'list',
+    text: `👋 Welcome to *${RESTAURANT_NAME}*!\n\nI'm your personal food assistant 🍽️\nHow can I help you today? Please choose an option:\n\n👇 Select from the menu options below or type your choice!`,
+    list: {
+      buttonLabel: 'Select Action',
+      sections: [
+        {
+          title: 'Hello Pizza Cafe',
+          rows: [
+            { id: '1', title: 'Browse Menu 🍴', description: 'Explore categories & start ordering' },
+            { id: '2', title: 'Previous Orders 📦', description: 'Reorder or check status' },
+            { id: '3', title: 'Check Loyalty Points ⭐', description: 'Check your loyalty balance & expiry' },
+            { id: '4', title: 'Restaurant Info 🕐', description: 'Timings, locations, delivery terms' },
+            { id: '5', title: 'Today\'s Special Offers 🎯', description: 'Check today\'s coupons & promotions' },
+            { id: '6', title: 'Talk to a Human 🙋', description: 'Connect with our customer support team' },
+          ]
+        }
+      ]
+    }
+  };
 }
 
-function getCheckoutTypeMessage(): string {
-  return `Great! 🎉 Let's complete your order.\n\n*How would you like your order?*\n\n🔹 *1. 🏠 Home Delivery*\n   (Delivered to your doorstep)\n\n🔹 *2. 🏃 Pickup / Takeaway*\n   (Pick up from our restaurant)\n\n🔹 *3. 🍽️ Dine In*\n   (Enjoy at our restaurant)\n\n👇 Please select 1, 2, or 3`;
+function getCheckoutTypeMessage(): BotInteractiveResponse {
+  return {
+    type: 'buttons',
+    text: `Great! 🎉 Let's complete your order.\n\n*How would you like your order?*`,
+    buttons: [
+      { id: '1', title: '🏠 Home Delivery' },
+      { id: '2', title: '🏃 Pickup / Takeaway' },
+      { id: '3', title: '🍽️ Dine In' }
+    ]
+  };
 }
 
-function getPaymentMethodMessage(): string {
-  return `💳 *Select Payment Method*\n\n🔹 *1. 📱 UPI / GPay / PhonePe / Paytm*\n🔹 *2. 💳 Credit / Debit Card*\n🔹 *3. 💵 Cash on Delivery*\n🔹 *4. 🔗 Pay via Link*\n   (We'll send you a secure payment link)`;
+function getPaymentMethodMessage(): BotInteractiveResponse {
+  return {
+    type: 'list',
+    text: `💳 *Select Payment Method*\n\nPlease choose how you would like to pay for your order:`,
+    list: {
+      buttonLabel: 'Select Payment',
+      sections: [
+        {
+          title: 'Payment Options',
+          rows: [
+            { id: '1', title: 'UPI / GPay / Paytm 📱', description: 'Google Pay, PhonePe, Paytm' },
+            { id: '2', title: 'Credit / Debit Card 💳', description: 'Visa, Mastercard, RuPay' },
+            { id: '3', title: 'Cash on Delivery 💵', description: 'Pay cash when food arrives' },
+            { id: '4', title: 'Pay via Link 🔗', description: 'We will send a secure UPI link' }
+          ]
+        }
+      ]
+    }
+  };
 }
 
-function getRestaurantInfoMessage(): string {
-  return `🏪 *${RESTAURANT_NAME}*\n━━━━━━━━━━━━━━━━━━━━━━\n🕐 Mon-Sun: 11:00 AM to 11:00 PM\n🚚 Delivery: Available\n💰 Min. Order for Delivery: ₹200\n🆓 Free Delivery: Above ₹500\n🅿️ Accepts: UPI, Cards, Cash\n━━━━━━━━━━━━━━━━━━━━━━\n\nType *MENU* to start ordering! 🍴\nType *HELP* to go back to main menu.`;
+function getRestaurantInfoMessage(): BotInteractiveResponse {
+  return {
+    type: 'buttons',
+    text: `🏪 *${RESTAURANT_NAME}*\n━━━━━━━━━━━━━━━━━━━━━━\n🕐 Mon-Sun: 11:00 AM to 11:00 PM\n🚚 Delivery: Available\n💰 Min. Order for Delivery: ₹200\n\n🆓 Free Delivery: Above ₹500\n💳 Accepts: UPI, Cards, Cash\n━━━━━━━━━━━━━━━━━━━━━━`,
+    buttons: [
+      { id: 'menu', title: 'Browse Menu 🍴' },
+      { id: 'cart', title: 'View Cart 🛒' }
+    ]
+  };
 }
 
 function getHumanHandoffMessage(): string {
   return `🙋 *Connecting you to our team...*\n\nPlease hold for a moment!\nA team member will join this chat shortly.\n\n⏱️ Expected wait: 2-5 minutes\n\nOr type *MENU* to continue ordering with the bot. 😊`;
 }
 
-async function getOffersMessage(): Promise<string> {
+async function getOffersMessage(): Promise<string | BotInteractiveResponse> {
   try {
     // Check for active coupons
     const now = new Date();
@@ -1004,10 +1275,16 @@ async function getOffersMessage(): Promise<string> {
       msg += '\n';
     }
 
-    msg += '━━━━━━━━━━━━━━━━━━━━━━\n';
-    msg += 'Type *MENU* to start ordering! 🍴';
+    msg += '━━━━━━━━━━━━━━━━━━━━━━';
 
-    return msg;
+    return {
+      type: 'buttons',
+      text: msg,
+      buttons: [
+        { id: 'menu', title: 'Browse Menu 🍴' },
+        { id: 'cart', title: 'View Cart 🛒' }
+      ]
+    };
   } catch {
     return `🎯 *TODAY'S OFFERS*\n\nCheck our menu for the latest specials!\n\nType *MENU* to browse. 😋`;
   }
@@ -1015,7 +1292,7 @@ async function getOffersMessage(): Promise<string> {
 
 // ─── Loyalty Check During Order Flow ───────────────────────
 
-async function checkLoyaltyForOrder(phone: string): Promise<string> {
+async function checkLoyaltyForOrder(phone: string): Promise<string | BotInteractiveResponse> {
   const state = chatbotState.getState(phone);
   const customerPhone = state.customerInfo.phone;
 
@@ -1036,7 +1313,14 @@ async function checkLoyaltyForOrder(phone: string): Promise<string> {
         loyaltyDiscount: discount,
       });
 
-      return `⭐ *Do you want to use your Loyalty Points?*\n\nYou have *${wallet.availablePoints} points* = *${formatPrice(discount)} discount* available!\n\n🔹 *1. Yes, use my ${wallet.availablePoints} points (Save ${formatPrice(discount)})\n🔹 *2. No, save points for later*`;
+      return {
+        type: 'buttons',
+        text: `⭐ *Do you want to use your Loyalty Points?*\n\nYou have *${wallet.availablePoints} points* = *${formatPrice(discount)} discount* available!`,
+        buttons: [
+          { id: '1', title: 'Yes, Use Points 🎟️' },
+          { id: '2', title: 'No, Save Points ❌' }
+        ]
+      };
     }
   } catch {
     // No loyalty data — skip
@@ -1046,7 +1330,7 @@ async function checkLoyaltyForOrder(phone: string): Promise<string> {
   return getPaymentMethodMessage();
 }
 
-function checkLoyaltyForOrderSync(phone: string): string {
+function checkLoyaltyForOrderSync(phone: string): string | BotInteractiveResponse {
   // For synchronous contexts, just move to payment
   // The actual loyalty check happens async
   chatbotState.updateState(phone, { step: 'PAYMENT_METHOD' });

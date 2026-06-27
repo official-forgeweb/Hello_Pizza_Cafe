@@ -85,7 +85,6 @@ export class WhatsAppService {
     }
 
     const baseUrl = `https://graph.facebook.com/${config.apiVersion}/${config.phoneNumberId}`;
-
     const cleanTo = sanitizePhone(to);
 
     try {
@@ -114,6 +113,162 @@ export class WhatsAppService {
       return { success: true, data };
     } catch (error: any) {
       console.error('Error sending WhatsApp text:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Send interactive quick reply buttons (up to 3 buttons)
+   */
+  static async sendInteractiveButtons(
+    to: string,
+    text: string,
+    buttons: { id: string; title: string }[],
+    headerText?: string,
+    footerText?: string
+  ) {
+    const config = getWhatsAppConfig();
+    if (!config.accessToken || !config.phoneNumberId) {
+      return { success: false, error: 'Credentials missing' };
+    }
+
+    const baseUrl = `https://graph.facebook.com/${config.apiVersion}/${config.phoneNumberId}`;
+    const cleanTo = sanitizePhone(to);
+
+    // Limit to max 3 buttons per WhatsApp API rules
+    const formattedButtons = buttons.slice(0, 3).map((btn) => ({
+      type: 'reply',
+      reply: {
+        id: btn.id,
+        title: btn.title.substring(0, 20), // Max title length is 20 chars
+      },
+    }));
+
+    const interactivePayload: any = {
+      type: 'button',
+      body: {
+        text: text,
+      },
+      action: {
+        buttons: formattedButtons,
+      },
+    };
+
+    if (headerText) {
+      interactivePayload.header = {
+        type: 'text',
+        text: headerText.substring(0, 60),
+      };
+    }
+
+    if (footerText) {
+      interactivePayload.footer = {
+        text: footerText.substring(0, 60),
+      };
+    }
+
+    try {
+      const response = await fetch(`${baseUrl}/messages`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${config.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          to: cleanTo,
+          type: 'interactive',
+          interactive: interactivePayload,
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error?.message || 'Failed to send interactive buttons');
+      }
+
+      return { success: true, data };
+    } catch (error: any) {
+      console.error('Error sending WhatsApp interactive buttons:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Send an interactive list message (up to 10 options)
+   */
+  static async sendInteractiveList(
+    to: string,
+    headerText: string | undefined,
+    bodyText: string,
+    footerText: string | undefined,
+    buttonLabel: string,
+    sections: { title: string; rows: { id: string; title: string; description?: string }[] }[]
+  ) {
+    const config = getWhatsAppConfig();
+    if (!config.accessToken || !config.phoneNumberId) {
+      return { success: false, error: 'Credentials missing' };
+    }
+
+    const baseUrl = `https://graph.facebook.com/${config.apiVersion}/${config.phoneNumberId}`;
+    const cleanTo = sanitizePhone(to);
+
+    const interactivePayload: any = {
+      type: 'list',
+      body: {
+        text: bodyText,
+      },
+      action: {
+        button: buttonLabel.substring(0, 20), // Max 20 chars
+        sections: sections.map((sec) => ({
+          title: sec.title.substring(0, 20),
+          rows: sec.rows.slice(0, 10).map((row) => ({
+            id: row.id,
+            title: row.title.substring(0, 24), // Max 24 chars
+            description: row.description ? row.description.substring(0, 72) : undefined, // Max 72 chars
+          })),
+        })),
+      },
+    };
+
+    if (headerText) {
+      interactivePayload.header = {
+        type: 'text',
+        text: headerText.substring(0, 60),
+      };
+    }
+
+    if (footerText) {
+      interactivePayload.footer = {
+        text: footerText.substring(0, 60),
+      };
+    }
+
+    try {
+      const response = await fetch(`${baseUrl}/messages`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${config.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          to: cleanTo,
+          type: 'interactive',
+          interactive: interactivePayload,
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error?.message || 'Failed to send interactive list');
+      }
+
+      return { success: true, data };
+    } catch (error: any) {
+      console.error('Error sending WhatsApp interactive list:', error);
       return { success: false, error: error.message };
     }
   }
