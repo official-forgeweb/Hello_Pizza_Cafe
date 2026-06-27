@@ -253,9 +253,6 @@ async function processStep(
     case 'SELECT_VARIANT':
       return await handleSelectVariant(phone, textLower, state);
 
-    case 'SELECT_ADDONS':
-      return await handleSelectAddons(phone, textLower, state);
-
     default:
       return handleIdle(phone, text, textLower);
   }
@@ -357,92 +354,6 @@ async function handleMenuCategories(phone: string, textLower: string): Promise<s
     await formatCategoriesMessage();
 }
 
-const normalizeVariantToken = (name: string | null | undefined): string => {
-  if (!name) return '';
-  return name.trim().split(/[\s(]/)[0].toLowerCase();
-};
-
-const VARIANT_ALIASES: Record<string, string> = { 'regular': 'small' };
-
-function getApplicableAddons(item: any, selectedVariantName?: string): any[] {
-  if (!item.addOns || item.addOns.length === 0) return [];
-
-  // Map addons to client structure
-  const mappedAddons = item.addOns.map((a: any) => ({
-    id: a.addOn?.id || a.addOnId,
-    name: a.addOn?.name || a.name || 'Extra Topping',
-    price: Number(a.priceOverride ?? a.addOn?.price ?? 0),
-    addonGroup: a.addonGroup || 'Extras',
-    variantName: a.variantName || null
-  }));
-
-  if (!selectedVariantName) {
-    // If no variant is selected, only show global addons (where variantName is null/empty)
-    return mappedAddons.filter((a: any) => !a.variantName);
-  }
-
-  let selectedToken = normalizeVariantToken(selectedVariantName);
-  selectedToken = VARIANT_ALIASES[selectedToken] || selectedToken;
-
-  return mappedAddons.filter((a: any) => {
-    if (!a.variantName) return true; // global addon
-    const addonToken = normalizeVariantToken(a.variantName);
-    return selectedToken === addonToken;
-  });
-}
-
-function renderAddonsListMessage(
-  item: any,
-  applicableAddons: any[],
-  selectedAddons: any[],
-  selectedVariant?: any
-): BotInteractiveResponse {
-  let text = `🍕 *Customize your ${item.name}*:\n`;
-  if (selectedVariant) {
-    text += `Size: *${selectedVariant.name}*\n`;
-  }
-  text += '\nSelect toppings or add-ons from the list below. When done, choose *Done Customizing ✅* from the top of the menu.\n\n';
-
-  text += '*Current Selections:*\n';
-  if (selectedAddons.length > 0) {
-    selectedAddons.forEach((a) => {
-      text += `• ✅ ${a.name} (+${formatPrice(a.price)})\n`;
-    });
-  } else {
-    text += '_No add-ons selected_\n';
-  }
-
-  const rows = [
-    {
-      id: 'done_addons',
-      title: 'Done Customizing ✅',
-      description: 'Add item to cart with selected options'
-    },
-    ...applicableAddons.map((addon) => {
-      const isSelected = selectedAddons.some((a) => a.id === addon.id);
-      return {
-        id: `addon_${addon.id}`,
-        title: `${isSelected ? '✅' : '🔹'} ${addon.name}`,
-        description: `Price: +${formatPrice(addon.price)}`
-      };
-    })
-  ];
-
-  return {
-    type: 'list',
-    text,
-    list: {
-      buttonLabel: 'Customize Addons',
-      sections: [
-        {
-          title: 'Toppings & Customization',
-          rows
-        }
-      ]
-    }
-  };
-}
-
 async function handleCategoryView(
   phone: string,
   text: string,
@@ -454,6 +365,7 @@ async function handleCategoryView(
     return await formatCategoriesMessage();
   }
 
+  // Try to find and add menu item
   const result = await findMenuItemInCategory(state.currentCategoryId, text);
 
   if (result) {
@@ -463,7 +375,7 @@ async function handleCategoryView(
     if (item.variants && item.variants.length > 0) {
       chatbotState.updateState(phone, {
         step: 'SELECT_VARIANT',
-        pendingItem: { item, quantity, selectedAddOns: [] }
+        pendingItem: { item, quantity }
       });
 
       const buttons = item.variants.slice(0, 3).map((v: any, idx: number) => ({
@@ -500,17 +412,7 @@ async function handleCategoryView(
       }
     }
 
-    // No variants — check for addons
-    const addons = getApplicableAddons(item);
-    if (addons.length > 0) {
-      chatbotState.updateState(phone, {
-        step: 'SELECT_ADDONS',
-        pendingItem: { item, quantity, selectedAddOns: [] }
-      });
-      return renderAddonsListMessage(item, addons, []);
-    }
-
-    // No variants and no addons — add directly to cart
+    // No variants — add directly to cart
     const cartItem: CartItem = {
       menuItemId: item.id,
       itemName: item.name,
@@ -535,6 +437,7 @@ async function handleCategoryView(
     };
   }
 
+  // If not an item, check if user typed a number that doesn't match
   return `🤔 I couldn't find that item. Please type the *item number* or *name* from the menu above.\n\nExample: *1*2* (item 1, quantity 2)\n\nType *MENU* to see categories again.`;
 }
 
@@ -554,24 +457,6 @@ async function handleSelectVariant(
   if (!isNaN(choice) && choice >= 1 && choice <= item.variants.length) {
     const selectedVariant = item.variants[choice - 1];
 
-    // Check if there are size-specific or global addons for this selection
-    const addons = getApplicableAddons(item, selectedVariant.name);
-
-    if (addons.length > 0) {
-      // Transition to SELECT_ADDONS
-      chatbotState.updateState(phone, {
-        step: 'SELECT_ADDONS',
-        pendingItem: {
-          item,
-          quantity,
-          selectedVariant,
-          selectedAddOns: []
-        }
-      });
-      return renderAddonsListMessage(item, addons, [], selectedVariant);
-    }
-
-    // No addons — add directly to cart
     const cartItem: CartItem = {
       menuItemId: item.id,
       itemName: item.name,
@@ -637,101 +522,6 @@ async function handleSelectVariant(
       }
     };
   }
-}
-
-async function handleSelectAddons(
-  phone: string,
-  textLower: string,
-  state: ConversationState
-): Promise<string | BotInteractiveResponse> {
-  if (!state.pendingItem) {
-    chatbotState.updateState(phone, { step: 'MENU_CATEGORIES' });
-    return await formatCategoriesMessage();
-  }
-
-  const { item, quantity, selectedVariant, selectedAddOns = [] } = state.pendingItem;
-  const addons = getApplicableAddons(item, selectedVariant?.name);
-
-  // Done customising
-  if (textLower === 'done_addons') {
-    const addonsPrice = selectedAddOns.reduce((sum, a) => sum + (a.price * a.quantity), 0);
-    const unitPrice = selectedVariant ? selectedVariant.price : Number(item.basePrice);
-
-    const cartItem: CartItem = {
-      menuItemId: item.id,
-      itemName: item.name,
-      itemType: item.itemType,
-      basePrice: Number(item.basePrice),
-      variantName: selectedVariant?.name,
-      variantPrice: selectedVariant?.price,
-      addonsPrice,
-      quantity,
-      addOns: selectedAddOns.map((a) => ({
-        addonName: a.name,
-        addonPrice: a.price,
-        quantity: a.quantity
-      }))
-    };
-
-    chatbotState.addToCart(phone, cartItem);
-
-    // Clear pending item and return to CATEGORY_VIEW
-    chatbotState.updateState(phone, {
-      step: 'CATEGORY_VIEW',
-      pendingItem: undefined
-    });
-
-    const totalItems = chatbotState.getState(phone).cart.reduce((sum, i) => sum + i.quantity, 0);
-    const displayName = selectedVariant ? `${item.name} (${selectedVariant.name})` : item.name;
-    const finalUnitTotal = (unitPrice + addonsPrice) * quantity;
-
-    return {
-      type: 'buttons',
-      text: `✅ Added *${displayName}* with customization x${quantity} (${formatPrice(finalUnitTotal)}) to your cart!\n\n🛒 Cart: ${totalItems} item${totalItems > 1 ? 's' : ''}`,
-      buttons: [
-        { id: 'menu', title: 'Browse Menu 🍴' },
-        { id: 'cart', title: 'View Cart 🛒' }
-      ]
-    };
-  }
-
-  // Toggling an addon selection
-  if (textLower.startsWith('addon_')) {
-    const addonId = textLower.replace('addon_', '');
-    const targetAddon = addons.find((a) => a.id === addonId);
-
-    if (targetAddon) {
-      const isAlreadySelected = selectedAddOns.some((a) => a.id === addonId);
-      let updatedAddons = [];
-
-      if (isAlreadySelected) {
-        // Toggle off (remove)
-        updatedAddons = selectedAddOns.filter((a) => a.id !== addonId);
-      } else {
-        // Toggle on (add)
-        updatedAddons = [...selectedAddOns, {
-          id: targetAddon.id,
-          name: targetAddon.name,
-          price: targetAddon.price,
-          quantity: 1
-        }];
-      }
-
-      // Update state
-      chatbotState.updateState(phone, {
-        pendingItem: {
-          ...state.pendingItem,
-          selectedAddOns: updatedAddons
-        }
-      });
-
-      // Re-render menu listing with updated checkmarks
-      return renderAddonsListMessage(item, addons, updatedAddons, selectedVariant);
-    }
-  }
-
-  // Invalid choice or random input — just re-render the list
-  return renderAddonsListMessage(item, addons, selectedAddOns, selectedVariant);
 }
 
 async function handleCartView(

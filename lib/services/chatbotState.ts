@@ -34,8 +34,7 @@ export type ConversationStep =
   | 'RESTAURANT_INFO'
   | 'HUMAN_HANDOFF'
   | 'OFFERS'
-  | 'SELECT_VARIANT'
-  | 'SELECT_ADDONS';
+  | 'SELECT_VARIANT';
 
 export interface CartItem {
   menuItemId: string;
@@ -81,8 +80,6 @@ export interface ConversationState {
   pendingItem?: {
     item: any;
     quantity: number;
-    selectedVariant?: any;
-    selectedAddOns?: { id: string; name: string; price: number; quantity: number }[];
   };
 }
 
