@@ -80,3 +80,55 @@ export async function DELETE(
     );
   }
 }
+
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const { searchParams } = new URL(request.url);
+    const action = searchParams.get("action");
+
+    const { CampaignService } = await import("@/lib/services/campaignService");
+
+    if (action === "send-batch") {
+      // Process next batch (15 recipients at a time)
+      const result = await CampaignService.sendCampaignBatch(id, 15);
+      if (!result.success) {
+        return NextResponse.json(
+          { error: result.error },
+          { status: 400 }
+        );
+      }
+      return NextResponse.json(result);
+    } else if (action === "send") {
+      // Execute campaign
+      const result = await CampaignService.executeCampaign(id);
+      if (!result.success) {
+        return NextResponse.json(
+          { error: result.error },
+          { status: 400 }
+        );
+      }
+      return NextResponse.json({ 
+        success: true, 
+        message: `Campaign started for ${result.recipientsCount} recipients.`,
+        needsClientDriving: result.needsClientDriving,
+        recipientsCount: result.recipientsCount
+      });
+    } else {
+      return NextResponse.json(
+        { error: "Invalid action parameter" },
+        { status: 400 }
+      );
+    }
+  } catch (error: any) {
+    console.error("Error processing campaign action:", error);
+    return NextResponse.json(
+      { error: error.message || "Failed to process campaign action" },
+      { status: 500 }
+    );
+  }
+}
+

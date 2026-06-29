@@ -64,50 +64,54 @@ export default function CampaignsPage() {
     return () => clearInterval(interval);
   }, []);
 
-  // Auto-drive active sending campaigns in serverless mode (safely chunk by chunk)
+  // Auto-drive active sending campaigns sequentially (mount-only loop to prevent race conditions)
   useEffect(() => {
-    const sendingCampaign = campaigns.find(c => c.status === "sending");
-    if (!sendingCampaign) return;
-
     let active = true;
     let timerId: NodeJS.Timeout;
 
-    const processNextBatch = async () => {
-      if (isProcessingRef.current || !active) return;
-      isProcessingRef.current = true;
+    const checkAndProcess = async () => {
+      if (!active) return;
       try {
-        const res = await fetch(`/api/admin/campaigns/${sendingCampaign.id}/send-batch`, {
-          method: "POST",
-        });
+        // Fetch latest campaigns directly to see if any is sending
+        const res = await fetch("/api/admin/campaigns");
         if (res.ok && active) {
-          await fetchCampaigns();
+          const list: Campaign[] = await res.json();
+          const sendingCampaign = list.find(c => c.status === "sending");
+          
+          if (sendingCampaign) {
+            // Process exactly one batch
+            await fetch(`/api/admin/campaigns/${sendingCampaign.id}?action=send-batch`, {
+              method: "POST",
+            });
+            // Refresh the UI
+            await fetchCampaigns();
+          }
         }
       } catch (err) {
-        console.error("Failed to process campaign batch:", err);
+        console.error("Error in campaign driver loop:", err);
       } finally {
-        isProcessingRef.current = false;
         if (active) {
-          // Schedule next batch with a small delay
-          timerId = setTimeout(processNextBatch, 1500);
+          // Wait 2 seconds before the next check
+          timerId = setTimeout(checkAndProcess, 2000);
         }
       }
     };
 
-    // Trigger the first batch
-    timerId = setTimeout(processNextBatch, 1000);
+    // Start the loop
+    timerId = setTimeout(checkAndProcess, 1000);
 
     return () => {
       active = false;
       clearTimeout(timerId);
     };
-  }, [campaigns]);
+  }, []);
 
   const handleStartCampaign = async (id: string) => {
     const confirmed = await showConfirm("Are you sure you want to send this campaign now? Messages will be sent to all recipients.", "Send Campaign", { confirmLabel: "Send Now", type: "warning" });
     if (!confirmed) return;
     
     try {
-      const res = await fetch(`/api/admin/campaigns/${id}/send`, { method: "POST" });
+      const res = await fetch(`/api/admin/campaigns/${id}?action=send`, { method: "POST" });
       if (res.ok) {
         showAlert("Campaign started successfully!", "success");
         fetchCampaigns();
