@@ -20,28 +20,38 @@ export async function GET(request: NextRequest) {
       prisma.customer.count(),
     ]);
 
-    // Last 7 days revenue for chart
-    const dailyRevenuePromises = [];
+    // Last 7 days revenue for chart (Single Query optimization)
+    const sevenDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
+    const last7DaysOrders = await prisma.order.findMany({
+      where: {
+        placedAt: { gte: sevenDaysAgo },
+        status: { not: "CANCELLED" },
+      },
+      select: {
+        totalAmount: true,
+        placedAt: true,
+      },
+    });
+
+    const dailyRevenue = [];
     for (let i = 6; i >= 0; i--) {
       const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
       const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+      const dayStr = dayStart.toISOString().split("T")[0];
 
-      const promise = prisma.order.aggregate({
-        where: {
-          placedAt: { gte: dayStart, lt: dayEnd },
-          status: { not: "CANCELLED" },
-        },
-        _sum: { totalAmount: true },
-        _count: true,
-      }).then((rev) => ({
-        date: dayStart.toISOString().split("T")[0],
+      const dayOrders = last7DaysOrders.filter(
+        (o) => o.placedAt >= dayStart && o.placedAt < dayEnd
+      );
+
+      const revenue = dayOrders.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
+
+      dailyRevenue.push({
+        date: dayStr,
         day: dayStart.toLocaleDateString("en-IN", { weekday: "short" }),
-        revenue: Number(rev._sum.totalAmount || 0),
-        orders: rev._count,
-      }));
-      dailyRevenuePromises.push(promise);
+        revenue: Math.round(revenue * 100) / 100,
+        orders: dayOrders.length,
+      });
     }
-    const dailyRevenue = await Promise.all(dailyRevenuePromises);
 
     // Top selling items
     const topItems = await prisma.orderItem.groupBy({

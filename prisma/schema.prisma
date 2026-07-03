@@ -9,17 +9,21 @@ datasource db {
 }
 
 model Category {
-  id           String     @id @default(uuid())
-  name         String
-  slug         String     @unique
-  description  String?
-  imageUrl     String?
-  icon         String?
-  displayOrder Int        @default(0)
-  isActive     Boolean    @default(true)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  menuItems    MenuItem[]
+  id             String     @id @default(uuid())
+  name           String
+  slug           String     @unique
+  description    String?
+  imageUrl       String?
+  icon           String?
+  displayOrder   Int        @default(0)
+  isActive       Boolean    @default(true)
+  applicableDays String?
+  startTime      String?
+  endTime        String?
+  timeSlots      String?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  menuItems      MenuItem[]
 }
 
 model MenuItem {
@@ -97,7 +101,7 @@ model Customer {
   phone           String       @id
   email           String?
   address         String?
-  whatsappOptIn   Boolean      @default(false)
+  whatsappOptIn   Boolean      @default(true)
   group           String       @default("new")
   totalOrders     Int          @default(0)
   totalSpent      Decimal      @db.Decimal(10, 2) @default(0)
@@ -414,6 +418,7 @@ model LoyaltySetting {
   id              String   @id @default("default")
   pointsPerAmount Int      @default(5)
   amountThreshold Decimal  @db.Decimal(10, 2) @default(100.00)
+  expiryDays      Int      @default(30)
   updatedAt       DateTime @updatedAt
 
   @@map("loyalty_settings")

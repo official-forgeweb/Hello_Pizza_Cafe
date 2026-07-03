@@ -1,4 +1,6 @@
 import { env } from 'process';
+import fs from 'fs';
+import path from 'path';
 
 const getWhatsAppConfig = () => {
   return {
@@ -318,10 +320,20 @@ export class WhatsAppService {
     }
 
     try {
-      const imgRes = await fetch(imageUrl);
-      if (!imgRes.ok) throw new Error('Failed to fetch image from URL');
-      const arrayBuf = await imgRes.arrayBuffer();
-      const imgBuffer = Buffer.from(arrayBuf);
+      let imgBuffer: Buffer;
+      if (imageUrl.startsWith('/') || !imageUrl.startsWith('http')) {
+        const publicPath = path.join(process.cwd(), 'public', imageUrl.replace(/^\//, ''));
+        if (fs.existsSync(publicPath)) {
+          imgBuffer = fs.readFileSync(publicPath);
+        } else {
+          throw new Error('Local file not found: ' + publicPath);
+        }
+      } else {
+        const imgRes = await fetch(imageUrl);
+        if (!imgRes.ok) throw new Error('Failed to fetch image from URL');
+        const arrayBuf = await imgRes.arrayBuffer();
+        imgBuffer = Buffer.from(arrayBuf);
+      }
       const fileLength = imgBuffer.length;
 
       // 1. Create upload session
@@ -345,7 +357,7 @@ export class WhatsAppService {
           'Authorization': `OAuth ${config.accessToken}`,
           'file_offset': '0'
         },
-        body: imgBuffer
+        body: imgBuffer as any
       });
       const data2 = await res2.json();
       

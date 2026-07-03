@@ -92,9 +92,21 @@ export async function POST(
 
     const { CampaignService } = await import("@/lib/services/campaignService");
 
-    if (action === "send-batch") {
-      // Process next batch (15 recipients at a time)
-      const result = await CampaignService.sendCampaignBatch(id, 15);
+    if (action === "pause") {
+      const campaign = await prisma.campaign.update({
+        where: { id },
+        data: { status: "paused" }
+      });
+      return NextResponse.json({ success: true, status: campaign.status });
+    } else if (action === "resume") {
+      const campaign = await prisma.campaign.update({
+        where: { id },
+        data: { status: "sending" }
+      });
+      return NextResponse.json({ success: true, status: campaign.status });
+    } else if (action === "send-batch") {
+      // Process next batch (50 recipients at a time)
+      const result = await CampaignService.sendCampaignBatch(id, 50);
       if (!result.success) {
         return NextResponse.json(
           { error: result.error },

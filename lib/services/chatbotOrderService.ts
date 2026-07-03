@@ -293,14 +293,17 @@ export async function createOrderFromBot(state: ConversationState): Promise<Orde
       attempts++;
     }
 
-    // Loyalty points calculation
-    const loyaltySettings = await prisma.loyaltySetting.findUnique({
-      where: { id: 'default' },
-    }) || { pointsPerAmount: 5, amountThreshold: 100 };
+    // Loyalty points calculation on percentage basis, rounded
+    const globalSettings = await prisma.globalSetting.findUnique({
+      where: { id: 1 }
+    });
+    const pointsPerAmount = globalSettings ? Number(globalSettings.loyaltyPointsPerAmount) : 5;
+    const amountThreshold = globalSettings ? Number(globalSettings.loyaltyAmountThreshold) : 100;
+    const expiryDays = globalSettings ? Number(globalSettings.loyaltyMaxDays) : 30;
 
-    const pointsEarned = Math.floor(
-      totals.totalAmount / Number(loyaltySettings.amountThreshold)
-    ) * Number(loyaltySettings.pointsPerAmount);
+    const pointsEarned = Math.round(
+      Number(totals.totalAmount) * (pointsPerAmount / amountThreshold)
+    );
 
     const pointsToRedeem = state.useLoyalty ? state.loyaltyPoints : 0;
 
@@ -379,7 +382,7 @@ export async function createOrderFromBot(state: ConversationState): Promise<Orde
       }
 
       if (pointsEarned > 0) {
-        const expiryDate = new Date(timestamp.getTime() + 30 * 24 * 60 * 60 * 1000);
+        const expiryDate = new Date(timestamp.getTime() + expiryDays * 24 * 60 * 60 * 1000);
         await prisma.loyaltyTransaction.create({
           data: {
             phoneNumber: finalPhone,

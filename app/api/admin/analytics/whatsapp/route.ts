@@ -35,10 +35,19 @@ export async function GET(request: NextRequest) {
       })
     ]);
 
-    // Calculate overall delivery rate
-    const totalMessages = await prisma.messageLog.count();
-    const deliveredMessages = await prisma.messageLog.count({
-      where: { status: { in: ['delivered', 'read'] } }
+    // Calculate overall delivery rate in a single groupBy query
+    const statusCounts = await prisma.messageLog.groupBy({
+      by: ['status'],
+      _count: true
+    });
+
+    let totalMessages = 0;
+    let deliveredMessages = 0;
+    statusCounts.forEach(s => {
+      totalMessages += s._count;
+      if (s.status === 'delivered' || s.status === 'read') {
+        deliveredMessages += s._count;
+      }
     });
     
     const deliveryRate = totalMessages > 0 

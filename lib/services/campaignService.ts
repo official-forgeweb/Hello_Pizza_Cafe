@@ -146,6 +146,10 @@ export class CampaignService {
       }
     }
 
+    if (headerImgUrl && headerImgUrl.startsWith('/')) {
+      headerImgUrl = `https://hello-pizza-cafe.vercel.app${headerImgUrl}`;
+    }
+
     // 4. Queue or send messages
     const useQueue = !!process.env.REDIS_URL;
 
@@ -262,10 +266,29 @@ export class CampaignService {
       }
     }
 
+    if (headerImgUrl && headerImgUrl.startsWith('/')) {
+      headerImgUrl = `https://hello-pizza-cafe.vercel.app${headerImgUrl}`;
+    }
+
     let sentCount = 0;
     let failedCount = 0;
 
-    for (const customer of batchCustomers) {
+    // Helper for limited concurrency parallel execution
+    const runWithConcurrencyLimit = async (tasks: (() => Promise<void>)[], limit: number) => {
+      const active: Promise<void>[] = [];
+      for (const task of tasks) {
+        const p = task().then(() => {
+          active.splice(active.indexOf(p), 1);
+        });
+        active.push(p);
+        if (active.length >= limit) {
+          await Promise.race(active);
+        }
+      }
+      await Promise.all(active);
+    };
+
+    const tasks = batchCustomers.map((customer) => async () => {
       try {
         const personalizedVars = await CampaignService.resolvePersonalizedVars(customer, campaign);
 
@@ -372,10 +395,10 @@ export class CampaignService {
         });
         failedCount++;
       }
+    });
 
-      // Small delay between sends to protect WhatsApp API rate limits
-      await new Promise(resolve => setTimeout(resolve, 200));
-    }
+    // Run parallel sends with a concurrency limit of 8
+    await runWithConcurrencyLimit(tasks, 8);
 
     // Update campaign counters in a single database roundtrip
     await prisma.campaign.update({

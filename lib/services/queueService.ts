@@ -21,17 +21,32 @@ if (process.env.REDIS_URL) {
     const { customerId, phone, templateName, variables, campaignId, headerImageUrl, buttonUrl, language } = job.data;
     
     try {
+      if (campaignId) {
+        const campaign = await prisma.campaign.findUnique({
+          where: { id: campaignId },
+          select: { status: true }
+        });
+        if (campaign && campaign.status === 'paused') {
+          console.log(`[Queue Worker] Skipping message for phone ${phone} as campaign ${campaignId} is paused.`);
+          return { success: false, skipped: true, error: 'Campaign is paused' };
+        }
+      }
+
       // Build components
       const components = [];
       
       if (headerImageUrl) {
+        let resolvedHeaderUrl = headerImageUrl;
+        if (resolvedHeaderUrl.startsWith('/')) {
+          resolvedHeaderUrl = `https://hello-pizza-cafe.vercel.app${resolvedHeaderUrl}`;
+        }
         components.push({
           type: 'header',
           parameters: [
             {
               type: 'image',
               image: {
-                link: headerImageUrl
+                link: resolvedHeaderUrl
               }
             }
           ]

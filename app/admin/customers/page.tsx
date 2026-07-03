@@ -284,7 +284,7 @@ export default function CustomersPage() {
       const data = await res.json();
       if (res.ok) {
         setToast({
-          message: `Successfully generated ${data.stats.batchesCreated} batches! Tags: ${data.stats.tags.join(", ")}`,
+          message: `Successfully tagged ${data.stats.totalTagged} customer(s) with tag '${data.stats.tags[0]}'!`,
           type: "success"
         });
         setShowBatchModal(false);
@@ -854,12 +854,8 @@ export default function CustomersPage() {
           >
             <Users className="w-3.5 h-3.5" />
             {selectedCustomerIds.size > 0 
-              ? (selectedOptedInCount <= 300 
-                  ? `Batch Selected (${selectedOptedInCount} Opted In)` 
-                  : `Batch Selected (${selectedOptedInCount} Opted In - 300 each)`)
-              : (stats.optedInCount <= 300 
-                  ? `Batch All Filtered (${stats.optedInCount} Opted In)` 
-                  : `Batch All Filtered (${stats.optedInCount} Opted In - 300 each)`)
+              ? `Batch Selected (${selectedOptedInCount} Opted In)`
+              : `Batch All Filtered (${stats.optedInCount} Opted In)`
             }
           </button>
         </div>
@@ -1099,14 +1095,10 @@ export default function CustomersPage() {
                   {selectedCustomerIds.size > 0 
                     ? (selectedOptedInCount === 0
                       ? `None of the selected customers are opted-in for WhatsApp. Please opt them in first.`
-                      : selectedOptedInCount <= 300
-                        ? `This will tag the ${selectedOptedInCount} opted-in customer(s) (out of ${selectedCustomerIds.size} selected) with your batch name.`
-                        : `This will split the ${selectedOptedInCount} opted-in customer(s) (out of ${selectedCustomerIds.size} selected) into sequential batches of 300 each.`)
+                      : `This will tag the ${selectedOptedInCount} opted-in customer(s) (out of ${selectedCustomerIds.size} selected) with your batch name.`)
                     : (stats.optedInCount === 0
                       ? `No opted-in customers match your current filters. Please adjust your filters or opt customers in.`
-                      : stats.optedInCount <= 300
-                        ? `This will tag the ${stats.optedInCount} opted-in customer(s) matching your current filters.`
-                        : `This will split the ${stats.optedInCount} opted-in customer(s) matching your current filters into sequential batches of 300 each.`)
+                      : `This will tag the ${stats.optedInCount} opted-in customer(s) matching your current filters with your batch name.`)
                   }
                 </p>
               </div>
@@ -1122,15 +1114,7 @@ export default function CustomersPage() {
                     className="w-full px-4 py-2.5 bg-warm-50 border-0 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-mono placeholder:font-sans placeholder:text-warm-400"
                   />
                   <p className="text-[10px] text-warm-400 mt-1">
-                    {((selectedCustomerIds.size > 0 ? selectedOptedInCount : stats.optedInCount) <= 300) ? (
-                      <>
-                        Customers will be tagged with <span className="font-mono bg-warm-50 px-1 py-0.5 rounded">{batchPrefix || "prefix"}-1</span>.
-                      </>
-                    ) : (
-                      <>
-                        Customers will be tagged with e.g. <span className="font-mono bg-warm-50 px-1 py-0.5 rounded">{batchPrefix || "prefix"}-1</span>, <span className="font-mono bg-warm-50 px-1 py-0.5 rounded">{batchPrefix || "prefix"}-2</span>.
-                      </>
-                    )} Only alphanumeric, hyphen and underscore characters allowed.
+                    Customers will be tagged with <span className="font-mono bg-warm-50 px-1 py-0.5 rounded">{batchPrefix || "prefix"}</span>. Only alphanumeric, hyphen and underscore characters allowed.
                   </p>
                 </div>
 

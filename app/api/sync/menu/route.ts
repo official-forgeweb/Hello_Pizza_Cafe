@@ -7,6 +7,10 @@ interface SyncCategory {
   name: string;
   description: string;
   displayOrder: number;
+  applicable_days?: string | null;
+  start_time?: string | null;
+  end_time?: string | null;
+  time_slots?: string | null;
 }
 
 interface SyncAddon {
@@ -79,6 +83,15 @@ export async function POST(request: NextRequest) {
         await Promise.all(chunk.map(async (cat) => {
           if (!cat.id || !cat.name) return;
           const slug = cat.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
+          // Normalize scheduling fields from POS (snake_case) to Prisma (camelCase)
+          const applicableDays = cat.applicable_days
+            ? (typeof cat.applicable_days === 'string' ? cat.applicable_days : JSON.stringify(cat.applicable_days))
+            : null;
+          const timeSlots = cat.time_slots
+            ? (typeof cat.time_slots === 'string' ? cat.time_slots : JSON.stringify(cat.time_slots))
+            : null;
+
           await prisma.category.upsert({
             where: { id: cat.id },
             update: {
@@ -86,6 +99,10 @@ export async function POST(request: NextRequest) {
               slug: slug + '-' + cat.id.slice(0, 8),
               description: cat.description || null,
               displayOrder: cat.displayOrder || 0,
+              applicableDays: applicableDays,
+              startTime: cat.start_time || null,
+              endTime: cat.end_time || null,
+              timeSlots: timeSlots,
             },
             create: {
               id: cat.id,
@@ -93,6 +110,10 @@ export async function POST(request: NextRequest) {
               slug: slug + '-' + cat.id.slice(0, 8),
               description: cat.description || null,
               displayOrder: cat.displayOrder || 0,
+              applicableDays: applicableDays,
+              startTime: cat.start_time || null,
+              endTime: cat.end_time || null,
+              timeSlots: timeSlots,
             }
           });
           categoriesSynced++;

@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
       couponCode,
       orderNotes,
       items,
-      whatsappOptIn = false,
+      whatsappOptIn = true,
       deliveryLat,
       deliveryLng,
       loyaltyPointsRedeemed = 0,
@@ -193,12 +193,15 @@ export async function POST(request: NextRequest) {
 
     const finalTotalAmount = Math.max(0, totalAmount - pointsToRedeem);
 
-    // Calculate loyalty points earned on final amount (excluding redeemed points)
-    const loyaltySettings = await prisma.loyaltySetting.findUnique({
-      where: { id: "default" }
-    }) || { pointsPerAmount: 5, amountThreshold: 100 };
-    
-    const pointsEarned = Math.floor(finalTotalAmount / Number(loyaltySettings.amountThreshold)) * Number(loyaltySettings.pointsPerAmount);
+    // Calculate loyalty points earned on final amount (excluding redeemed points) on a percentage basis, rounded
+    const globalSettings = await prisma.globalSetting.findUnique({
+      where: { id: 1 }
+    });
+    const pointsPerAmount = globalSettings ? Number(globalSettings.loyaltyPointsPerAmount) : 5;
+    const amountThreshold = globalSettings ? Number(globalSettings.loyaltyAmountThreshold) : 100;
+    const expiryDays = globalSettings ? Number(globalSettings.loyaltyMaxDays) : 30;
+
+    const pointsEarned = Math.round(Number(finalTotalAmount) * (pointsPerAmount / amountThreshold));
 
     // Generate order number in YYMMDD501 format with collision handling
     const now = new Date();
@@ -309,7 +312,7 @@ export async function POST(request: NextRequest) {
       }
 
       if (pointsEarned > 0) {
-        const expiryDate = new Date(timestamp.getTime() + 30 * 24 * 60 * 60 * 1000);
+        const expiryDate = new Date(timestamp.getTime() + expiryDays * 24 * 60 * 60 * 1000);
         await prisma.loyaltyTransaction.create({
           data: {
             phoneNumber: finalPhone,

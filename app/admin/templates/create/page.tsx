@@ -102,6 +102,32 @@ const UTILITY_PRESETS: Preset[] = [
     ]
   },
   {
+    id: "loyalty_balance_update_v2",
+    title: "Loyalty Points Credit V2 (Utility Image + CTA)",
+    description: "Send when points are credited. Contains image header, View Wallet and Call Us buttons.",
+    templateName: "loyalty_balance_update_v2",
+    category: "UTILITY",
+    headerType: "IMAGE",
+    headerImageUrl: "https://res.cloudinary.com/dsk80td7v/image/upload/v1783054054/hello-pizza/campaigns/z1tksjgl9tyzetifolmw.png",
+    bodyText: "*TRANSACTION ALERT*\nDear Customer,\nYour wallet has been credited successfully\n\nExpires on {{1}}\n\nThanks for choosing Hello Pizza cafe!",
+    footerText: "Hello Pizza Cafe",
+    buttons: [
+      { type: "URL", text: "View Wallet", url: "https://hello-pizza-cafe.vercel.app/loyalty?{{1}}" },
+      { type: "PHONE_NUMBER", text: "Call Us", phone_number: "+918505907905" }
+    ]
+  },
+  {
+    id: "pos_order_receipt_v2",
+    title: "POS Order Receipt V2 (With Loyalty Points)",
+    description: "Send after purchase at POS with loyalty points credited details (UTILITY category)",
+    templateName: "pos_order_receipt_v2",
+    category: "UTILITY",
+    headerType: "NONE",
+    bodyText: "Receipt from *Hello Pizza Cafe* 🍕\n\nAmount Paid: ₹{{1}}\nPoints Credited: {{2}} Pts\n\nMade fresh. Served hot.\nFor Support or Order Details:\n📞*8586076383*\n🌐https://hello-pizza-cafe.vercel.app/\n\nHope to welcome you again soon ✨",
+    footerText: "",
+    buttons: []
+  },
+  {
     id: "loyalty_verification_otp",
     title: "Loyalty Redeem OTP",
     description: "Send when customer requests an OTP to redeem points during POS checkout (Meta Authentication category)",
@@ -233,7 +259,12 @@ export default function CreateTemplatePage() {
   const getMockedBodyText = () => {
     let mock = bodyText;
     const lowerName = name.toLowerCase();
-    if (lowerName.includes("otp") || lowerName.includes("verify")) {
+    if (lowerName === "pos_order_receipt" || lowerName === "pos_order_receipt_v2") {
+      mock = mock.replace(/\{\{1\}\}/g, "450");
+      mock = mock.replace(/\{\{2\}\}/g, "22");
+    } else if (lowerName === "loyalty_balance_update_v2") {
+      mock = mock.replace(/\{\{1\}\}/g, "2026-08-02");
+    } else if (lowerName.includes("otp") || lowerName.includes("verify")) {
       mock = mock.replace(/\{\{1\}\}/g, "123456");
     } else if (lowerName.includes("redeem") || lowerName.includes("deduct")) {
       mock = mock.replace(/\{\{1\}\}/g, "150");
@@ -342,7 +373,23 @@ export default function CreateTemplatePage() {
       }
 
       // 4. Buttons
-      if (buttonType === "URL" && buttonText && buttonUrl) {
+      if (name === "loyalty_balance_update_v2") {
+        components.push({
+          type: "BUTTONS",
+          buttons: [
+            {
+              type: "URL",
+              text: "View Wallet",
+              url: "https://hello-pizza-cafe.vercel.app/loyalty?{{1}}"
+            },
+            {
+              type: "PHONE_NUMBER",
+              text: "Call Us",
+              phone_number: "+918505907905"
+            }
+          ]
+        });
+      } else if (buttonType === "URL" && buttonText && buttonUrl) {
         components.push({
           type: "BUTTONS",
           buttons: [
@@ -833,21 +880,36 @@ export default function CreateTemplatePage() {
             </div>
 
             {/* Preview Button */}
-            {buttonType === "URL" && buttonText && (
-              <div className="w-full max-w-[270px] mt-1">
+            {name === "loyalty_balance_update_v2" ? (
+              <div className="w-full max-w-[270px] space-y-1 mt-1">
                 <div className="bg-white rounded-xl py-2 px-3 text-center text-xs font-semibold text-blue-600 shadow-sm border border-warm-200/50 flex items-center justify-center gap-1.5">
                   <Laptop className="w-3.5 h-3.5 text-blue-500" />
-                  <span>{buttonText}</span>
+                  <span>View Wallet</span>
                 </div>
-              </div>
-            )}
-            {buttonType === "COPY_CODE" && buttonText && (
-              <div className="w-full max-w-[270px] mt-1">
                 <div className="bg-white rounded-xl py-2 px-3 text-center text-xs font-semibold text-blue-600 shadow-sm border border-warm-200/50 flex items-center justify-center gap-1.5">
                   <FileText className="w-3.5 h-3.5 text-blue-500" />
-                  <span>{buttonText}</span>
+                  <span>Call Us</span>
                 </div>
               </div>
+            ) : (
+              <>
+                {buttonType === "URL" && buttonText && (
+                  <div className="w-full max-w-[270px] mt-1">
+                    <div className="bg-white rounded-xl py-2 px-3 text-center text-xs font-semibold text-blue-600 shadow-sm border border-warm-200/50 flex items-center justify-center gap-1.5">
+                      <Laptop className="w-3.5 h-3.5 text-blue-500" />
+                      <span>{buttonText}</span>
+                    </div>
+                  </div>
+                )}
+                {buttonType === "COPY_CODE" && buttonText && (
+                  <div className="w-full max-w-[270px] mt-1">
+                    <div className="bg-white rounded-xl py-2 px-3 text-center text-xs font-semibold text-blue-600 shadow-sm border border-warm-200/50 flex items-center justify-center gap-1.5">
+                      <FileText className="w-3.5 h-3.5 text-blue-500" />
+                      <span>{buttonText}</span>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
 
             <div className="mt-6 text-center text-[10px] text-warm-500 max-w-[220px] leading-relaxed">

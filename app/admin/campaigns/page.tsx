@@ -7,7 +7,7 @@ import {
   Send, Plus, Users, LayoutTemplate, Calendar, 
   Play, CheckCircle2, Clock, X, RefreshCw,
   XCircle, AlertTriangle, Info, Eye,
-  Trash2, Search
+  Trash2, Search, Pause
 } from "lucide-react";
 import { useAdminAlert } from "@/components/admin/AdminAlertProvider";
 
@@ -61,6 +61,13 @@ export default function CampaignsPage() {
   useEffect(() => {
     fetchCampaigns();
     const interval = setInterval(fetchCampaigns, 10000); // Poll every 10s for updates
+    
+    // Check if redirecting from loyalty monitor with pre-filled batch tag
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("create") === "true") {
+      setShowWizard(true);
+    }
+    
     return () => clearInterval(interval);
   }, []);
 
@@ -140,10 +147,29 @@ export default function CampaignsPage() {
     }
   };
 
+  const handleTogglePause = async (id: string, shouldPause: boolean) => {
+    try {
+      const action = shouldPause ? "pause" : "resume";
+      const res = await fetch(`/api/admin/campaigns/${id}?action=${action}`, { method: "POST" });
+      if (res.ok) {
+        showAlert(shouldPause ? "Campaign paused successfully!" : "Campaign resumed successfully!", "success");
+        fetchCampaigns();
+      } else {
+        const data = await res.json();
+        showAlert(data.error || "Failed to change campaign state", "error");
+      }
+    } catch (error: any) {
+      console.error("Failed to change campaign state:", error);
+      showAlert(error.message || "An error occurred", "error");
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'sending':
         return <span className="flex items-center gap-1 text-xs font-bold bg-blue-50 text-blue-600 px-2.5 py-1 rounded-full"><Clock className="w-3.5 h-3.5 animate-pulse" /> Sending</span>;
+      case 'paused':
+        return <span className="flex items-center gap-1 text-xs font-bold bg-amber-50 text-amber-600 px-2.5 py-1 rounded-full"><Pause className="w-3.5 h-3.5 text-amber-500" /> Paused</span>;
       case 'completed':
         return <span className="flex items-center gap-1 text-xs font-bold bg-[#25D366]/10 text-[#25D366] px-2.5 py-1 rounded-full"><CheckCircle2 className="w-3.5 h-3.5" /> Completed</span>;
       case 'failed':
@@ -301,6 +327,23 @@ export default function CampaignsPage() {
                     </div>
                   )}
 
+                  {campaign.status === 'sending' && (
+                    <button
+                      onClick={() => handleTogglePause(campaign.id, true)}
+                      className="w-full py-1.5 bg-amber-500 hover:bg-amber-600 rounded-lg text-[10px] font-bold text-white flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                    >
+                      <Pause className="w-3 h-3 fill-white text-white" /> Pause Campaign
+                    </button>
+                  )}
+                  {campaign.status === 'paused' && (
+                    <button
+                      onClick={() => handleTogglePause(campaign.id, false)}
+                      className="w-full py-1.5 bg-primary hover:bg-[#cc1530] rounded-lg text-[10px] font-bold text-white flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                    >
+                      <Play className="w-3 h-3 fill-white text-white" /> Resume Campaign
+                    </button>
+                  )}
+
                   {/* Logs inspector button */}
                   <button
                     onClick={() => setSelectedCampaignId(campaign.id)}
@@ -352,6 +395,17 @@ function CampaignWizard({ onClose, onComplete }: { onClose: () => void, onComple
   const [headerImage, setHeaderImage] = useState("");
   const [bodyParameters, setBodyParameters] = useState<string[]>([]);
   const [bonusPoints, setBonusPoints] = useState(0);
+
+  // Prefill tag if redirecting from loyalty monitor
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const prefillTag = params.get("tag");
+    if (prefillTag) {
+      setTargetType("tag");
+      setTargetGroup(prefillTag);
+      setName(`Expiring Points Notification - ${prefillTag}`);
+    }
+  }, []);
 
   const selectedTemplate = templates.find(t => t.templateName === templateName);
   const requiresImageHeader = selectedTemplate?.components?.some((c: any) => c.type === 'HEADER' && c.format === 'IMAGE');
@@ -497,6 +551,8 @@ function CampaignWizard({ onClose, onComplete }: { onClose: () => void, onComple
                   if (selected && selected.variables && selected.variables.length > 0) {
                     if (nameVal === "loyalty_balance_update") {
                       setBodyParameters(["{bonus_points}", "{expiry_date}", "Special Loyalty Bonus"]);
+                    } else if (nameVal === "loyalty_balance_update_v2") {
+                      setBodyParameters(["{expiry_date}"]);
                     } else {
                       setBodyParameters(selected.variables.map((_: any, i: number) => i === 0 ? "{name}" : ""));
                     }
@@ -567,6 +623,22 @@ function CampaignWizard({ onClose, onComplete }: { onClose: () => void, onComple
             <div className="bg-warm-100 p-4 rounded-xl space-y-3">
               <label className="block text-xs font-bold text-warm-700 uppercase tracking-wider">Template Variables</label>
               <p className="text-[10px] text-warm-500 mb-2">Use <code className="bg-white px-1 py-0.5 rounded text-primary border border-warm-200">{"{name}"}</code> to automatically insert the customer&apos;s name.</p>
+              
+              {templateName === "loyalty_balance_update_v2" && (
+                <div className="bg-white border border-warm-200 p-3.5 rounded-xl space-y-1.5 shadow-sm">
+                  <label className="block text-[10px] font-bold text-primary uppercase tracking-wider">Points to Credit (Wallet Only)</label>
+                  <input
+                    type="number"
+                    value={bonusPoints || ""}
+                    onChange={e => setBonusPoints(parseInt(e.target.value) || 0)}
+                    placeholder="Enter loyalty points to credit (e.g. 50)"
+                    className="w-full px-3 py-2 bg-warm-50/50 border border-warm-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-primary/20 font-mono"
+                  />
+                  <p className="text-[9px] text-warm-500 leading-relaxed">
+                    Note: To comply with Meta's UTILITY template guidelines, the points amount is not shown in the WhatsApp message text, but it will be successfully added to the customer's wallet balance.
+                  </p>
+                </div>
+              )}
               
               {selectedTemplate.variables.map((v: string, idx: number) => (
                 <div key={idx}>

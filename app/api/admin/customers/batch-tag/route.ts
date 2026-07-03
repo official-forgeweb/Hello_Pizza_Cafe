@@ -149,42 +149,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const batchSize = 300;
-    const generatedTags: string[] = [];
+    const tagName = prefix.trim();
     let taggedCount = 0;
 
-    // Chunk customers into batches of 300
-    for (let i = 0; i < targetCustomers.length; i += batchSize) {
-      const chunk = targetCustomers.slice(i, i + batchSize);
-      const batchNum = Math.floor(i / batchSize) + 1;
-      const tagName = `${prefix.trim()}-${batchNum}`;
-      generatedTags.push(tagName);
-
-      // Process updates concurrently in smaller sub-chunks of 5 to avoid Prisma/DB pool exhaustion
-      const subBatchSize = 5;
-      for (let j = 0; j < chunk.length; j += subBatchSize) {
-        const subChunk = chunk.slice(j, j + subBatchSize);
-        const subUpdates = subChunk.map((customer) => {
-          const updatedTags = Array.from(new Set([...customer.tags, tagName]));
-          return prisma.customer.update({
-            where: { phone: customer.phone },
-            data: {
-              tags: updatedTags,
-            },
-          });
+    // Process updates concurrently in smaller sub-chunks of 5 to avoid Prisma/DB pool exhaustion
+    const subBatchSize = 5;
+    for (let j = 0; j < targetCustomers.length; j += subBatchSize) {
+      const subChunk = targetCustomers.slice(j, j + subBatchSize);
+      const subUpdates = subChunk.map((customer) => {
+        const updatedTags = Array.from(new Set([...customer.tags, tagName]));
+        return prisma.customer.update({
+          where: { phone: customer.phone },
+          data: {
+            tags: updatedTags,
+          },
         });
-        await Promise.all(subUpdates);
-      }
-      taggedCount += chunk.length;
+      });
+      await Promise.all(subUpdates);
     }
+    taggedCount = targetCustomers.length;
 
     return NextResponse.json({
       success: true,
-      message: `Successfully grouped ${taggedCount} customers into ${generatedTags.length} batches of 300.`,
+      message: `Successfully tagged ${taggedCount} customers with '${tagName}'.`,
       stats: {
         totalTagged: taggedCount,
-        batchesCreated: generatedTags.length,
-        tags: generatedTags,
+        batchesCreated: 1,
+        tags: [tagName],
       },
     });
   } catch (error: any) {

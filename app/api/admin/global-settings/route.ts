@@ -82,6 +82,22 @@ export async function PUT(request: NextRequest) {
       },
     });
 
+    // Sync to LoyaltySetting table as well
+    await prisma.loyaltySetting.upsert({
+      where: { id: "default" },
+      create: {
+        id: "default",
+        pointsPerAmount: Number(loyaltyPointsPerAmount ?? 5),
+        amountThreshold: Number(loyaltyAmountThreshold ?? 100),
+        expiryDays: Number(loyaltyMaxDays ?? 30),
+      },
+      update: {
+        pointsPerAmount: Number(loyaltyPointsPerAmount ?? 5),
+        amountThreshold: Number(loyaltyAmountThreshold ?? 100),
+        expiryDays: Number(loyaltyMaxDays ?? 30),
+      },
+    });
+
     return NextResponse.json(updated);
   } catch (error: any) {
     console.error("Error in PUT global-settings:", error);

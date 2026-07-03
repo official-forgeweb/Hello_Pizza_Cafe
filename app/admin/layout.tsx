@@ -24,6 +24,7 @@ import {
   PieChart,
   Truck,
   Terminal,
+  Coins
 } from "lucide-react";
 import { useAdminStore } from "@/store/admin";
 import AdminToasts from "@/components/admin/Toast";
@@ -34,6 +35,7 @@ const NAV_ITEMS = [
   { href: "/admin/analytics", label: "Analytics", icon: PieChart },
   { href: "/admin/orders", label: "Orders", icon: ShoppingBag },
   { href: "/admin/customers", label: "Customers", icon: UserCheck },
+  { href: "/admin/loyalty", label: "Loyalty Monitor", icon: Coins },
   { href: "/admin/campaigns", label: "Marketing", icon: Send },
   { href: "/admin/templates", label: "Templates", icon: MessageSquare },
   { href: "/admin/whatsapp-logs", label: "WhatsApp Logs", icon: Terminal },

@@ -184,6 +184,8 @@ export async function POST(request: NextRequest) {
                   isSynced: true,
                   syncedAt: new Date(),
                   waConfirmationSent,
+                  loyaltyPointsEarned: Number(record.loyalty_points_earned || 0),
+                  loyaltyPointsRedeemed: Number(record.loyalty_points_redeemed || 0),
                   items: {
                     create: (record.items || []).map((item: any) => {
                       let variantName = null;
@@ -233,10 +235,17 @@ export async function POST(request: NextRequest) {
                 }
               });
 
-              // Send WhatsApp notification if conditions are met
-              // This runs for both new and website-linked orders
-              if (!waConfirmationSent && cleanPhone && cleanPhone !== "0000000000") {
-                console.log(`[Sync Batch] Triggering WhatsApp for NEW order ${createdOrder.id}, phone: ${cleanPhone}`);
+              // Send WhatsApp notification if conditions are met and order is completed/delivered.
+              // If there's an upcoming UPDATE operation for the same order in the same batch,
+              // defer the receipt until the UPDATE operation processes the final points.
+              const hasCompletionUpdate = batch.some(b => 
+                (b.table === "order" || b.table === "orders") && 
+                b.operation === "UPDATE" && 
+                (b.record_id === orderId || b.record?.id === orderId)
+              );
+
+              if (!waConfirmationSent && cleanPhone && cleanPhone !== "0000000000" && !hasCompletionUpdate && status === "DELIVERED") {
+                console.log(`[Sync Batch] Triggering WhatsApp for NEW completed order ${createdOrder.id}, phone: ${cleanPhone}`);
                 try {
                   const { OrderNotificationService } = await import("@/lib/services/orderNotificationService");
                   const waResult = await OrderNotificationService.sendPOSReceipt(createdOrder.id);
@@ -245,7 +254,7 @@ export async function POST(request: NextRequest) {
                   console.error("[Sync Batch] WhatsApp POS receipt failed:", err);
                 }
               } else {
-                console.log(`[Sync Batch] Skipping WhatsApp for new order ${createdOrder.id}: waConfirmationSent=${waConfirmationSent}, phone=${cleanPhone}`);
+                console.log(`[Sync Batch] Skipping WhatsApp for new order ${createdOrder.id}: waConfirmationSent=${waConfirmationSent}, phone=${cleanPhone}, hasCompletionUpdate=${hasCompletionUpdate}, status=${status}`);
               }
             } else {
               // Order already exists — update status
@@ -253,6 +262,8 @@ export async function POST(request: NextRequest) {
                 where: { id: targetOrderId },
                 data: {
                   status: status as any,
+                  loyaltyPointsEarned: Number(record.loyalty_points_earned || 0),
+                  loyaltyPointsRedeemed: Number(record.loyalty_points_redeemed || 0),
                   updatedAt: new Date(),
                 }
               });
@@ -275,6 +286,8 @@ export async function POST(request: NextRequest) {
                 where: { id: orderId },
                 data: {
                   status: status as any,
+                  loyaltyPointsEarned: Number(record.loyalty_points_earned || 0),
+                  loyaltyPointsRedeemed: Number(record.loyalty_points_redeemed || 0),
                   updatedAt: new Date(),
                 }
               });
@@ -282,9 +295,18 @@ export async function POST(request: NextRequest) {
               // Trigger WhatsApp updates for completed/delivered or cancelled orders synced from POS
               const { OrderNotificationService } = await import("@/lib/services/orderNotificationService");
               if (status === "DELIVERED") {
-                OrderNotificationService.sendOrderDelivered(updatedOrder.id).catch(err => {
-                  console.error("[Sync Batch UPDATE] WhatsApp delivery notification failed:", err);
-                });
+                const cleanPhone = exists.customerPhone ? exists.customerPhone.trim() : "";
+                if (!updatedOrder.waConfirmationSent && cleanPhone && cleanPhone !== "0000000000") {
+                  console.log(`[Sync Batch UPDATE] Triggering WhatsApp POS receipt for order ${updatedOrder.id}, phone: ${cleanPhone}`);
+                  OrderNotificationService.sendPOSReceipt(updatedOrder.id).catch(err => {
+                    console.error("[Sync Batch UPDATE] WhatsApp POS receipt failed:", err);
+                  });
+                } else {
+                  console.log(`[Sync Batch UPDATE] Triggering WhatsApp delivery notification for order ${updatedOrder.id}`);
+                  OrderNotificationService.sendOrderDelivered(updatedOrder.id).catch(err => {
+                    console.error("[Sync Batch UPDATE] WhatsApp delivery notification failed:", err);
+                  });
+                }
               } else if (status === "CANCELLED") {
                 const reason = record.cancellationReason || "Cancelled in POS software";
                 OrderNotificationService.sendOrderCancelled(updatedOrder.id, reason).catch(err => {
@@ -331,10 +353,11 @@ export async function POST(request: NextRequest) {
             select: { whatsappOptIn: true }
           });
 
-          // If the customer is already opted-in in the web store database, preserve it
-          const finalWhatsappOptIn = existingCustomer?.whatsappOptIn
-            ? true
-            : (record.whatsappOptIn === true || record.whatsappOptIn === 1);
+          // If the customer already exists, preserve their current opt-in/opt-out status.
+          // For brand-new customers, default to opted-in (true).
+          const finalWhatsappOptIn = existingCustomer 
+            ? existingCustomer.whatsappOptIn 
+            : (record.whatsappOptIn !== undefined ? (record.whatsappOptIn === true || record.whatsappOptIn === 1) : true);
 
           const data = {
             name: record.name?.trim() || "Walk-in Customer",
@@ -366,11 +389,13 @@ export async function POST(request: NextRequest) {
               id: record.id || "default",
               pointsPerAmount: Number(record.pointsPerAmount || 5),
               amountThreshold: Number(record.amountThreshold || 100),
+              expiryDays: Number(record.expiryDays || 30),
               updatedAt: new Date(record.updatedAt || new Date()),
             },
             update: {
               pointsPerAmount: Number(record.pointsPerAmount || 5),
               amountThreshold: Number(record.amountThreshold || 100),
+              expiryDays: Number(record.expiryDays || 30),
               updatedAt: new Date(record.updatedAt || new Date()),
             }
           });

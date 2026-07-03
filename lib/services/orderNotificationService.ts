@@ -17,17 +17,31 @@ export class OrderNotificationService {
       if (order.waConfirmationSent) return { success: true, note: 'Already sent' };
 
       const billAmount = Number(order.totalAmount).toFixed(2);
+      const pointsEarned = order.loyaltyPointsEarned ? String(order.loyaltyPointsEarned) : "0";
+
+      // Try to use pos_order_receipt_v2 if it exists, otherwise fallback to pos_order_receipt
+      const v2Template = await prisma.whatsAppTemplate.findFirst({
+        where: {
+          templateName: 'pos_order_receipt_v2',
+          status: 'APPROVED'
+        }
+      });
+      const useV2 = !!v2Template;
+      const templateName = useV2 ? 'pos_order_receipt_v2' : 'pos_order_receipt';
+
+      const parameters = [{ type: 'text', text: billAmount }];
+      if (useV2) {
+        parameters.push({ type: 'text', text: pointsEarned });
+      }
 
       const result = await WhatsAppService.sendTemplateMessage(
         order.customerPhone,
-        'pos_order_receipt',
+        templateName,
         'en_US',
         [
           {
             type: 'body',
-            parameters: [
-              { type: 'text', text: billAmount }
-            ]
+            parameters
           }
         ]
       );
@@ -44,7 +58,7 @@ export class OrderNotificationService {
             orderId: order.id,
             phone: order.customerPhone,
             messageType: 'pos_order_receipt',
-            templateUsed: 'pos_order_receipt',
+            templateUsed: templateName,
             status: 'sent',
             whatsappMessageId: result.data?.messages?.[0]?.id || ''
           }
@@ -84,18 +98,32 @@ export class OrderNotificationService {
 
       // Total amount formatted to two decimal places
       const billAmount = Number(order.totalAmount).toFixed(2);
+      const pointsEarned = order.loyaltyPointsEarned ? String(order.loyaltyPointsEarned) : "0";
       console.log(`[POS Receipt] Sending to ${order.customerPhone}, amount: ${billAmount}, order: ${order.orderNumber}`);
+
+      // Try to use pos_order_receipt_v2 if it exists, otherwise fallback to pos_order_receipt
+      const v2Template = await prisma.whatsAppTemplate.findFirst({
+        where: {
+          templateName: 'pos_order_receipt_v2',
+          status: 'APPROVED'
+        }
+      });
+      const useV2 = !!v2Template;
+      const templateName = useV2 ? 'pos_order_receipt_v2' : 'pos_order_receipt';
+
+      const parameters = [{ type: 'text', text: billAmount }];
+      if (useV2) {
+        parameters.push({ type: 'text', text: pointsEarned });
+      }
 
       const result = await WhatsAppService.sendTemplateMessage(
         order.customerPhone,
-        'pos_order_receipt',
+        templateName,
         'en_US',
         [
           {
             type: 'body',
-            parameters: [
-              { type: 'text', text: billAmount }
-            ]
+            parameters
           }
         ]
       );
@@ -114,7 +142,7 @@ export class OrderNotificationService {
             orderId: order.id,
             phone: order.customerPhone,
             messageType: 'pos_order_receipt',
-            templateUsed: 'pos_order_receipt',
+            templateUsed: templateName,
             status: 'sent',
             whatsappMessageId: result.data?.messages?.[0]?.id || ''
           }

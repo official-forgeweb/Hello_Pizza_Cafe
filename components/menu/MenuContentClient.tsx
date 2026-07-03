@@ -162,6 +162,73 @@ export default function MenuContentClient({ initialCategories, initialMenuItems,
     }
   }, [itemHighlight, initialMenuItems]);
 
+  // ─── Category schedule visibility (same logic as POS) ───
+  const isCategoryVisible = useCallback((c: any): boolean => {
+    if (!c || c.id === "all") return true;
+    const now = new Date();
+    const day = now.getDay(); // 0=Sunday ... 6=Saturday
+
+    // Check applicable days
+    if (c.applicableDays) {
+      try {
+        const days = typeof c.applicableDays === "string"
+          ? JSON.parse(c.applicableDays)
+          : c.applicableDays;
+        if (Array.isArray(days) && days.length > 0) {
+          if (!days.includes(day)) return false;
+        }
+      } catch (e) {
+        // ignore parse errors
+      }
+    }
+
+    const hours = String(now.getHours()).padStart(2, "0");
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+    const timeStr = `${hours}:${minutes}`;
+
+    // Check time slots (multiple ranges)
+    if (c.timeSlots) {
+      try {
+        const slots = typeof c.timeSlots === "string"
+          ? JSON.parse(c.timeSlots)
+          : c.timeSlots;
+        if (Array.isArray(slots) && slots.length > 0) {
+          const isAnySlotActive = slots.some((slot: any) => {
+            const start = slot.start || "00:00";
+            const end = slot.end || "23:59";
+            if (start <= end) {
+              return timeStr >= start && timeStr <= end;
+            } else {
+              // Overnight slot (e.g. 22:00 - 02:00)
+              return timeStr >= start || timeStr <= end;
+            }
+          });
+          if (!isAnySlotActive) return false;
+        }
+      } catch (e) {
+        // ignore parse errors
+      }
+    } else if (c.startTime || c.endTime) {
+      // Legacy single time range
+      const start = c.startTime || "00:00";
+      const end = c.endTime || "23:59";
+      if (start <= end) {
+        if (timeStr < start || timeStr > end) return false;
+      } else {
+        if (timeStr < start && timeStr > end) return false;
+      }
+    }
+
+    return true;
+  }, []);
+
+  // Re-evaluate category visibility every 60 seconds so scheduled categories appear/disappear in real-time
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const interval = setInterval(() => setTick(t => t + 1), 60000);
+    return () => clearInterval(interval);
+  }, []);
+
   // ─── Filter items ───
   const filteredItems = initialMenuItems.filter((item) => {
     const matchesSearch =
@@ -176,8 +243,10 @@ export default function MenuContentClient({ initialCategories, initialMenuItems,
     ? initialMenuItems.find(item => item.name.toLowerCase().trim() === itemHighlight.toLowerCase().trim())
     : null;
 
-  // ─── Group items by category ───
-  let groupedItems = initialCategories.filter((c) => c.id !== "all").map(
+  // ─── Filter categories by schedule visibility, then group items by category ───
+  const visibleCategories = initialCategories.filter((c) => c.id === "all" || isCategoryVisible(c));
+
+  let groupedItems = visibleCategories.filter((c) => c.id !== "all").map(
     (cat) => {
       let items = filteredItems.filter((item) => 
         item.categoryId === cat.id || item.categoryId === cat.slug

@@ -85,7 +85,10 @@ export async function POST(request: NextRequest) {
             const isLoyalty = templateName.toLowerCase().includes("loyalty");
             const examplesList = uniqueIndices.map(idx => {
               const lowerTemplateName = templateName.toLowerCase();
-              if (lowerTemplateName.includes("otp") || lowerTemplateName.includes("verify")) {
+              if (lowerTemplateName === "pos_order_receipt") {
+                if (idx === 1) return "450"; // Bill Amount Paid
+                if (idx === 2) return "22";  // Points Credited
+              } else if (lowerTemplateName.includes("otp") || lowerTemplateName.includes("verify")) {
                 if (idx === 1) return "123456"; // 6-digit numeric OTP example
               } else if (lowerTemplateName.includes("redeem") || lowerTemplateName.includes("deduct")) {
                 if (idx === 1) return "150";        // Points redeemed
@@ -133,7 +136,7 @@ export async function POST(request: NextRequest) {
     const headerComponent = components.find((c: any) => c.type === 'HEADER');
     if (headerComponent && headerComponent.format === 'IMAGE' && headerComponent.example?.header_handle?.[0]) {
       const imageUrl = headerComponent.example.header_handle[0];
-      if (imageUrl.startsWith('http')) {
+      if (imageUrl.startsWith('http') || imageUrl.startsWith('/')) {
         originalHeaderImageUrl = imageUrl;
         const uploadResult = await WhatsAppService.uploadImageToMeta(imageUrl);
         if (!uploadResult.success) {

@@ -8,8 +8,8 @@ export async function POST(
   try {
     const { id } = await params;
     
-    // Process next batch (15 recipients at a time)
-    const result = await CampaignService.sendCampaignBatch(id, 15);
+    // Process next batch (50 recipients at a time)
+    const result = await CampaignService.sendCampaignBatch(id, 50);
     
     if (!result.success) {
       return NextResponse.json(
