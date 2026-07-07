@@ -574,7 +574,7 @@ function LoyaltyContent() {
                 
               </div>
 
-              {/* Tier Definitions & Benefits Chart */}
+              {/* Tier Classification Chart */}
               <motion.div 
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -584,62 +584,46 @@ function LoyaltyContent() {
                 <div className="border-b border-zinc-100 pb-3.5">
                   <h3 className="text-base font-bold text-zinc-800 flex items-center gap-2">
                     <Crown className="w-5 h-5 text-yellow-500" />
-                    <span>Loyalty Club Tiers & Benefits</span>
+                    <span>Loyalty Club Tiers Classification</span>
                   </h3>
                   <p className="text-xs text-zinc-400 mt-1">
-                    Accumulate points to unlock higher membership tiers and unlock premium benefits.
+                    Membership tiers are calculated based on your qualifying points.
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   {[
                     {
                       name: "Bronze Member",
                       range: "0 – 99 Pts",
                       color: "text-amber-600 bg-amber-500/10 border-amber-500/20",
-                      benefits: ["Earn 1 Pt per ₹1.00 spent", "Redeem points directly on checkout", "Digital receipt records"]
                     },
                     {
                       name: "Silver Member",
                       range: "100 – 299 Pts",
-                      color: "text-slate-505 bg-slate-400/10 border-slate-400/20",
-                      benefits: ["Earn 10% bonus loyalty points", "Priority customer support"]
+                      color: "text-slate-500 bg-slate-400/10 border-slate-400/20",
                     },
                     {
                       name: "Gold Member",
                       range: "300 – 599 Pts",
                       color: "text-yellow-600 bg-yellow-500/10 border-yellow-500/20",
-                      benefits: ["Earn 20% bonus loyalty points", "Priority service status"]
                     },
                     {
                       name: "Platinum Elite",
                       range: "600+ Pts",
-                      color: "text-indigo-650 bg-indigo-500/10 border-indigo-500/20",
-                      benefits: ["Earn 30% bonus loyalty points", "Dedicated customer care priority"]
+                      color: "text-indigo-600 bg-indigo-500/10 border-indigo-500/20",
                     }
                   ].map((t) => (
                     <div 
                       key={t.name}
-                      className="p-4 rounded-2xl border bg-warm-50/20 border-warm-200/50 flex flex-col justify-between hover:bg-white transition-all duration-300 hover:shadow-md hover:border-warm-300"
+                      className="p-4 rounded-2xl border bg-warm-50/20 border-warm-200/50 flex flex-col items-center justify-center text-center hover:bg-white transition-all duration-300 hover:shadow-md hover:border-warm-300"
                     >
-                      <div>
-                        <div className="flex justify-between items-center mb-3">
-                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wider uppercase ${t.color}`}>
-                            {t.name}
-                          </span>
-                          <span className="text-[10px] font-bold text-zinc-500 bg-zinc-100 px-2 py-0.5 rounded-lg">
-                            {t.range}
-                          </span>
-                        </div>
-                        <ul className="space-y-1.5">
-                          {t.benefits.map((b, i) => (
-                            <li key={i} className="text-[11px] text-zinc-500 flex items-start gap-1.5 font-medium leading-relaxed">
-                              <span className="text-emerald-500 font-bold select-none shrink-0">•</span>
-                              <span>{b}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
+                      <span className={`px-2.5 py-1 rounded-full text-[11px] font-black tracking-wider uppercase mb-2 ${t.color}`}>
+                        {t.name}
+                      </span>
+                      <span className="text-xs font-bold text-zinc-600 bg-zinc-100/80 px-2.5 py-0.5 rounded-lg">
+                        {t.range}
+                      </span>
                     </div>
                   ))}
                 </div>
