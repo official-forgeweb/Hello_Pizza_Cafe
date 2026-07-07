@@ -55,9 +55,10 @@ export class CustomerService {
    * for a customer based on their transaction history in the database.
    */
   static async getCustomerLoyaltyWallet(phone: string) {
-    if (!phone) return { availablePoints: 0, pendingPoints: 0, nextExpiryDate: null };
+    if (!phone) return { availablePoints: 0, pendingPoints: 0, nextExpiryDate: null, tierPoints: 0 };
 
     const now = new Date();
+    const tenDaysAgo = new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000);
     const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
     const txs = await prisma.loyaltyTransaction.findMany({
@@ -65,6 +66,7 @@ export class CustomerService {
       orderBy: { timestamp: "asc" }
     });
 
+    // --- 1. Calculate actual available points ---
     const availableList: { points: number; expiryDate: Date | null }[] = [];
     let redeemedTotal = 0;
 
@@ -93,6 +95,41 @@ export class CustomerService {
       }
     });
 
+    // --- 2. Calculate tier points (with 10-day relaxation grace period for redemptions and expirations) ---
+    const tierAvailableList: { points: number; expiryDate: Date | null }[] = [];
+    let tierRedeemedTotal = 0;
+
+    txs.forEach(tx => {
+      if (tx.points > 0) {
+        const isPending = tx.type === 'EARN' && tx.timestamp > oneDayAgo;
+        // Points that expired in the last 10 days are treated as not expired for tier calculation
+        const isExpiredForTier = tx.expiryDate && tx.expiryDate <= tenDaysAgo;
+        
+        if (!isPending && !isExpiredForTier) {
+          tierAvailableList.push({ points: tx.points, expiryDate: tx.expiryDate });
+        }
+      } else {
+        // Redemptions in the last 10 days are ignored (added back) for tier calculation
+        const isRedemptionInLast10Days = tx.timestamp > tenDaysAgo;
+        if (!isRedemptionInLast10Days) {
+          tierRedeemedTotal += Math.abs(tx.points);
+        }
+      }
+    });
+
+    let tierPoints = 0;
+    tierAvailableList.forEach(item => {
+      if (tierRedeemedTotal >= item.points) {
+        tierRedeemedTotal -= item.points;
+        item.points = 0;
+      } else {
+        item.points -= tierRedeemedTotal;
+        tierRedeemedTotal = 0;
+        tierPoints += item.points;
+      }
+    });
+
+    // --- 3. Calculate pending points ---
     let pendingPoints = 0;
     txs.forEach(tx => {
       if (tx.points > 0 && tx.type === 'EARN' && tx.timestamp > oneDayAgo && (!tx.expiryDate || tx.expiryDate > now)) {
@@ -112,7 +149,8 @@ export class CustomerService {
     return {
       availablePoints: availPoints,
       pendingPoints,
-      nextExpiryDate: earliestExpiry
+      nextExpiryDate: earliestExpiry,
+      tierPoints
     };
   }
 

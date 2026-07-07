@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   Gift, Search, RefreshCw, Calendar, ArrowUpRight, ArrowDownLeft, 
   Award, Clock, Crown, Sparkles, Shield, Coins, ArrowRight,
-  Filter, CheckCircle, Info, ChevronRight
+  Filter, CheckCircle, Info, ChevronRight, AlertTriangle
 } from "lucide-react";
 
 interface Transaction {
@@ -110,7 +110,7 @@ function LoyaltyContent() {
   const [phoneInput, setPhoneInput] = useState("");
   const [searchedPhone, setSearchedPhone] = useState<string | null>(null);
   
-  const [wallet, setWallet] = useState<{ availablePoints: number; pendingPoints: number; nextExpiryDate: string | null } | null>(null);
+  const [wallet, setWallet] = useState<{ availablePoints: number; pendingPoints: number; nextExpiryDate: string | null; tierPoints?: number } | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -170,7 +170,8 @@ function LoyaltyContent() {
       setWallet({
         availablePoints: balanceData.availablePoints,
         pendingPoints: balanceData.pendingPoints,
-        nextExpiryDate: balanceData.nextExpiryDate
+        nextExpiryDate: balanceData.nextExpiryDate,
+        tierPoints: balanceData.tierPoints ?? balanceData.availablePoints
       });
 
       // 2. Fetch recent transactions
@@ -199,8 +200,8 @@ function LoyaltyContent() {
     router.push(`/loyalty?phone=${cleanPhone}`);
   };
 
-  const tier = wallet ? getTierConfig(wallet.availablePoints) : null;
-  const progress = wallet ? getTierProgress(wallet.availablePoints) : null;
+  const tier = wallet ? getTierConfig(wallet.tierPoints ?? wallet.availablePoints) : null;
+  const progress = wallet ? getTierProgress(wallet.tierPoints ?? wallet.availablePoints) : null;
 
   // Filter transactions
   const filteredTxs = transactions.filter(tx => {
@@ -433,6 +434,16 @@ function LoyaltyContent() {
                     <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
                     <span>You are a <strong className="text-indigo-600">Platinum Elite</strong> member! Enjoy the ultimate loyalty bonuses.</span>
                   </p>
+                )}
+
+                {wallet.tierPoints !== undefined && wallet.tierPoints > wallet.availablePoints && (
+                  <div className="bg-amber-50/80 text-amber-900 text-[11px] p-3.5 rounded-2xl border border-amber-200/40 flex gap-2.5 items-start mt-3">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold block mb-0.5">Tier Grace Period Active</span>
+                      Your <span className="font-semibold text-zinc-900">{tier.name}</span> status is currently protected by a 10-day relaxation period following point redemption or expiration. Place a new order to restore your points and secure your rank!
+                    </div>
+                  </div>
                 )}
               </div>
 
