@@ -597,25 +597,25 @@ function LoyaltyContent() {
                       name: "Bronze Member",
                       range: "0 – 99 Pts",
                       color: "text-amber-600 bg-amber-500/10 border-amber-500/20",
-                      benefits: ["Earn 1 Pt per ₹1.00 spent", "Basic pizza customization perks", "Digital receipt records"]
+                      benefits: ["Earn 1 Pt per ₹1.00 spent", "Redeem points directly on checkout", "Digital receipt records"]
                     },
                     {
                       name: "Silver Member",
                       range: "100 – 299 Pts",
                       color: "text-slate-505 bg-slate-400/10 border-slate-400/20",
-                      benefits: ["Earn 10% bonus loyalty points", "Access to member-only coupon codes", "Priority customer support"]
+                      benefits: ["Earn 10% bonus loyalty points", "Priority customer support"]
                     },
                     {
                       name: "Gold Member",
                       range: "300 – 599 Pts",
                       color: "text-yellow-600 bg-yellow-500/10 border-yellow-500/20",
-                      benefits: ["Earn 20% bonus loyalty points", "Complimentary delivery on select days", "Birthday surprise rewards"]
+                      benefits: ["Earn 20% bonus loyalty points", "Priority service status"]
                     },
                     {
                       name: "Platinum Elite",
                       range: "600+ Pts",
                       color: "text-indigo-650 bg-indigo-500/10 border-indigo-500/20",
-                      benefits: ["Earn 30% bonus loyalty points", "Dedicated relationship manager", "Early access to seasonal menu items"]
+                      benefits: ["Earn 30% bonus loyalty points", "Dedicated customer care priority"]
                     }
                   ].map((t) => (
                     <div 
