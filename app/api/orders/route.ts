@@ -318,6 +318,18 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Send WhatsApp order confirmation asynchronously if customer opted in and valid phone
+    if (finalPhone && finalPhone !== "0000000000" && finalWhatsappOptIn) {
+      try {
+        const { OrderNotificationService } = await import("@/lib/services/orderNotificationService");
+        OrderNotificationService.sendOrderConfirmation(order.id).catch(err => {
+          console.error("WhatsApp website order confirmation failed:", err);
+        });
+      } catch (waErr) {
+        console.error("Failed to load OrderNotificationService:", waErr);
+      }
+    }
+
     // Send admin notification email asynchronously
     const { sendAdminOrderNotification } = await import("@/lib/email");
     

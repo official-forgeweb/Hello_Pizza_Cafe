@@ -244,8 +244,10 @@ export async function POST(request: NextRequest) {
                 (b.record_id === orderId || b.record?.id === orderId)
               );
 
-              if (!waConfirmationSent && cleanPhone && cleanPhone !== "0000000000" && !hasCompletionUpdate && status === "DELIVERED") {
-                console.log(`[Sync Batch] Triggering WhatsApp for NEW completed order ${createdOrder.id}, phone: ${cleanPhone}`);
+              const isCompletedOrConfirmed = status === "DELIVERED" || status === "CONFIRMED" || status === "COMPLETED";
+
+              if (!waConfirmationSent && cleanPhone && cleanPhone !== "0000000000" && !hasCompletionUpdate && isCompletedOrConfirmed) {
+                console.log(`[Sync Batch] Triggering WhatsApp for NEW order ${createdOrder.id}, phone: ${cleanPhone}`);
                 try {
                   const { OrderNotificationService } = await import("@/lib/services/orderNotificationService");
                   const waResult = await OrderNotificationService.sendPOSReceipt(createdOrder.id);
@@ -294,14 +296,15 @@ export async function POST(request: NextRequest) {
 
               // Trigger WhatsApp updates for completed/delivered or cancelled orders synced from POS
               const { OrderNotificationService } = await import("@/lib/services/orderNotificationService");
-              if (status === "DELIVERED") {
+              const isCompletedOrConfirmed = status === "DELIVERED" || status === "CONFIRMED" || status === "COMPLETED";
+              if (isCompletedOrConfirmed) {
                 const cleanPhone = exists.customerPhone ? exists.customerPhone.trim() : "";
                 if (!updatedOrder.waConfirmationSent && cleanPhone && cleanPhone !== "0000000000") {
                   console.log(`[Sync Batch UPDATE] Triggering WhatsApp POS receipt for order ${updatedOrder.id}, phone: ${cleanPhone}`);
                   OrderNotificationService.sendPOSReceipt(updatedOrder.id).catch(err => {
                     console.error("[Sync Batch UPDATE] WhatsApp POS receipt failed:", err);
                   });
-                } else {
+                } else if (status === "DELIVERED") {
                   console.log(`[Sync Batch UPDATE] Triggering WhatsApp delivery notification for order ${updatedOrder.id}`);
                   OrderNotificationService.sendOrderDelivered(updatedOrder.id).catch(err => {
                     console.error("[Sync Batch UPDATE] WhatsApp delivery notification failed:", err);
