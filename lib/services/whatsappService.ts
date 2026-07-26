@@ -22,6 +22,21 @@ function sanitizePhone(phone: string): string {
   }
   return cleaned;
 }
+async function fetchWithTimeout(url: string, options: any = {}, timeoutMs = 10000) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    clearTimeout(id);
+    return response;
+  } catch (error) {
+    clearTimeout(id);
+    throw error;
+  }
+}
 
 export class WhatsAppService {
   /**
@@ -44,7 +59,7 @@ export class WhatsAppService {
     const baseUrl = `https://graph.facebook.com/${config.apiVersion}/${config.phoneNumberId}`;
 
     try {
-      const response = await fetch(`${baseUrl}/messages`, {
+      const response = await fetchWithTimeout(`${baseUrl}/messages`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${config.accessToken}`,
@@ -90,7 +105,7 @@ export class WhatsAppService {
     const cleanTo = sanitizePhone(to);
 
     try {
-      const response = await fetch(`${baseUrl}/messages`, {
+      const response = await fetchWithTimeout(`${baseUrl}/messages`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${config.accessToken}`,
@@ -170,7 +185,7 @@ export class WhatsAppService {
     }
 
     try {
-      const response = await fetch(`${baseUrl}/messages`, {
+      const response = await fetchWithTimeout(`${baseUrl}/messages`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${config.accessToken}`,
@@ -248,7 +263,7 @@ export class WhatsAppService {
     }
 
     try {
-      const response = await fetch(`${baseUrl}/messages`, {
+      const response = await fetchWithTimeout(`${baseUrl}/messages`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${config.accessToken}`,
@@ -285,7 +300,7 @@ export class WhatsAppService {
     }
 
     try {
-      const response = await fetch(
+      const response = await fetchWithTimeout(
         `https://graph.facebook.com/${config.apiVersion}/${config.wabaId}/message_templates`,
         {
           method: 'GET',
@@ -329,7 +344,7 @@ export class WhatsAppService {
           throw new Error('Local file not found: ' + publicPath);
         }
       } else {
-        const imgRes = await fetch(imageUrl);
+        const imgRes = await fetchWithTimeout(imageUrl);
         if (!imgRes.ok) throw new Error('Failed to fetch image from URL');
         const arrayBuf = await imgRes.arrayBuffer();
         imgBuffer = Buffer.from(arrayBuf);
@@ -338,7 +353,7 @@ export class WhatsAppService {
 
       // 1. Create upload session
       const url1 = `https://graph.facebook.com/${config.apiVersion}/${appId}/uploads?file_length=${fileLength}&file_type=image/jpeg`;
-      const res1 = await fetch(url1, {
+      const res1 = await fetchWithTimeout(url1, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${config.accessToken}` }
       });
@@ -351,7 +366,7 @@ export class WhatsAppService {
 
       // 2. Upload data
       const url2 = `https://graph.facebook.com/${config.apiVersion}/${sessionId}`;
-      const res2 = await fetch(url2, {
+      const res2 = await fetchWithTimeout(url2, {
         method: 'POST',
         headers: {
           'Authorization': `OAuth ${config.accessToken}`,
@@ -388,7 +403,7 @@ export class WhatsAppService {
 
     try {
       console.log('Sending createTemplate payload to Meta:', JSON.stringify(templateData, null, 2));
-      const response = await fetch(
+      const response = await fetchWithTimeout(
         `https://graph.facebook.com/${config.apiVersion}/${config.wabaId}/message_templates`,
         {
           method: 'POST',
@@ -428,7 +443,7 @@ export class WhatsAppService {
     }
 
     try {
-      const response = await fetch(
+      const response = await fetchWithTimeout(
         `https://graph.facebook.com/${config.apiVersion}/${config.wabaId}/message_templates?name=${encodeURIComponent(templateName)}`,
         {
           method: 'DELETE',

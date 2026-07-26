@@ -66,83 +66,111 @@ export class CustomerService {
       orderBy: { timestamp: "asc" }
     });
 
-    // --- 1. Calculate actual available points ---
-    const availableList: { points: number; expiryDate: Date | null }[] = [];
-    let redeemedTotal = 0;
+    interface Batch {
+      id: string;
+      type: string;
+      points: number;
+      timestamp: Date;
+      expiryDate: Date | null;
+    }
+
+    // --- 1. Calculate actual available points (Chronological FIFO ledger) ---
+    const activeBatches: Batch[] = [];
 
     txs.forEach(tx => {
       if (tx.points > 0) {
-        const isPending = tx.type === 'EARN' && tx.timestamp > oneDayAgo;
-        const isExpired = tx.expiryDate && tx.expiryDate <= now;
-        
-        if (!isPending && !isExpired) {
-          availableList.push({ points: tx.points, expiryDate: tx.expiryDate });
+        activeBatches.push({
+          id: tx.id,
+          type: tx.type,
+          points: tx.points,
+          timestamp: new Date(tx.timestamp),
+          expiryDate: tx.expiryDate ? new Date(tx.expiryDate) : null
+        });
+      } else if (tx.points < 0) {
+        let needed = Math.abs(tx.points);
+        const redeemTime = new Date(tx.timestamp);
+
+        for (const batch of activeBatches) {
+          if (needed <= 0) break;
+          if (batch.points <= 0) continue;
+
+          // A redemption cannot consume points from a batch if that batch had already expired at the time of redemption
+          if (batch.expiryDate && batch.expiryDate <= redeemTime) {
+            continue;
+          }
+
+          const deduct = Math.min(batch.points, needed);
+          batch.points -= deduct;
+          needed -= deduct;
         }
-      } else {
-        redeemedTotal += Math.abs(tx.points);
       }
     });
 
     let availPoints = 0;
-    availableList.forEach(item => {
-      if (redeemedTotal >= item.points) {
-        redeemedTotal -= item.points;
-        item.points = 0;
-      } else {
-        item.points -= redeemedTotal;
-        redeemedTotal = 0;
-        availPoints += item.points;
+    let pendingPoints = 0;
+    let earliestExpiry: Date | null = null;
+
+    activeBatches.forEach(batch => {
+      if (batch.points <= 0) return;
+
+      const isPending = batch.type === 'EARN' && batch.timestamp > oneDayAgo;
+      const isExpired = batch.expiryDate && batch.expiryDate <= now;
+
+      if (isPending) {
+        pendingPoints += batch.points;
+      } else if (!isExpired) {
+        availPoints += batch.points;
+        if (batch.expiryDate) {
+          if (!earliestExpiry || batch.expiryDate < earliestExpiry) {
+            earliestExpiry = batch.expiryDate;
+          }
+        }
       }
     });
 
     // --- 2. Calculate tier points (with 10-day relaxation grace period for redemptions and expirations) ---
-    const tierAvailableList: { points: number; expiryDate: Date | null }[] = [];
-    let tierRedeemedTotal = 0;
+    const tierBatches: Batch[] = [];
 
     txs.forEach(tx => {
       if (tx.points > 0) {
-        const isPending = tx.type === 'EARN' && tx.timestamp > oneDayAgo;
-        // Points that expired in the last 10 days are treated as not expired for tier calculation
-        const isExpiredForTier = tx.expiryDate && tx.expiryDate <= tenDaysAgo;
-        
-        if (!isPending && !isExpiredForTier) {
-          tierAvailableList.push({ points: tx.points, expiryDate: tx.expiryDate });
-        }
-      } else {
-        // Redemptions in the last 10 days are ignored (added back) for tier calculation
-        const isRedemptionInLast10Days = tx.timestamp > tenDaysAgo;
+        tierBatches.push({
+          id: tx.id,
+          type: tx.type,
+          points: tx.points,
+          timestamp: new Date(tx.timestamp),
+          expiryDate: tx.expiryDate ? new Date(tx.expiryDate) : null
+        });
+      } else if (tx.points < 0) {
+        const isRedemptionInLast10Days = new Date(tx.timestamp) > tenDaysAgo;
         if (!isRedemptionInLast10Days) {
-          tierRedeemedTotal += Math.abs(tx.points);
+          let needed = Math.abs(tx.points);
+          const redeemTime = new Date(tx.timestamp);
+
+          for (const batch of tierBatches) {
+            if (needed <= 0) break;
+            if (batch.points <= 0) continue;
+
+            if (batch.expiryDate && batch.expiryDate <= redeemTime) {
+              continue;
+            }
+
+            const deduct = Math.min(batch.points, needed);
+            batch.points -= deduct;
+            needed -= deduct;
+          }
         }
       }
     });
 
     let tierPoints = 0;
-    tierAvailableList.forEach(item => {
-      if (tierRedeemedTotal >= item.points) {
-        tierRedeemedTotal -= item.points;
-        item.points = 0;
-      } else {
-        item.points -= tierRedeemedTotal;
-        tierRedeemedTotal = 0;
-        tierPoints += item.points;
-      }
-    });
+    tierBatches.forEach(batch => {
+      if (batch.points <= 0) return;
 
-    // --- 3. Calculate pending points ---
-    let pendingPoints = 0;
-    txs.forEach(tx => {
-      if (tx.points > 0 && tx.type === 'EARN' && tx.timestamp > oneDayAgo && (!tx.expiryDate || tx.expiryDate > now)) {
-        pendingPoints += tx.points;
-      }
-    });
+      const isPending = batch.type === 'EARN' && batch.timestamp > oneDayAgo;
+      const isExpiredForTier = batch.expiryDate && batch.expiryDate <= tenDaysAgo;
 
-    let earliestExpiry: Date | null = null;
-    availableList.forEach(item => {
-      if (item.points > 0 && item.expiryDate) {
-        if (!earliestExpiry || item.expiryDate < earliestExpiry) {
-          earliestExpiry = item.expiryDate;
-        }
+      if (!isPending && !isExpiredForTier) {
+        tierPoints += batch.points;
       }
     });
 
@@ -163,33 +191,50 @@ export class CustomerService {
       orderBy: { timestamp: "asc" }
     });
 
-    const availableList: { points: number; expiryDate: Date }[] = [];
-    let redeemedTotal = 0;
+    interface Batch {
+      id: string;
+      type: string;
+      points: number;
+      timestamp: Date;
+      expiryDate: Date;
+    }
+
+    const activeBatches: Batch[] = [];
 
     txs.forEach(tx => {
-      if (tx.points > 0) {
-        const isPending = tx.type === 'EARN' && tx.timestamp > oneDayAgo;
-        const isExpired = tx.expiryDate && tx.expiryDate <= now;
-        
-        if (!isPending && !isExpired && tx.expiryDate) {
-          availableList.push({ points: tx.points, expiryDate: tx.expiryDate });
+      if (tx.points > 0 && tx.expiryDate) {
+        activeBatches.push({
+          id: tx.id,
+          type: tx.type,
+          points: tx.points,
+          timestamp: new Date(tx.timestamp),
+          expiryDate: new Date(tx.expiryDate)
+        });
+      } else if (tx.points < 0) {
+        let needed = Math.abs(tx.points);
+        const redeemTime = new Date(tx.timestamp);
+
+        for (const batch of activeBatches) {
+          if (needed <= 0) break;
+          if (batch.points <= 0) continue;
+
+          if (batch.expiryDate <= redeemTime) {
+            continue;
+          }
+
+          const deduct = Math.min(batch.points, needed);
+          batch.points -= deduct;
+          needed -= deduct;
         }
-      } else {
-        redeemedTotal += Math.abs(tx.points);
       }
     });
 
-    availableList.forEach(item => {
-      if (redeemedTotal >= item.points) {
-        redeemedTotal -= item.points;
-        item.points = 0;
-      } else {
-        item.points -= redeemedTotal;
-        redeemedTotal = 0;
-      }
+    return activeBatches.filter(batch => {
+      if (batch.points <= 0) return false;
+      const isPending = batch.type === 'EARN' && batch.timestamp > oneDayAgo;
+      const isExpired = batch.expiryDate <= now;
+      return !isPending && !isExpired;
     });
-
-    return availableList.filter(item => item.points > 0);
   }
 
   static async getPointsExpiringInDays(phone: string, days: number) {

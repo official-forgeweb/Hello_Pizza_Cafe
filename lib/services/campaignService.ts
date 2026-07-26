@@ -30,6 +30,23 @@ export class CampaignService {
    * Falls back to parsing the first body parameter if bonusPoints field is 0
    * (handles campaigns created before the frontend auto-sync fix).
    */
+  static getCampaignExpiryDate(campaign: any): Date {
+    if (Array.isArray(campaign.bodyParameters)) {
+      for (const param of campaign.bodyParameters) {
+        const cleanParam = String(param).replace(/[{}]/g, '').trim();
+        const ddmmyyyy = cleanParam.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+        if (ddmmyyyy) {
+          const day = parseInt(ddmmyyyy[1], 10);
+          const month = parseInt(ddmmyyyy[2], 10) - 1;
+          const year = parseInt(ddmmyyyy[3], 10);
+          const parsed = new Date(year, month, day, 23, 59, 59, 999);
+          if (!isNaN(parsed.getTime())) return parsed;
+        }
+      }
+    }
+    return new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+  }
+
   static getEffectiveBonusPoints(campaign: any): number {
     if (campaign.bonusPoints && campaign.bonusPoints > 0) {
       return campaign.bonusPoints;
@@ -364,7 +381,7 @@ export class CampaignService {
               }
             });
             if (!existingTx) {
-              const expiryDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+              const expiryDate = CampaignService.getCampaignExpiryDate(campaign);
               await prisma.loyaltyTransaction.create({
                 data: {
                   phoneNumber: customer.phone,

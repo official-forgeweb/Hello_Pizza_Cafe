@@ -207,6 +207,23 @@ export async function POST(request: NextRequest) {
                     }
                     return 0;
                   };
+                  const getCampaignExpiryDate = (c: any): Date => {
+                    if (Array.isArray(c.bodyParameters)) {
+                      for (const param of c.bodyParameters) {
+                        const cleanParam = String(param).replace(/[{}]/g, '').trim();
+                        const ddmmyyyy = cleanParam.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+                        if (ddmmyyyy) {
+                          const day = parseInt(ddmmyyyy[1], 10);
+                          const month = parseInt(ddmmyyyy[2], 10) - 1;
+                          const year = parseInt(ddmmyyyy[3], 10);
+                          const parsed = new Date(year, month, day, 23, 59, 59, 999);
+                          if (!isNaN(parsed.getTime())) return parsed;
+                        }
+                      }
+                    }
+                    return new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+                  };
+
                   const effectiveBonus = getEffectiveBonusPoints(campaign);
                   if (effectiveBonus > 0) {
                     const existingTx = await prisma.loyaltyTransaction.findFirst({
@@ -216,7 +233,7 @@ export async function POST(request: NextRequest) {
                       }
                     });
                     if (!existingTx) {
-                      const expiryDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+                      const expiryDate = getCampaignExpiryDate(campaign);
                       await prisma.loyaltyTransaction.create({
                         data: {
                           phoneNumber: messageLog.phone,

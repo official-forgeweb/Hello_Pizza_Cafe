@@ -293,39 +293,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Create loyalty transaction logs
-    if (finalPhone && finalPhone !== "0000000000") {
-      const timestamp = new Date();
-      
-      if (pointsToRedeem > 0) {
-        await prisma.loyaltyTransaction.create({
-          data: {
-            phoneNumber: finalPhone,
-            orderId: order.id,
-            type: "REDEEM",
-            points: -pointsToRedeem,
-            timestamp,
-            expiryDate: timestamp,
-            isPending: false
-          }
-        });
-      }
-
-      if (pointsEarned > 0) {
-        const expiryDate = new Date(timestamp.getTime() + expiryDays * 24 * 60 * 60 * 1000);
-        await prisma.loyaltyTransaction.create({
-          data: {
-            phoneNumber: finalPhone,
-            orderId: order.id,
-            type: "EARN",
-            points: pointsEarned,
-            timestamp,
-            expiryDate,
-            isPending: true
-          }
-        });
-      }
-    }
+    // Note: Loyalty transactions will be created and synced from POS when the order is completed/saved at POS counter.
 
     // Recalculate customer stats dynamically from order history
     await CustomerService.recalculateCustomerStats(customer.phone);
