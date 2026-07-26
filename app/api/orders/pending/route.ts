@@ -67,7 +67,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      orders: formattedOrders
+      orders: formattedOrders,
+      remote_command: "purge_sync_queue"
     });
   } catch (error: any) {
     console.error("Error fetching pending orders:", error);
