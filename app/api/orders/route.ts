@@ -318,17 +318,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Send WhatsApp order confirmation asynchronously if customer opted in and valid phone
-    if (finalPhone && finalPhone !== "0000000000" && finalWhatsappOptIn) {
-      try {
-        const { OrderNotificationService } = await import("@/lib/services/orderNotificationService");
-        OrderNotificationService.sendOrderConfirmation(order.id).catch(err => {
-          console.error("WhatsApp website order confirmation failed:", err);
-        });
-      } catch (waErr) {
-        console.error("Failed to load OrderNotificationService:", waErr);
-      }
-    }
+    // WhatsApp receipt is NOT sent here at order creation time.
+    // It will be sent later when the POS cashier accepts and saves the order
+    // (via /api/sync/batch or /api/orders/[id]/accept endpoints).
+    // This prevents customers from receiving receipts with loyalty points
+    // before the cashier has reviewed and confirmed the order.
 
     // Send admin notification email asynchronously
     const { sendAdminOrderNotification } = await import("@/lib/email");
