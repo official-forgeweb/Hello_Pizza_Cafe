@@ -1,0 +1,33 @@
+{
+  "files.watcherExclude": {
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true,
+    "**/node_modules/**": true,
+    "**/.venv/**": true,
+    "**/venv/**": true,
+    "**/dist/**": true,
+    "**/build/**": true,
+    "**/.next/**": true,
+    "**/coverage/**": true,
+    "**/.cache/**": true,
+    "**/.system_generated/**": true,
+    "**/.gemini/**": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/bower_components": true,
+    "**/.venv": true,
+    "**/venv": true,
+    "**/dist": true,
+    "**/build": true,
+    "**/.next": true
+  },
+  "search.followSymlinks": false,
+  "python.analysis.diagnosticMode": "openFilesOnly",
+  "python.analysis.packageIndexDepth": 2,
+  "typescript.tsserver.maxTsServerMemory": 1024,
+  "typescript.disableAutomaticTypeAcquisition": true,
+  "git.autofetch": false,
+  "editor.minimap.enabled": false,
+  "workbench.reduceMotion": "on"
+}

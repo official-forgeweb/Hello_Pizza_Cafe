@@ -84,7 +84,7 @@ export class CustomerService {
           type: tx.type,
           points: tx.points,
           timestamp: new Date(tx.timestamp),
-          expiryDate: tx.expiryDate ? new Date(tx.expiryDate) : null
+          expiryDate: tx.expiryDate ? new Date(tx.expiryDate) : new Date(new Date(tx.timestamp).getTime() + 30 * 24 * 60 * 60 * 1000)
         });
       } else if (tx.points < 0) {
         let needed = Math.abs(tx.points);
@@ -114,7 +114,9 @@ export class CustomerService {
       if (batch.points <= 0) return;
 
       const isPending = batch.type === 'EARN' && batch.timestamp > oneDayAgo;
-      const isExpired = batch.expiryDate && batch.expiryDate <= now;
+      const isExpired = batch.expiryDate 
+        ? (batch.expiryDate <= now) 
+        : (batch.timestamp.getTime() <= (now.getTime() - 30 * 24 * 60 * 60 * 1000));
 
       if (isPending) {
         pendingPoints += batch.points;
@@ -138,7 +140,7 @@ export class CustomerService {
           type: tx.type,
           points: tx.points,
           timestamp: new Date(tx.timestamp),
-          expiryDate: tx.expiryDate ? new Date(tx.expiryDate) : null
+          expiryDate: tx.expiryDate ? new Date(tx.expiryDate) : new Date(new Date(tx.timestamp).getTime() + 30 * 24 * 60 * 60 * 1000)
         });
       } else if (tx.points < 0) {
         const isRedemptionInLast10Days = new Date(tx.timestamp) > tenDaysAgo;
@@ -167,7 +169,9 @@ export class CustomerService {
       if (batch.points <= 0) return;
 
       const isPending = batch.type === 'EARN' && batch.timestamp > oneDayAgo;
-      const isExpiredForTier = batch.expiryDate && batch.expiryDate <= tenDaysAgo;
+      const isExpiredForTier = batch.expiryDate 
+        ? (batch.expiryDate <= tenDaysAgo) 
+        : (batch.timestamp.getTime() <= (tenDaysAgo.getTime() - 30 * 24 * 60 * 60 * 1000));
 
       if (!isPending && !isExpiredForTier) {
         tierPoints += batch.points;
@@ -202,13 +206,13 @@ export class CustomerService {
     const activeBatches: Batch[] = [];
 
     txs.forEach(tx => {
-      if (tx.points > 0 && tx.expiryDate) {
+      if (tx.points > 0) {
         activeBatches.push({
           id: tx.id,
           type: tx.type,
           points: tx.points,
           timestamp: new Date(tx.timestamp),
-          expiryDate: new Date(tx.expiryDate)
+          expiryDate: tx.expiryDate ? new Date(tx.expiryDate) : new Date(new Date(tx.timestamp).getTime() + 30 * 24 * 60 * 60 * 1000)
         });
       } else if (tx.points < 0) {
         let needed = Math.abs(tx.points);

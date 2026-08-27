@@ -191,7 +191,7 @@ export async function POST(request: NextRequest) {
       pointsToRedeem = 0;
     }
 
-    const finalTotalAmount = Math.max(0, totalAmount - pointsToRedeem);
+    const finalTotalAmount = Math.max(0, Math.round(totalAmount - pointsToRedeem));
 
     // Calculate loyalty points earned on final amount (excluding redeemed points) on a percentage basis, rounded
     const globalSettings = await prisma.globalSetting.findUnique({

@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
         item_name: item.itemName,
         quantity: item.quantity,
         line_total: Number(item.itemTotal) || (Number(item.basePrice) * item.quantity),
-        price: Number(item.basePrice),
+        price: Number(item.variantPrice && Number(item.variantPrice) > 0 ? item.variantPrice : item.basePrice),
         variant: item.variantName ? {
           name: item.variantName,
           price: Number(item.variantPrice || 0)
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
         packaging_charge: 0,
         cgst: Number(order.taxAmount) / 2, // Split tax evenly if needed
         sgst: Number(order.taxAmount) / 2,
-        grand_total: Number(order.totalAmount)
+        grand_total: Math.round(Number(order.totalAmount))
       },
       payment: {
         mode: "cod", // Future: dynamically fetch payment method

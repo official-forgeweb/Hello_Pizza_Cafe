@@ -146,11 +146,12 @@ export async function GET(request: NextRequest) {
 
       txs.forEach(tx => {
         if (tx.points > 0) {
-          const isPending = tx.type === 'EARN' && tx.timestamp > oneDayAgo;
-          const isExpired = tx.expiryDate && tx.expiryDate <= now;
+          const finalExpiry = tx.expiryDate ? new Date(tx.expiryDate) : new Date(new Date(tx.timestamp).getTime() + 30 * 24 * 60 * 60 * 1000);
+          const isPending = tx.type === 'EARN' && new Date(tx.timestamp) > oneDayAgo;
+          const isExpired = finalExpiry <= now;
           
           if (!isPending && !isExpired) {
-            availableList.push({ points: tx.points, expiryDate: tx.expiryDate });
+            availableList.push({ points: tx.points, expiryDate: finalExpiry });
           }
         } else {
           redeemedTotal += Math.abs(tx.points);
