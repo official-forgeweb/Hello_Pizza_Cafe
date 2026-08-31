@@ -8,6 +8,7 @@ import Image from "next/image";
 import { useCartStore, type CartItem } from "@/store/cart";
 import { MenuItemData } from "./MenuItemCard";
 import { getFallbackImage, isValidImageUrl } from "@/lib/utils/menuHelper";
+import { getISTDateTime } from "@/lib/utils/timeHelper";
 
 // Client-side cache for fetched customizable menu item details
 const itemCache: Record<string, MenuItemData> = {};
@@ -125,28 +126,25 @@ function getActiveDiscountRule(item: MenuItemData | null, activeDiscounts: any[]
                          d.applicableItems.includes(item.id);
     if (!isApplicable) return false;
 
-    let now = new Date();
-    try {
-      now = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
-    } catch (e) {}
+    const { timeStr, day, hour, minute, dateStr } = getISTDateTime();
+
     if (d.validFrom) {
-      const fromDate = new Date(d.validFrom);
-      if (now < fromDate) return false;
+      const fromDate = d.validFrom.split('T')[0];
+      if (dateStr < fromDate) return false;
     }
     if (d.validUntil) {
-      const untilDate = new Date(d.validUntil);
-      if (now > untilDate) return false;
+      const untilDate = d.validUntil.split('T')[0];
+      if (dateStr > untilDate) return false;
     }
 
     if (d.applicableDays && d.applicableDays.length > 0) {
-      const currentDay = now.getDay();
-      if (!d.applicableDays.includes(currentDay)) {
+      if (!d.applicableDays.includes(day)) {
         return false;
       }
     }
 
     if (d.startTime || d.endTime) {
-      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      const currentMinutes = hour * 60 + minute;
       const [startHour, startMin] = (d.startTime || "00:00").split(":").map(Number);
       const [endHour, endMin] = (d.endTime || "23:59").split(":").map(Number);
       const startMinutes = startHour * 60 + startMin;

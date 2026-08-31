@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import MenuItemCard, { type MenuItemData } from "@/components/menu/MenuItemCard";
 import { getFallbackImage, isValidImageUrl } from "@/lib/utils/menuHelper";
+import { isScheduleActive } from "@/lib/utils/timeHelper";
 
 // ─── Mock Data ────────────────────────────────────────────────
 const HERO_ITEM = {
@@ -180,56 +181,7 @@ export default function HomeClient({ initialCategories, initialAds, initialBestS
 
   const isCategoryVisible = (c: any): boolean => {
     if (!c || c.id === "all") return true;
-    let now = new Date();
-    try {
-      now = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
-    } catch (e) {}
-    const day = now.getDay();
-
-    if (c.applicableDays) {
-      try {
-        const days = typeof c.applicableDays === "string"
-          ? JSON.parse(c.applicableDays)
-          : c.applicableDays;
-        if (Array.isArray(days) && days.length > 0) {
-          if (!days.includes(day)) return false;
-        }
-      } catch (e) {}
-    }
-
-    const hours = String(now.getHours()).padStart(2, "0");
-    const minutes = String(now.getMinutes()).padStart(2, "0");
-    const timeStr = `${hours}:${minutes}`;
-
-    if (c.timeSlots) {
-      try {
-        const slots = typeof c.timeSlots === "string"
-          ? JSON.parse(c.timeSlots)
-          : c.timeSlots;
-        if (Array.isArray(slots) && slots.length > 0) {
-          const isAnySlotActive = slots.some((slot: any) => {
-            const start = slot.start || "00:00";
-            const end = slot.end || "23:59";
-            if (start <= end) {
-              return timeStr >= start && timeStr <= end;
-            } else {
-              return timeStr >= start || timeStr <= end;
-            }
-          });
-          if (!isAnySlotActive) return false;
-        }
-      } catch (e) {}
-    } else if (c.startTime || c.endTime) {
-      const start = c.startTime || "00:00";
-      const end = c.endTime || "23:59";
-      if (start <= end) {
-        if (timeStr < start || timeStr > end) return false;
-      } else {
-        if (timeStr < start && timeStr > end) return false;
-      }
-    }
-
-    return true;
+    return isScheduleActive(c.applicableDays, c.timeSlots, c.startTime, c.endTime);
   };
 
   useEffect(() => {
