@@ -125,7 +125,10 @@ function getActiveDiscountRule(item: MenuItemData | null, activeDiscounts: any[]
                          d.applicableItems.includes(item.id);
     if (!isApplicable) return false;
 
-    const now = new Date();
+    let now = new Date();
+    try {
+      now = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+    } catch (e) {}
     if (d.validFrom) {
       const fromDate = new Date(d.validFrom);
       if (now < fromDate) return false;
@@ -144,17 +147,16 @@ function getActiveDiscountRule(item: MenuItemData | null, activeDiscounts: any[]
 
     if (d.startTime || d.endTime) {
       const currentMinutes = now.getHours() * 60 + now.getMinutes();
-      
-      if (d.startTime) {
-        const [startHour, startMin] = d.startTime.split(":").map(Number);
-        const startMinutes = startHour * 60 + startMin;
-        if (currentMinutes < startMinutes) return false;
-      }
-      
-      if (d.endTime) {
-        const [endHour, endMin] = d.endTime.split(":").map(Number);
-        const endMinutes = endHour * 60 + endMin;
-        if (currentMinutes > endMinutes) return false;
+      const [startHour, startMin] = (d.startTime || "00:00").split(":").map(Number);
+      const [endHour, endMin] = (d.endTime || "23:59").split(":").map(Number);
+      const startMinutes = startHour * 60 + startMin;
+      const endMinutes = endHour * 60 + endMin;
+
+      if (startMinutes <= endMinutes) {
+        if (currentMinutes < startMinutes || currentMinutes > endMinutes) return false;
+      } else {
+        // Overnight slot (e.g. 22:00 - 02:00)
+        if (currentMinutes < startMinutes && currentMinutes > endMinutes) return false;
       }
     }
 

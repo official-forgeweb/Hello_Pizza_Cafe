@@ -165,7 +165,10 @@ export default function MenuContentClient({ initialCategories, initialMenuItems,
   // ─── Category schedule visibility (same logic as POS) ───
   const isCategoryVisible = useCallback((c: any): boolean => {
     if (!c || c.id === "all") return true;
-    const now = new Date();
+    let now = new Date();
+    try {
+      now = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+    } catch (e) {}
     const day = now.getDay(); // 0=Sunday ... 6=Saturday
 
     // Check applicable days
