@@ -2,7 +2,8 @@
 import prisma from "@/lib/prisma";
 import OffersList from "./OffersList";
 
-export const revalidate = 3600; // Revalidate cache every hour
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export const metadata = {
   title: "Offers & Deals | Hello Pizza",

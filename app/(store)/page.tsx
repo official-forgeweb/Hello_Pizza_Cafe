@@ -2,7 +2,8 @@
 import prisma from "@/lib/prisma";
 import HomeClient from "./HomeClient";
 
-export const revalidate = 3600; // Cache page and revalidate in background every hour (ISR)
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function HomePage() {
   // Query DB directly in parallel on the server

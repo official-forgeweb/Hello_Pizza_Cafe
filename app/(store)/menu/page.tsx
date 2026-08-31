@@ -4,7 +4,8 @@ import prisma from "@/lib/prisma";
 import MenuContentClient from "@/components/menu/MenuContentClient";
 import MenuLoading from "./loading";
 
-export const revalidate = 3600; // Enable ISR: cache page and revalidate every hour in background
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 // Child server component that handles asynchronous data loading
 async function MenuPageContent() {
