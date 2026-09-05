@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
         isSynced: false,
         status: "PENDING"
       },
-      orderBy: { placedAt: "asc" },
+      orderBy: { placedAt: "desc" },
       include: {
         items: {
           include: { addOns: true },
