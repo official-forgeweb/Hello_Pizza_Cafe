@@ -174,6 +174,22 @@ export async function POST(request: NextRequest) {
     await processInChunks(itemsToSync, 20, async (chunk) => {
       // Small chunk size of 20 for menu items because each item performs multiple queries (variants, addons)
       await Promise.all(chunk.map(async (item) => {
+        // Exclude internal / test items (e.g. pickup test item) from the website database completely
+        const normalizedName = (item.name || '').toLowerCase().replace(/[\s_-]+/g, '');
+        if (normalizedName === 'pickup' || (normalizedName.includes('pickup') && Number(item.price) <= 5)) {
+          console.warn(`[MenuSync] Ignoring excluded website item: "${item.name}" (${item.id})`);
+          try {
+            await prisma.menuItemAddOn.deleteMany({ where: { menuItemId: item.id } });
+            await prisma.itemVariant.deleteMany({ where: { menuItemId: item.id } });
+            await prisma.featuredItem.deleteMany({ where: { menuItemId: item.id } });
+            await prisma.orderItem.updateMany({ where: { menuItemId: item.id }, data: { menuItemId: null } });
+            await prisma.menuItem.deleteMany({ where: { id: item.id } });
+          } catch (err) {
+            // Ignore if already deleted
+          }
+          return;
+        }
+
         if (addonsOnly) {
           // Find existing item by ID
           const existingById = await prisma.menuItem.findUnique({

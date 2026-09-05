@@ -17,7 +17,14 @@ export default async function HomePage() {
       orderBy: { displayOrder: "asc" },
     }),
     prisma.menuItem.findMany({
-      where: { isAvailable: true, isBestSeller: true },
+      where: {
+        isAvailable: true,
+        isBestSeller: true,
+        NOT: [
+          { name: { equals: "pickup", mode: "insensitive" } },
+          { name: { equals: "pick up", mode: "insensitive" } }
+        ]
+      },
       include: {
         category: { select: { id: true, name: true, slug: true } },
         variants: { orderBy: { displayOrder: "asc" } },
@@ -37,7 +44,13 @@ export default async function HomePage() {
   // If no items have the isBestSeller flag set, fetch popular categories as fallback
   if (items.length < 4) {
     const fallbackItems = await prisma.menuItem.findMany({
-      where: { isAvailable: true },
+      where: {
+        isAvailable: true,
+        NOT: [
+          { name: { equals: "pickup", mode: "insensitive" } },
+          { name: { equals: "pick up", mode: "insensitive" } }
+        ]
+      },
       include: {
         category: { select: { id: true, name: true, slug: true } },
         variants: { orderBy: { displayOrder: "asc" } },
@@ -67,6 +80,10 @@ export default async function HomePage() {
   const finalBestSellers = items
     .filter((i: any) => {
       const normalizedName = i.name?.toLowerCase()?.trim() || "";
+      const stripped = normalizedName.replace(/[\s_-]+/g, "");
+      if (stripped === "pickup" || (stripped.includes("pickup") && Number(i.basePrice || i.price) <= 5)) {
+        return false;
+      }
       if (!i.imageUrl || i.imageUrl === "null" || !normalizedName || seen.has(normalizedName))
         return false;
       seen.add(normalizedName);

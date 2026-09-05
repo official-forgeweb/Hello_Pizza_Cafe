@@ -15,7 +15,13 @@ async function MenuPageContent() {
         orderBy: { displayOrder: "asc" },
       }),
       prisma.menuItem.findMany({
-        where: { isAvailable: true },
+        where: {
+          isAvailable: true,
+          NOT: [
+            { name: { equals: "pickup", mode: "insensitive" } },
+            { name: { equals: "pick up", mode: "insensitive" } }
+          ]
+        },
         include: {
           category: { select: { id: true, name: true, slug: true } },
           variants: {
@@ -39,7 +45,12 @@ async function MenuPageContent() {
     ]);
 
     // Transform items to resolve decimal serialization issue and guarantee correct numeric calculations
-    const transformedItems = items.map((i: any) => {
+    const transformedItems = items
+      .filter((i: any) => {
+        const norm = (i.name || "").toLowerCase().replace(/[\s_-]+/g, "");
+        return norm !== "pickup" && !(norm.includes("pickup") && Number(i.basePrice || i.price) <= 5);
+      })
+      .map((i: any) => {
       const basePriceNum = Number(i.basePrice || i.price || 0);
 
       const variantsMapped = i.variants?.map((v: any) => ({
