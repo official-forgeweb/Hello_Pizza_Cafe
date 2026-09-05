@@ -17,7 +17,22 @@ export class OrderNotificationService {
       if (order.waConfirmationSent) return { success: true, note: 'Already sent' };
 
       const billAmount = Number(order.totalAmount).toFixed(2);
-      const pointsEarned = order.loyaltyPointsEarned ? String(order.loyaltyPointsEarned) : "0";
+      let pointsEarnedNum = order.loyaltyPointsEarned || 0;
+      if (pointsEarnedNum === 0 && Number(order.totalAmount) > 0) {
+        try {
+          const setting = await prisma.loyaltySetting.findFirst();
+          const ptsPerAmt = setting?.pointsPerAmount || 5;
+          const amtThresh = Number(setting?.amountThreshold) || 100;
+          pointsEarnedNum = Math.round(Number(order.totalAmount) * (ptsPerAmt / amtThresh));
+          await prisma.order.update({
+            where: { id: order.id },
+            data: { loyaltyPointsEarned: pointsEarnedNum }
+          });
+        } catch (calcErr) {
+          console.error('[OrderNotificationService] Error calculating fallback loyalty points:', calcErr);
+        }
+      }
+      const pointsEarned = String(pointsEarnedNum);
 
       // Try to use pos_order_receipt_v2 if it exists, otherwise fallback to pos_order_receipt
       const v2Template = await prisma.whatsAppTemplate.findFirst({
@@ -98,8 +113,23 @@ export class OrderNotificationService {
 
       // Total amount formatted to two decimal places
       const billAmount = Number(order.totalAmount).toFixed(2);
-      const pointsEarned = order.loyaltyPointsEarned ? String(order.loyaltyPointsEarned) : "0";
-      console.log(`[POS Receipt] Sending to ${order.customerPhone}, amount: ${billAmount}, order: ${order.orderNumber}`);
+      let pointsEarnedNum = order.loyaltyPointsEarned || 0;
+      if (pointsEarnedNum === 0 && Number(order.totalAmount) > 0) {
+        try {
+          const setting = await prisma.loyaltySetting.findFirst();
+          const ptsPerAmt = setting?.pointsPerAmount || 5;
+          const amtThresh = Number(setting?.amountThreshold) || 100;
+          pointsEarnedNum = Math.round(Number(order.totalAmount) * (ptsPerAmt / amtThresh));
+          await prisma.order.update({
+            where: { id: order.id },
+            data: { loyaltyPointsEarned: pointsEarnedNum }
+          });
+        } catch (calcErr) {
+          console.error('[POS Receipt] Error calculating fallback loyalty points:', calcErr);
+        }
+      }
+      const pointsEarned = String(pointsEarnedNum);
+      console.log(`[POS Receipt] Sending to ${order.customerPhone}, amount: ${billAmount}, points: ${pointsEarned}, order: ${order.orderNumber}`);
 
       // Try to use pos_order_receipt_v2 if it exists, otherwise fallback to pos_order_receipt
       const v2Template = await prisma.whatsAppTemplate.findFirst({

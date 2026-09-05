@@ -31,6 +31,7 @@ export async function POST(request: NextRequest) {
 
             // Handle linking and merging of website orders to avoid duplicates
             let waConfirmationSent = false;
+            let preservedLoyaltyPoints = 0;
             if (record.website_order_id) {
               let websiteOrderIdToUse = record.website_order_id;
               let existingWebOrder = await prisma.order.findUnique({
@@ -50,7 +51,8 @@ export async function POST(request: NextRequest) {
 
               if (existingWebOrder) {
                 waConfirmationSent = existingWebOrder.waConfirmationSent;
-                console.log(`[Sync Batch] Found website order ${websiteOrderIdToUse}, waConfirmationSent=${waConfirmationSent}. Disconnecting message logs and deleting to replace with POS order.`);
+                preservedLoyaltyPoints = existingWebOrder.loyaltyPointsEarned || 0;
+                console.log(`[Sync Batch] Found website order ${websiteOrderIdToUse}, waConfirmationSent=${waConfirmationSent}, preservedLoyaltyPoints=${preservedLoyaltyPoints}. Disconnecting message logs and deleting to replace with POS order.`);
                 
                 // Disconnect message logs to avoid foreign key violations on deletion
                 await prisma.messageLog.updateMany({
@@ -160,6 +162,16 @@ export async function POST(request: NextRequest) {
 
             const targetOrderId = exists ? exists.id : orderId;
 
+            let initialLoyaltyEarned = Number(record.loyalty_points_earned || 0) || preservedLoyaltyPoints;
+            if (initialLoyaltyEarned === 0 && Number(record.total_amount || 0) > 0) {
+              try {
+                const setting = await prisma.loyaltySetting.findFirst();
+                const ptsPerAmt = setting?.pointsPerAmount || 5;
+                const amtThresh = Number(setting?.amountThreshold) || 100;
+                initialLoyaltyEarned = Math.round(Number(record.total_amount || 0) * (ptsPerAmt / amtThresh));
+              } catch (e) {}
+            }
+
             if (!exists) {
               // Create new synced order
               const createdOrder = await prisma.order.create({
@@ -184,7 +196,7 @@ export async function POST(request: NextRequest) {
                   isSynced: true,
                   syncedAt: new Date(),
                   waConfirmationSent,
-                  loyaltyPointsEarned: Number(record.loyalty_points_earned || 0),
+                  loyaltyPointsEarned: initialLoyaltyEarned,
                   loyaltyPointsRedeemed: Number(record.loyalty_points_redeemed || 0),
                   items: {
                     create: (record.items || []).map((item: any) => {
@@ -264,7 +276,7 @@ export async function POST(request: NextRequest) {
                 where: { id: targetOrderId },
                 data: {
                   status: status as any,
-                  loyaltyPointsEarned: Number(record.loyalty_points_earned || 0),
+                  loyaltyPointsEarned: Number(record.loyalty_points_earned || 0) || (initialLoyaltyEarned > 0 ? initialLoyaltyEarned : undefined),
                   loyaltyPointsRedeemed: Number(record.loyalty_points_redeemed || 0),
                   updatedAt: new Date(),
                 }
@@ -284,11 +296,21 @@ export async function POST(request: NextRequest) {
 
             if (exists) {
               customerId = exists.customerId;
+              let updateLoyaltyPoints = Number(record.loyalty_points_earned || 0);
+              if (updateLoyaltyPoints === 0 && Number(exists.totalAmount || 0) > 0) {
+                try {
+                  const setting = await prisma.loyaltySetting.findFirst();
+                  const ptsPerAmt = setting?.pointsPerAmount || 5;
+                  const amtThresh = Number(setting?.amountThreshold) || 100;
+                  updateLoyaltyPoints = Math.round(Number(exists.totalAmount || 0) * (ptsPerAmt / amtThresh));
+                } catch (e) {}
+              }
+
               const updatedOrder = await prisma.order.update({
                 where: { id: orderId },
                 data: {
                   status: status as any,
-                  loyaltyPointsEarned: Number(record.loyalty_points_earned || 0),
+                  loyaltyPointsEarned: updateLoyaltyPoints > 0 ? updateLoyaltyPoints : (exists.loyaltyPointsEarned || 0),
                   loyaltyPointsRedeemed: Number(record.loyalty_points_redeemed || 0),
                   updatedAt: new Date(),
                 }

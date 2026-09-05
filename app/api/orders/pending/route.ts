@@ -62,7 +62,9 @@ export async function GET(request: NextRequest) {
         transaction_id: ""
       },
       customer_note: order.orderNotes || "",
-      order_time: order.placedAt.toISOString()
+      order_time: order.placedAt.toISOString(),
+      loyalty_points_earned: order.loyaltyPointsEarned || 0,
+      loyalty_points_redeemed: order.loyaltyPointsRedeemed || 0
     }));
 
     return NextResponse.json({
