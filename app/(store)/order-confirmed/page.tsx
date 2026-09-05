@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo, memo, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -11,6 +11,12 @@ import {
   Sparkles, RefreshCcw, Home
 } from "lucide-react";
 import { useLocationStore } from "@/store/location";
+
+// Default mock items for safe visual fallback
+const DEFAULT_MOCK_ITEMS = [
+  { id: "1", itemName: "Super Cheesy Pizza", quantity: 1, variantName: "Medium", itemTotal: "499.00" },
+  { id: "2", itemName: "Stuffed Garlic Bread", quantity: 1, variantName: null, itemTotal: "149.00" }
+];
 
 function OrderConfirmedContent() {
   const searchParams = useSearchParams();
@@ -25,105 +31,198 @@ function OrderConfirmedContent() {
   // Dev switcher to inspect layouts side-by-side / sequentially in dev environment
   const [devModeStatus, setDevModeStatus] = useState<"LOADING" | "PENDING" | "CONFIRMED" | "CANCELLED" | "ERROR" | null>(null);
 
+  // Refs to prevent duplicate in-flight requests and handle clean unmounting
+  const isPollingRef = useRef(false);
+  const intervalIdRef = useRef<NodeJS.Timeout | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const consecutiveFailuresRef = useRef(0);
+
   useEffect(() => {
     if (!orderNumber || orderNumber === "ORD-00000000") {
       setStatus("ERROR");
       return;
     }
 
-    let intervalId: NodeJS.Timeout | null = null;
-    let consecutiveFailures = 0;
-
     const fetchStatus = async () => {
+      // Prevent overlapping concurrent polling fetches
+      if (isPollingRef.current) return;
+      isPollingRef.current = true;
+
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      abortControllerRef.current = new AbortController();
+
       try {
         const res = await fetch(`/api/orders/status?orderNumber=${orderNumber}`, {
-          cache: "no-store"
+          cache: "no-store",
+          signal: abortControllerRef.current.signal
         });
+
+        if (!res.ok) {
+          consecutiveFailuresRef.current++;
+          if (consecutiveFailuresRef.current >= 4) {
+            setStatus("ERROR");
+            if (intervalIdRef.current) clearInterval(intervalIdRef.current);
+          }
+          return;
+        }
+
         const data = await res.json();
         
         if (data.success && data.order) {
-          consecutiveFailures = 0; // Reset consecutive failures on successful retrieval
-          setOrderData(data.order);
+          consecutiveFailuresRef.current = 0;
           const currentStatus = data.order.status;
-          
-          if (currentStatus === "PENDING") {
-            setStatus("PENDING");
-          } else if (currentStatus === "CANCELLED") {
-            setStatus("CANCELLED");
-            setCancellationReason(data.order.cancellationReason);
-            if (intervalId) clearInterval(intervalId);
-          } else {
-            // CONFIRMED, PREPARING, READY, OUT_FOR_DELIVERY, DELIVERED
-            setStatus("CONFIRMED");
-            if (currentStatus === "DELIVERED" && intervalId) {
-              clearInterval(intervalId);
+
+          // Compute target high-level status
+          const nextStatus: "PENDING" | "CONFIRMED" | "CANCELLED" = 
+            currentStatus === "PENDING"
+              ? "PENDING"
+              : currentStatus === "CANCELLED"
+                ? "CANCELLED"
+                : "CONFIRMED";
+
+          // Only trigger state update if status actually changed
+          setStatus((prev) => (prev === nextStatus ? prev : nextStatus));
+
+          if (data.order.cancellationReason) {
+            setCancellationReason((prev) => 
+              prev === data.order.cancellationReason ? prev : data.order.cancellationReason
+            );
+          }
+
+          // Structural equality check: if order fields haven't changed, retain previous object reference
+          // This prevents triggering unnecessary full-page React re-renders on every 4-second poll!
+          setOrderData((prev: any) => {
+            if (!prev) return data.order;
+            if (
+              prev.id === data.order.id &&
+              prev.status === data.order.status &&
+              prev.cancellationReason === data.order.cancellationReason &&
+              prev.subtotal === data.order.subtotal &&
+              prev.deliveryFee === data.order.deliveryFee &&
+              prev.taxAmount === data.order.taxAmount &&
+              prev.totalAmount === data.order.totalAmount &&
+              prev.items?.length === data.order.items?.length
+            ) {
+              return prev; // Same reference -> React bails out of re-rendering!
             }
+            return data.order;
+          });
+
+          // Stop polling if finalized
+          if (currentStatus === "CANCELLED" || currentStatus === "DELIVERED") {
+            if (intervalIdRef.current) clearInterval(intervalIdRef.current);
           }
         } else {
-          consecutiveFailures++;
-          // Only show ERROR if we get 4 consecutive failed attempts (approx 16 seconds of retries)
-          if (consecutiveFailures >= 4) {
+          consecutiveFailuresRef.current++;
+          if (consecutiveFailuresRef.current >= 4) {
             setStatus("ERROR");
-            if (intervalId) clearInterval(intervalId);
+            if (intervalIdRef.current) clearInterval(intervalIdRef.current);
           }
         }
-      } catch (err) {
-        console.error("Error polling order status:", err);
+      } catch (err: any) {
+        if (err.name !== "AbortError") {
+          console.error("Error polling order status:", err);
+        }
+      } finally {
+        isPollingRef.current = false;
       }
     };
 
     fetchStatus();
-    intervalId = setInterval(fetchStatus, 4000);
+    intervalIdRef.current = setInterval(fetchStatus, 4000);
 
     return () => {
-      if (intervalId) clearInterval(intervalId);
+      if (intervalIdRef.current) clearInterval(intervalIdRef.current);
+      if (abortControllerRef.current) abortControllerRef.current.abort();
     };
   }, [orderNumber]);
 
-  // Mock items in case API is loading or database order is blank (fallback visual safety)
-  const defaultMockItems = [
-    { id: "1", itemName: "Super Cheesy Pizza", quantity: 1, variantName: "Medium", itemTotal: "499.00" },
-    { id: "2", itemName: "Stuffed Garlic Bread", quantity: 1, variantName: null, itemTotal: "149.00" }
-  ];
+  // Memoized values for order summary to eliminate recalculation churn
+  const orderItems = useMemo(() => orderData?.items || DEFAULT_MOCK_ITEMS, [orderData?.items]);
+  const subtotal = useMemo(() => (orderData ? Number(orderData.subtotal) : 648.00), [orderData]);
+  const isDelivery = useMemo(() => (orderData ? orderData.orderType === "DELIVERY" : true), [orderData]);
+  const deliveryFee = useMemo(() => (orderData ? Number(orderData.deliveryFee) : (isDelivery ? 40.00 : 0)), [orderData, isDelivery]);
+  const taxAmount = useMemo(() => (orderData ? Number(orderData.taxAmount) : 32.40), [orderData]);
+  const totalAmount = useMemo(() => (orderData ? Number(orderData.totalAmount) : (subtotal + deliveryFee + taxAmount)), [orderData, subtotal, deliveryFee, taxAmount]);
 
-  const orderItems = orderData?.items || defaultMockItems;
-  const subtotal = orderData ? Number(orderData.subtotal) : 648.00;
-  const isDelivery = orderData ? orderData.orderType === "DELIVERY" : true;
-  const deliveryFee = orderData ? Number(orderData.deliveryFee) : (isDelivery ? 40.00 : 0);
-  const taxAmount = orderData ? Number(orderData.taxAmount) : 32.40;
-  const totalAmount = orderData ? Number(orderData.totalAmount) : (subtotal + deliveryFee + taxAmount);
-
-  const handleCopy = () => {
+  const handleCopy = useCallback(() => {
     navigator.clipboard.writeText(orderNumber);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  };
+  }, [orderNumber]);
 
   const displayStatus = devModeStatus || status;
 
   return (
-    <div className="min-h-[92vh] flex flex-col items-center justify-center px-4 py-8 md:py-12 relative overflow-hidden bg-warm-50/30">
-      {/* Background Decorative Blobs */}
-      <motion.div 
-        animate={{ 
-          scale: [1, 1.25, 1],
-          opacity: [0.08, 0.14, 0.08],
-        }}
-        transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] bg-primary/20 rounded-full blur-[140px] pointer-events-none" 
-      />
-      <motion.div 
-        animate={{ 
-          scale: [1, 1.15, 1],
-          opacity: [0.06, 0.12, 0.06],
-        }}
-        transition={{ duration: 8, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-        className="absolute top-1/4 right-1/4 w-[400px] h-[400px] bg-amber-500/10 rounded-full blur-[110px] pointer-events-none" 
-      />
+    <div className="min-h-[92vh] w-full flex flex-col items-center justify-center px-4 py-8 md:py-12 relative bg-warm-50/40">
+      {/* Composited Hardware-Accelerated CSS Keyframes for zero-JS loop overhead */}
+      <style>{`
+        @keyframes orderRippleWave {
+          0% { transform: scale(0.85); opacity: 0.65; }
+          100% { transform: scale(1.5); opacity: 0; }
+        }
+        @keyframes orderChefBounce {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-6px); }
+        }
+        @keyframes orderProgressSlider {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(200%); }
+        }
+        @keyframes orderPulseGlow {
+          0%, 100% { transform: scale(0.95); opacity: 0.15; }
+          50% { transform: scale(1.15); opacity: 0.3; }
+        }
+        @keyframes orderConfirmPulse {
+          0% { transform: scale(0.85); opacity: 0.4; }
+          100% { transform: scale(1.45); opacity: 0; }
+        }
+        .anim-order-ripple-1 {
+          animation: orderRippleWave 2.4s cubic-bezier(0, 0, 0.2, 1) infinite;
+        }
+        .anim-order-ripple-2 {
+          animation: orderRippleWave 2.4s cubic-bezier(0, 0, 0.2, 1) 0.8s infinite;
+        }
+        .anim-order-ripple-3 {
+          animation: orderRippleWave 2.4s cubic-bezier(0, 0, 0.2, 1) 1.6s infinite;
+        }
+        .anim-order-bounce {
+          animation: orderChefBounce 2s ease-in-out infinite;
+        }
+        .anim-order-progress {
+          animation: orderProgressSlider 1.8s ease-in-out infinite;
+        }
+        .anim-order-pulse-glow {
+          animation: orderPulseGlow 3s ease-in-out infinite;
+        }
+        .anim-order-confirm-ring {
+          animation: orderConfirmPulse 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+        }
+      `}</style>
+
+      {/* Lightweight GPU-composited Ambient Lighting (Zero Blur Filter Overhead, Zero Scroll Drag) */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10 select-none">
+        <div 
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] rounded-full pointer-events-none opacity-60"
+          style={{
+            background: "radial-gradient(circle, rgba(227, 24, 55, 0.10) 0%, rgba(245, 158, 11, 0.05) 45%, transparent 70%)",
+            transform: "translate3d(-50%, -50%, 0)",
+          }}
+        />
+        <div 
+          className="absolute top-1/4 right-1/4 w-[450px] h-[450px] rounded-full pointer-events-none opacity-50"
+          style={{
+            background: "radial-gradient(circle, rgba(245, 158, 11, 0.08) 0%, transparent 70%)",
+            transform: "translate3d(0, 0, 0)",
+          }}
+        />
+      </div>
 
       {/* Dev Mode Switcher Panel */}
       {process.env.NODE_ENV === "development" && (
-        <div className="fixed bottom-4 left-4 z-50 bg-warm-900/95 text-white px-4 py-3.5 rounded-2xl border border-white/10 shadow-2xl flex flex-wrap items-center gap-3 text-xs font-bold backdrop-blur-md">
+        <div className="fixed bottom-4 left-4 z-50 bg-warm-900/95 text-white px-4 py-3.5 rounded-2xl border border-white/10 shadow-2xl flex flex-wrap items-center gap-3 text-xs font-bold backdrop-blur-sm">
           <span className="text-primary-400">Dev Layout Switcher:</span>
           <button 
             onClick={() => setDevModeStatus("PENDING")} 
@@ -160,8 +259,8 @@ function OrderConfirmedContent() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.4 }}
-            className="max-w-md w-full text-center space-y-6 bg-white/75 backdrop-blur-xl border border-white/40 p-8 rounded-[2rem] shadow-2xl z-10"
+            transition={{ duration: 0.3 }}
+            className="max-w-md w-full text-center space-y-6 bg-white/90 backdrop-blur-md border border-white/60 p-8 rounded-[2rem] shadow-2xl z-10 will-change-transform"
           >
             <div className="flex justify-center">
               <div className="w-16 h-16 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
@@ -175,50 +274,32 @@ function OrderConfirmedContent() {
         {displayStatus === "PENDING" && (
           <motion.div
             key="pending"
-            initial={{ opacity: 0, y: 40 }}
+            initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -40 }}
-            transition={{ duration: 0.6, ease: "easeOut" }}
+            exit={{ opacity: 0, y: -24 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
             className="max-w-5xl w-full grid grid-cols-1 lg:grid-cols-12 gap-8 relative z-10"
           >
             {/* Left Main Card */}
-            <div className="lg:col-span-7 space-y-8 bg-white/60 backdrop-blur-xl border border-white/40 p-6 md:p-8 rounded-[2.5rem] shadow-2xl text-center">
-              {/* Rotating / Pulsing Pizza Icon */}
+            <div className="lg:col-span-7 space-y-8 bg-white/90 backdrop-blur-md border border-white/80 p-6 md:p-8 rounded-[2.5rem] shadow-xl text-center will-change-transform">
+              {/* Rotating / Pulsing Pizza Icon (GPU Composited) */}
               <div className="flex justify-center">
                 <div className="relative">
-                  {/* Ambient pulsing blur glow */}
-                  <motion.div
-                    animate={{ scale: [0.95, 1.15, 0.95], opacity: [0.15, 0.3, 0.15] }}
-                    transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
-                    className="absolute inset-0 w-32 h-32 rounded-[2.5rem] bg-amber-500/20 -m-4 blur-xl pointer-events-none"
-                  />
+                  {/* Ambient pulsing glow */}
+                  <div className="absolute inset-0 w-32 h-32 rounded-[2.5rem] bg-amber-500/20 -m-4 anim-order-pulse-glow pointer-events-none" />
 
-                  {/* Concentric expanding ripples (Radar/Sonar wave effect) */}
-                  {[0, 1, 2].map((i) => (
-                    <motion.div
-                      key={i}
-                      initial={{ scale: 0.85, opacity: 0.6 }}
-                      animate={{ scale: 1.5, opacity: 0 }}
-                      transition={{
-                        repeat: Infinity,
-                        duration: 2.4,
-                        delay: i * 0.8,
-                        ease: "easeOut",
-                      }}
-                      className="absolute inset-0 w-32 h-32 rounded-[2.5rem] border border-amber-500/30 -m-4 pointer-events-none"
-                    />
-                  ))}
+                  {/* Concentric expanding ripples (Composited CSS keyframes) */}
+                  <div className="absolute inset-0 w-32 h-32 rounded-[2.5rem] border border-amber-500/30 -m-4 pointer-events-none anim-order-ripple-1" />
+                  <div className="absolute inset-0 w-32 h-32 rounded-[2.5rem] border border-amber-500/30 -m-4 pointer-events-none anim-order-ripple-2" />
+                  <div className="absolute inset-0 w-32 h-32 rounded-[2.5rem] border border-amber-500/30 -m-4 pointer-events-none anim-order-ripple-3" />
                   
                   <div 
                     className="w-24 h-24 rounded-[2.5rem] bg-gradient-to-tr from-amber-500 to-rose-500 flex items-center justify-center relative z-10 shadow-xl"
                     style={{ boxShadow: "0 20px 40px -12px rgba(245, 158, 11, 0.3)" }}
                   >
-                    <motion.div
-                      animate={{ y: [0, -6, 0] }}
-                      transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
-                    >
+                    <div className="anim-order-bounce">
                       <ChefHat className="w-12 h-12 text-white" strokeWidth={2.5} />
-                    </motion.div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -254,13 +335,9 @@ function OrderConfirmedContent() {
                 </div>
               </div>
 
-              {/* Progress Slider */}
+              {/* Progress Slider (GPU Composited) */}
               <div className="max-w-xs mx-auto bg-warm-100 h-2.5 rounded-full overflow-hidden relative">
-                <motion.div 
-                  animate={{ x: ["-100%", "100%"] }}
-                  transition={{ repeat: Infinity, duration: 1.8, ease: "easeInOut" }}
-                  className="w-1/2 h-full bg-gradient-to-r from-amber-500 to-rose-500 rounded-full"
-                />
+                <div className="w-1/2 h-full bg-gradient-to-r from-amber-500 to-rose-500 rounded-full anim-order-progress" />
               </div>
 
               {/* Call support card */}
@@ -286,7 +363,6 @@ function OrderConfirmedContent() {
                 deliveryFee={deliveryFee}
                 taxAmount={taxAmount}
                 totalAmount={totalAmount}
-                orderData={orderData}
               />
             </div>
           </motion.div>
@@ -296,14 +372,14 @@ function OrderConfirmedContent() {
         {displayStatus === "CONFIRMED" && (
           <motion.div
             key="confirmed"
-            initial={{ opacity: 0, y: 40 }}
+            initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -40 }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
+            exit={{ opacity: 0, y: -24 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
             className="max-w-5xl w-full grid grid-cols-1 lg:grid-cols-12 gap-8 relative z-10"
           >
             {/* Left Column: Confirmation Visuals & Tracker */}
-            <div className="lg:col-span-7 space-y-6 bg-white/60 backdrop-blur-xl border border-white/40 p-6 md:p-8 rounded-[2.5rem] shadow-2xl">
+            <div className="lg:col-span-7 space-y-6 bg-white/90 backdrop-blur-md border border-white/80 p-6 md:p-8 rounded-[2.5rem] shadow-xl will-change-transform">
               {/* Bouncing Checkmark Icon */}
               <div className="flex justify-center">
                 <motion.div
@@ -312,11 +388,8 @@ function OrderConfirmedContent() {
                   transition={{ type: "spring", stiffness: 260, damping: 20 }}
                   className="relative"
                 >
-                  <motion.div
-                    animate={{ scale: [0.8, 1.45], opacity: [0.3, 0] }}
-                    transition={{ repeat: Infinity, duration: 2, ease: "easeOut" }}
-                    className="absolute inset-0 w-32 h-32 rounded-[2.5rem] border-2 border-emerald-500/30 -m-4"
-                  />
+                  {/* Expanding ring (Composited CSS keyframe) */}
+                  <div className="absolute inset-0 w-32 h-32 rounded-[2.5rem] border-2 border-emerald-500/30 -m-4 pointer-events-none anim-order-confirm-ring" />
                   
                   <div 
                     className="w-24 h-24 rounded-[2.5rem] bg-gradient-to-tr from-success to-emerald-400 flex items-center justify-center relative z-10 shadow-lg"
@@ -329,7 +402,7 @@ function OrderConfirmedContent() {
 
               <div className="space-y-3 text-center">
                 <span className="inline-flex items-center gap-1.5 px-3.5 py-1 bg-emerald-500/10 text-emerald-600 rounded-full text-xs font-black uppercase tracking-wider">
-                  <Sparkles className="w-3.5 h-3.5 animate-spin-slow" /> Approved & In Kitchen
+                  <Sparkles className="w-3.5 h-3.5" /> Approved & In Kitchen
                 </span>
                 <h1 className="text-3xl md:text-4xl font-black text-warm-900 tracking-tight leading-tight">
                   Order Confirmed!
@@ -375,7 +448,6 @@ function OrderConfirmedContent() {
               {/* Detailed Live Timeline Tracker */}
               <OrderTimelineTracker 
                 status={orderData?.status || "CONFIRMED"} 
-                orderType={orderData?.orderType || "DELIVERY"}
               />
 
               {/* Back to Menu Actions */}
@@ -407,7 +479,6 @@ function OrderConfirmedContent() {
                     </div>
                     <p className="text-[10px] font-extrabold text-warm-400 uppercase tracking-widest mb-0.5">Estimated Arrival</p>
                     <p className="text-lg font-black text-warm-900">30-45 MINS</p>
-                    <div className="absolute top-0 right-0 w-12 h-12 bg-primary/5 rounded-full translate-x-1/2 -translate-y-1/2 blur-lg" />
                   </div>
 
                   <div className="bg-white rounded-3xl p-5 border border-warm-100 shadow-sm relative overflow-hidden">
@@ -416,7 +487,6 @@ function OrderConfirmedContent() {
                     </div>
                     <p className="text-[10px] font-extrabold text-warm-400 uppercase tracking-widest mb-0.5">Delivering to</p>
                     <p className="text-xs font-bold text-warm-800 line-clamp-2 leading-relaxed">{address || orderData?.deliveryAddress || "Your Location"}</p>
-                    <div className="absolute top-0 right-0 w-12 h-12 bg-success/5 rounded-full translate-x-1/2 -translate-y-1/2 blur-lg" />
                   </div>
                 </div>
               )}
@@ -428,7 +498,6 @@ function OrderConfirmedContent() {
                     </div>
                     <p className="text-[10px] font-extrabold text-warm-400 uppercase tracking-widest mb-0.5">Estimated Prep Time</p>
                     <p className="text-lg font-black text-warm-900">10-15 MINS</p>
-                    <div className="absolute top-0 right-0 w-12 h-12 bg-primary/5 rounded-full translate-x-1/2 -translate-y-1/2 blur-lg" />
                   </div>
 
                   <div className="bg-white rounded-3xl p-5 border border-warm-100 shadow-sm relative overflow-hidden">
@@ -437,7 +506,6 @@ function OrderConfirmedContent() {
                     </div>
                     <p className="text-[10px] font-extrabold text-warm-400 uppercase tracking-widest mb-0.5">Dining Area</p>
                     <p className="text-xs font-bold text-warm-800 line-clamp-2 leading-relaxed">Table Service inside Hello Pizza Cafe</p>
-                    <div className="absolute top-0 right-0 w-12 h-12 bg-success/5 rounded-full translate-x-1/2 -translate-y-1/2 blur-lg" />
                   </div>
                 </div>
               )}
@@ -449,7 +517,6 @@ function OrderConfirmedContent() {
                     </div>
                     <p className="text-[10px] font-extrabold text-warm-400 uppercase tracking-widest mb-0.5">Estimated Prep Time</p>
                     <p className="text-lg font-black text-warm-900">15-20 MINS</p>
-                    <div className="absolute top-0 right-0 w-12 h-12 bg-primary/5 rounded-full translate-x-1/2 -translate-y-1/2 blur-lg" />
                   </div>
 
                   <div className="bg-white rounded-3xl p-5 border border-warm-100 shadow-sm relative overflow-hidden">
@@ -458,7 +525,6 @@ function OrderConfirmedContent() {
                     </div>
                     <p className="text-[10px] font-extrabold text-warm-400 uppercase tracking-widest mb-0.5">Pickup Location</p>
                     <p className="text-xs font-bold text-warm-800 line-clamp-2 leading-relaxed">Hello Pizza Cafe Outlet (Self Pickup)</p>
-                    <div className="absolute top-0 right-0 w-12 h-12 bg-success/5 rounded-full translate-x-1/2 -translate-y-1/2 blur-lg" />
                   </div>
                 </div>
               )}
@@ -469,7 +535,6 @@ function OrderConfirmedContent() {
                 deliveryFee={deliveryFee}
                 taxAmount={taxAmount}
                 totalAmount={totalAmount}
-                orderData={orderData}
               />
             </div>
           </motion.div>
@@ -479,27 +544,19 @@ function OrderConfirmedContent() {
         {displayStatus === "CANCELLED" && (
           <motion.div
             key="cancelled"
-            initial={{ opacity: 0, y: 40 }}
+            initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -40 }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
+            exit={{ opacity: 0, y: -24 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
             className="max-w-5xl w-full grid grid-cols-1 lg:grid-cols-12 gap-8 relative z-10"
           >
             {/* Left Column: Main Warning Details */}
-            <div className="lg:col-span-7 space-y-6 bg-white/60 backdrop-blur-xl border border-white/40 p-6 md:p-8 rounded-[2.5rem] shadow-2xl">
-              {/* Pulsing Warning Warning Visual */}
+            <div className="lg:col-span-7 space-y-6 bg-white/90 backdrop-blur-md border border-white/80 p-6 md:p-8 rounded-[2.5rem] shadow-xl will-change-transform">
+              {/* Warning Visual */}
               <div className="flex justify-center">
-                <motion.div
-                  initial={{ scale: 0, rotate: 15 }}
-                  animate={{ scale: 1, rotate: 0 }}
-                  transition={{ type: "spring", stiffness: 200, damping: 15 }}
-                  className="relative"
-                >
-                  <motion.div
-                    animate={{ scale: [1, 1.25, 1], opacity: [0.15, 0.35, 0.15] }}
-                    transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}
-                    className="absolute inset-0 w-32 h-32 rounded-[2.5rem] bg-red-500/20 -m-4 blur-md"
-                  />
+                <div className="relative">
+                  {/* Subtle pulsing glow */}
+                  <div className="absolute inset-0 w-32 h-32 rounded-[2.5rem] bg-red-500/20 -m-4 anim-order-pulse-glow pointer-events-none" />
                   
                   <div 
                     className="w-24 h-24 rounded-[2.5rem] bg-gradient-to-tr from-red-600 to-rose-400 flex items-center justify-center relative z-10 shadow-lg"
@@ -507,7 +564,7 @@ function OrderConfirmedContent() {
                   >
                     <AlertTriangle className="w-12 h-12 text-white" strokeWidth={2} />
                   </div>
-                </motion.div>
+                </div>
               </div>
 
               <div className="space-y-3 text-center">
@@ -531,14 +588,7 @@ function OrderConfirmedContent() {
               </div>
 
               {/* Rejection Reason Card */}
-              <motion.div
-                initial={{ scale: 0.95, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: 0.2 }}
-                className="bg-red-500/5 border border-red-200/25 rounded-3xl p-6 text-left relative overflow-hidden"
-              >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 rounded-full translate-x-1/3 -translate-y-1/3 blur-xl pointer-events-none" />
-                
+              <div className="bg-red-500/5 border border-red-200/25 rounded-3xl p-6 text-left relative overflow-hidden">
                 <h3 className="text-sm font-black text-red-800 mb-2.5 relative z-10 flex items-center gap-2">
                   <XCircle className="w-5 h-5 text-red-500" />
                   Kitchen Cancellation Note:
@@ -553,7 +603,7 @@ function OrderConfirmedContent() {
                 <p className="text-warm-500 text-xs font-semibold mt-1 relative z-10 leading-relaxed">
                   If you completed online UPI or pre-payment, a full refund has been automatically initiated. The amount will reflect back in your bank account/payment source within 3-5 working days.
                 </p>
-              </motion.div>
+              </div>
 
               {/* Actions */}
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
@@ -581,7 +631,6 @@ function OrderConfirmedContent() {
                 deliveryFee={deliveryFee}
                 taxAmount={taxAmount}
                 totalAmount={totalAmount}
-                orderData={orderData}
               />
             </div>
           </motion.div>
@@ -617,8 +666,8 @@ function OrderConfirmedContent() {
   );
 }
 
-// Order Timeline Progress Tracker
-function OrderTimelineTracker({ status, orderType = "DELIVERY" }: { status: string; orderType?: string }) {
+// Order Timeline Progress Tracker - Memoized to prevent re-render during polling
+const OrderTimelineTracker = memo(function OrderTimelineTracker({ status }: { status: string; orderType?: string }) {
   const steps = [
     { key: "PLACED", label: "Order Received", desc: "Your order details have been received", doneStates: ["PENDING", "CONFIRMED", "PREPARING", "READY", "OUT_FOR_DELIVERY", "DELIVERED"] },
     { key: "ACCEPTED", label: "Accepted by Kitchen", desc: "Kitchen cashier confirmed your order", doneStates: ["CONFIRMED", "PREPARING", "READY", "OUT_FOR_DELIVERY", "DELIVERED"] }
@@ -634,7 +683,7 @@ function OrderTimelineTracker({ status, orderType = "DELIVERY" }: { status: stri
       <div className="relative pl-6 border-l-2 border-warm-200 space-y-6 ml-3 py-1">
         {steps.map((step, idx) => {
           const isDone = step.doneStates.includes(status);
-          const isActive = idx === currentStepIndex || (status === "PENDING" && idx === 1); // special highlight for pending acceptance
+          const isActive = idx === currentStepIndex || (status === "PENDING" && idx === 1);
           
           return (
             <div key={idx} className="relative">
@@ -661,19 +710,31 @@ function OrderTimelineTracker({ status, orderType = "DELIVERY" }: { status: stri
       </div>
     </div>
   );
-}
+});
 
-// Receipt Card Component
-function OrderSummaryCard({ orderItems, subtotal, deliveryFee, taxAmount, totalAmount }: any) {
+// Receipt Card Component - Memoized to prevent virtual DOM recreation on poll
+const OrderSummaryCard = memo(function OrderSummaryCard({ 
+  orderItems, 
+  subtotal, 
+  deliveryFee, 
+  taxAmount, 
+  totalAmount 
+}: {
+  orderItems: any[];
+  subtotal: number;
+  deliveryFee: number;
+  taxAmount: number;
+  totalAmount: number;
+}) {
   return (
-    <div className="bg-white/70 backdrop-blur-xl border border-warm-200/60 rounded-[2rem] p-6 shadow-xl shadow-warm-900/5 space-y-6">
+    <div className="bg-white/90 backdrop-blur-md border border-warm-200/60 rounded-[2rem] p-6 shadow-xl shadow-warm-900/5 space-y-6 will-change-transform">
       <h3 className="font-extrabold text-warm-900 text-sm tracking-wider uppercase flex items-center gap-2 border-b border-warm-100 pb-4">
         <ShoppingBag className="w-4 h-4 text-primary" />
         Order Summary
       </h3>
 
-      {/* Items List */}
-      <div className="divide-y divide-warm-100/60 max-h-[300px] overflow-y-auto pr-1">
+      {/* Items List with overscroll containment */}
+      <div className="divide-y divide-warm-100/60 max-h-[300px] overflow-y-auto overscroll-contain pr-1">
         {orderItems.map((item: any) => (
           <div key={item.id} className="py-3 flex justify-between items-start gap-4 text-xs">
             <div className="space-y-1">
@@ -721,7 +782,7 @@ function OrderSummaryCard({ orderItems, subtotal, deliveryFee, taxAmount, totalA
       </div>
     </div>
   );
-}
+});
 
 export default function OrderConfirmedPage() {
   return (
