@@ -29,7 +29,26 @@ export async function GET(request: NextRequest) {
     const settings = await prisma.loyaltySetting.findMany();
 
     // Fetch loyalty transactions
+    // Allow optional filters (?days=X, ?since=ISO, ?all=true)
+    // Default to last 3 days (covers all transactions from today + 2 previous days)
+    // This keeps the response payload ~2.3 MB, well within Vercel's 4.5 MB limit and avoiding timeouts
+    const allParam = searchParams.get("all");
+    const sinceParam = searchParams.get("since");
+    const daysParam = searchParams.get("days");
+
+    let txWhere: any = {};
+    if (allParam === "true") {
+      txWhere = {};
+    } else if (sinceParam) {
+      txWhere = { timestamp: { gte: new Date(sinceParam) } };
+    } else {
+      const days = daysParam ? parseInt(daysParam, 10) : 3;
+      const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+      txWhere = { timestamp: { gte: cutoffDate } };
+    }
+
     const transactions = await prisma.loyaltyTransaction.findMany({
+      where: txWhere,
       orderBy: { timestamp: "asc" }
     });
 
